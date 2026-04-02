@@ -2,8 +2,14 @@ import { ref, computed } from 'vue'
 
 export type EditorMode = 'design' | 'block' | 'code'
 
+export interface Page {
+  id: string
+  name: string
+}
+
 export interface AppElement {
   id: string
+  pageId: string
   type: string
   // x/y are only meaningful for root-level containers; children use flex layout
   x: number
@@ -37,21 +43,41 @@ function isContainer(type: string) {
 const mode = ref<EditorMode>('design')
 const selectedElementId = ref<string | null>(null)
 const elements = ref<AppElement[]>([])
+
+const pages = ref<Page[]>([
+  { id: 'page1', name: 'Page 1' }
+])
+const currentPageId = ref<string>('page1')
+
 const isPreviewOpen = ref(false)
 const isRunning = ref(false)
+const activeDeviceId = ref<string>('iphone15')
 
-let idCounter = 1
-function generateId() {
-  return `el-${Date.now()}-${idCounter++}`
+// Shared JS code state (written in Code tab, executed in Run mode)
+const jsCode = ref<string>('')
+const jsCodeInitialized = ref(false)
+
+// 'ios' for iPhone devices, 'android' for Android device
+const activePlatform = computed<'ios' | 'android'>(() =>
+  activeDeviceId.value === 'android' ? 'android' : 'ios'
+)
+
+// Per-type counter so IDs read like page1_button1, page1_toolbar1, etc.
+const typeCounters: Record<string, number> = {}
+
+function generateId(type: string): string {
+  const key = type.toLowerCase()
+  typeCounters[key] = (typeCounters[key] ?? 0) + 1
+  return `${currentPageId.value}_${key}${typeCounters[key]}`
 }
 
 const selectedElement = computed(() =>
   elements.value.find(el => el.id === selectedElementId.value) ?? null
 )
 
-// Returns only the top-level containers (parentId === null)
+// Returns only the top-level containers (parentId === null) for the CURRENT page
 const rootContainers = computed(() =>
-  elements.value.filter(el => el.parentId === null)
+  elements.value.filter(el => el.parentId === null && el.pageId === currentPageId.value)
 )
 
 function setMode(newMode: EditorMode) {
@@ -60,6 +86,11 @@ function setMode(newMode: EditorMode) {
 
 function selectElement(id: string | null) {
   selectedElementId.value = id
+  // If an element is selected, ensure we are in a mode that shows properties
+  // or focus the design panel as requested by user.
+  if (id && mode.value === 'block') {
+    mode.value = 'design'
+  }
 }
 
 // Returns the parent Container element of a given element id, or null
@@ -70,16 +101,18 @@ function getContainerOf(id: string): AppElement | null {
 }
 
 function getRootContainers(): AppElement[] {
-  return elements.value.filter(el => el.parentId === null)
+  return elements.value.filter(el => el.parentId === null && el.pageId === currentPageId.value)
 }
 
 // Creates a new container at root level and returns it.
 // Used when the canvas is empty or nothing is selected and the user adds an element.
 function _createRootContainer(direction: 'row' | 'col' = 'row'): AppElement {
   const offset = rootContainers.value.length * 8
+  const type = direction === 'row' ? 'RowContainer' : 'ColContainer'
   const container: AppElement = {
-    id: generateId(),
-    type: direction === 'row' ? 'RowContainer' : 'ColContainer',
+    id: generateId(type),
+    pageId: currentPageId.value,
+    type,
     x: 8 + offset,
     y: 8 + offset,
     width: 340,
@@ -110,7 +143,8 @@ function _createRootContainer(direction: 'row' | 'col' = 'row'): AppElement {
 //   3. no selection / nothing on canvas      → auto-create root RowContainer, add inside it
 function addElement(item: PaletteItem, targetId?: string): AppElement {
   const newEl: AppElement = {
-    id: generateId(),
+    id: generateId(item.type),
+    pageId: currentPageId.value,
     type: item.type,
     x: 0,
     y: 0,
@@ -126,9 +160,9 @@ function addElement(item: PaletteItem, targetId?: string): AppElement {
 
   const resolvedTarget = targetId ?? selectedElementId.value ?? null
 
-  // Toolbar is always a singleton at root level — remove any existing one first
+  // Toolbar is always a singleton at root level per page — remove any existing one first
   if (item.type === 'Toolbar') {
-    const existing = elements.value.find(e => e.type === 'Toolbar')
+    const existing = elements.value.find(e => e.type === 'Toolbar' && e.pageId === currentPageId.value)
     if (existing) deleteElement(existing.id)
     _addAtRoot(newEl)
     selectedElementId.value = newEl.id
@@ -233,7 +267,7 @@ function addContainer(direction: 'row' | 'col', targetId?: string): AppElement {
 function updateElement(id: string, patch: Partial<AppElement>) {
   const idx = elements.value.findIndex(el => el.id === id)
   if (idx !== -1) {
-    elements.value[idx] = { ...elements.value[idx], ...patch }
+    elements.value[idx] = { ...elements.value[idx], ...patch } as AppElement
   }
 }
 
@@ -243,7 +277,7 @@ function updateElementProps(id: string, propsPatch: Record<string, unknown>) {
     elements.value[idx] = {
       ...elements.value[idx],
       props: { ...elements.value[idx].props, ...propsPatch },
-    }
+    } as AppElement
   }
 }
 
@@ -290,14 +324,73 @@ function setRunning(val: boolean) {
   isRunning.value = val
 }
 
+function setActiveDevice(id: string) {
+  activeDeviceId.value = id
+}
+
+function setJsCode(code: string) {
+  jsCode.value = code
+  jsCodeInitialized.value = true
+}
+
+function markJsCodeInitialized() {
+  jsCodeInitialized.value = true
+}
+
+// ── Page Management ───────────────────────────────────────────────────────
+
+function addPage() {
+  const id = `page${pages.value.length + 1}`
+  pages.value.push({
+    id,
+    name: `Page ${pages.value.length + 1}`
+  })
+  currentPageId.value = id
+  selectedElementId.value = null
+}
+
+function switchPage(id: string) {
+  currentPageId.value = id
+  selectedElementId.value = null
+}
+
+function deletePage(id: string) {
+  if (pages.value.length <= 1) return // Keep at least one page
+  
+  // Delete all elements on this page
+  elements.value = elements.value.filter(el => el.pageId !== id)
+  
+  const idx = pages.value.findIndex(p => p.id === id)
+  if (idx !== -1) {
+    pages.value.splice(idx, 1)
+    if (currentPageId.value === id) {
+      currentPageId.value = pages.value[0].id
+    }
+  }
+  selectedElementId.value = null
+}
+
+function renamePage(id: string, name: string) {
+  const page = pages.value.find(p => p.id === id)
+  if (page) {
+    page.name = name
+  }
+}
+
 export function useEditorStore() {
   return {
     // State (readonly refs — mutate only through actions)
     mode,
     selectedElementId,
     elements,
+    pages,
+    currentPageId,
     isPreviewOpen,
     isRunning,
+    activeDeviceId,
+    activePlatform,
+    jsCode,
+    jsCodeInitialized,
     // Derived
     selectedElement,
     rootContainers,
@@ -311,6 +404,14 @@ export function useEditorStore() {
     deleteElement,
     togglePreview,
     setRunning,
+    setActiveDevice,
+    setJsCode,
+    markJsCodeInitialized,
+    addPage,
+    switchPage,
+    deletePage,
+    renamePage,
+    reorderChildren,
     // Helpers
     getContainerOf,
     getRootContainers,

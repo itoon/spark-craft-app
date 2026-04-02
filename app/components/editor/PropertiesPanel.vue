@@ -30,6 +30,21 @@
     <!-- Properties form when element is selected -->
     <div v-else class="flex-1 overflow-y-auto">
 
+      <!-- ── ID / Identification ── -->
+      <div class="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-100 bg-neutral-50 shrink-0">
+        <div class="flex flex-col gap-0.5 flex-1 min-w-0">
+          <span class="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider">ID / Identification</span>
+          <span class="text-[11px] font-mono text-neutral-700 truncate">{{ selectedElement.id }}</span>
+        </div>
+        <button
+          class="text-[10px] px-2 py-1 rounded bg-neutral-200 hover:bg-indigo-100 hover:text-indigo-700 text-neutral-600 font-medium transition-colors shrink-0"
+          :class="copied ? 'bg-green-100 text-green-700' : ''"
+          @click="copyId"
+        >
+          {{ copied ? 'Copied!' : 'Copy' }}
+        </button>
+      </div>
+
       <!-- ── Container layout section (only for RowContainer / ColContainer) ── -->
       <EditorPropertiesSection
         v-if="isContainerType"
@@ -397,12 +412,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
 import type { AppElement } from '~/composables/useEditorStore'
 
 const store = useEditorStore()
 const selectedElement = store.selectedElement
+
+// Copy ID to clipboard
+const copied = ref(false)
+function copyId() {
+  if (!selectedElement.value) return
+  navigator.clipboard.writeText(selectedElement.value.id)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 1500)
+}
 
 const CONTAINER_TYPES = new Set(['RowContainer', 'ColContainer'])
 const CONTENT_TYPES = new Set([
