@@ -48,8 +48,7 @@ export const ELEMENT_CLASS_MAP: Record<string, string> = {
   Segment:              'Segment',
   Separator:            'Separator',
   Spacer:               'Spacer',
-  RowContainer:         'Row',
-  ColContainer:         'Col',
+  Container:            'Container',
 }
 
 /** camelCase variable from ID, e.g. page1_button1 → button1 */
@@ -212,8 +211,7 @@ export function executeCode(
   const Segment       = make('Segment')
   const Separator     = make('Separator')
   const Spacer        = make('Spacer')
-  const Row           = make('Row')
-  const Col           = make('Col')
+  const Container     = make('Container')
 
   // ── page object ───────────────────────────────────────────────────────
   const page = {
@@ -244,7 +242,7 @@ export function executeCode(
       'Range','DatePicker','Checkbox','Radio','Toggle','Select',
       'Heading','TextBox','Badge','Chip','Spinner',
       'Image','Link','Video','List','Card','Segment',
-      'Separator','Spacer','Row','Col',
+      'Separator','Spacer','Container',
       'page','console',
       `"use strict";\n${code}`
     )(
@@ -252,7 +250,7 @@ export function executeCode(
       Range,DatePicker,Checkbox,Radio,Toggle,Select,
       Heading,TextBox,Badge,Chip,Spinner,
       Image,Link,Video,List,Card,Segment,
-      Separator,Spacer,Row,Col,
+      Separator,Spacer,Container,
       page,console
     )
     logs.push({ type: 'success', message: `Done — ${pageElements.length} element(s) on page` })

@@ -26,7 +26,7 @@
         </div>
 
         <!-- Items grid: 3 columns -->
-        <div class="grid grid-cols-5 gap-2">
+        <div class="grid grid-cols-4 gap-2">
           <button
             v-for="item in group.items"
             :key="item.type"
@@ -38,7 +38,7 @@
           >
             <UIcon
               :name="item.icon"
-              class="text-neutral-500 group-hover:text-indigo-600 size-6 transition-colors duration-100"
+              class="text-neutral-500 group-hover:text-indigo-600 size-4 transition-colors duration-100"
             />
             <span
               class="text-xs font-semibold text-neutral-600 group-hover:text-indigo-700 text-center mt-1 leading-tight transition-colors duration-100"

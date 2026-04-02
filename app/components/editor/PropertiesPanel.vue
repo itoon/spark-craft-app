@@ -45,39 +45,13 @@
         </button>
       </div>
 
-      <!-- ── Container layout section (only for RowContainer / ColContainer) ── -->
+      <!-- ── Container layout section (only for Container) ── -->
       <EditorPropertiesSection
         v-if="isContainerType"
         title="Layout"
         icon="i-lucide-layout-dashboard"
       >
         <div class="space-y-3">
-          <!-- Direction toggle -->
-          <EditorPropField label="Direction">
-            <div class="flex gap-1">
-              <button
-                class="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors duration-100"
-                :class="selectedElement.direction === 'row'
-                  ? 'bg-indigo-500 border-indigo-500 text-white'
-                  : 'bg-neutral-100 border-neutral-200 text-neutral-600 hover:border-indigo-300'"
-                @click="setDirection('row')"
-              >
-                <UIcon name="i-lucide-arrow-right" class="size-3" />
-                Row
-              </button>
-              <button
-                class="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors duration-100"
-                :class="selectedElement.direction === 'col'
-                  ? 'bg-indigo-500 border-indigo-500 text-white'
-                  : 'bg-neutral-100 border-neutral-200 text-neutral-600 hover:border-indigo-300'"
-                @click="setDirection('col')"
-              >
-                <UIcon name="i-lucide-arrow-down" class="size-3" />
-                Col
-              </button>
-            </div>
-          </EditorPropField>
-
           <!-- Gap -->
           <EditorPropField label="Gap">
             <UInput
@@ -428,7 +402,7 @@ function copyId() {
   setTimeout(() => { copied.value = false }, 1500)
 }
 
-const CONTAINER_TYPES = new Set(['RowContainer', 'ColContainer'])
+const CONTAINER_TYPES = new Set(['Container'])
 const CONTENT_TYPES = new Set([
   'Button', 'Input', 'LabelledInput', 'TextBox', 'Heading',
   'Checkbox', 'RadioButton', 'Toggle', 'Image', 'Link',
@@ -495,16 +469,7 @@ function patchProps(patch: Record<string, unknown>) {
   }
 }
 
-// Direction toggle — also changes the element type to match (RowContainer ↔ ColContainer)
-function setDirection(dir: 'row' | 'col') {
-  if (!selectedElement.value) return
-  const newType = dir === 'row' ? 'RowContainer' : 'ColContainer'
-  store.updateElement(selectedElement.value.id, {
-    type: newType,
-    direction: dir,
-  })
-  patchProps({ direction: dir })
-}
+// Direction toggle removed — Container is always vertical.
 
 function handleDelete() {
   if (selectedElement.value) {

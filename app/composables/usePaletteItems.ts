@@ -14,22 +14,6 @@ export function usePaletteItems(): PaletteGroup[] {
       icon: 'i-lucide-layout-dashboard',
       items: [
         {
-          type: 'RowContainer',
-          label: 'Row',
-          icon: 'i-lucide-rows-3',
-          defaultWidth: 340,
-          defaultHeight: 56,
-          defaultProps: { direction: 'row', gap: 8, padding: 8, backgroundColor: 'transparent' },
-        },
-        {
-          type: 'ColContainer',
-          label: 'Col',
-          icon: 'i-lucide-columns-3',
-          defaultWidth: 180,
-          defaultHeight: 112,
-          defaultProps: { direction: 'col', gap: 8, padding: 8, backgroundColor: 'transparent' },
-        },
-        {
           type: 'Toolbar',
           label: 'Toolbar',
           icon: 'i-lucide-panel-top',
@@ -38,28 +22,12 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultProps: { title: 'My App', showBack: false, backgroundColor: '#3880ff' },
         },
         {
-          type: 'Card',
-          label: 'Card',
-          icon: 'i-lucide-rectangle-horizontal',
-          defaultWidth: 300,
-          defaultHeight: 112,
-          defaultProps: { title: 'Card Title', subtitle: 'Subtitle', backgroundColor: '#ffffff' },
-        },
-        {
           type: 'List',
           label: 'List',
           icon: 'i-lucide-list',
           defaultWidth: 300,
           defaultHeight: 168,
           defaultProps: { items: ['Item 1', 'Item 2', 'Item 3'], backgroundColor: '#ffffff' },
-        },
-        {
-          type: 'Segment',
-          label: 'Segment',
-          icon: 'i-lucide-layout-panel-left',
-          defaultWidth: 300,
-          defaultHeight: 42,
-          defaultProps: { options: ['Tab 1', 'Tab 2', 'Tab 3'], selected: 0, color: '#3880ff' },
         },
         {
           type: 'Separator',
@@ -100,14 +68,6 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultWidth: 56,
           defaultHeight: 56,
           defaultProps: { icon: 'i-lucide-plus', backgroundColor: '#3880ff', borderRadius: 28 },
-        },
-        {
-          type: 'Searchbar',
-          label: 'Searchbar',
-          icon: 'i-lucide-search',
-          defaultWidth: 280,
-          defaultHeight: 42,
-          defaultProps: { placeholder: 'Search', backgroundColor: '#f4f5f8' },
         },
         {
           type: 'LabelledInput',
@@ -204,14 +164,6 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultWidth: 56,
           defaultHeight: 28,
           defaultProps: { text: 'New', color: '#3880ff' },
-        },
-        {
-          type: 'Chip',
-          label: 'Chip',
-          icon: 'i-lucide-circle',
-          defaultWidth: 84,
-          defaultHeight: 28,
-          defaultProps: { label: 'Chip', color: '#3880ff', outline: false },
         },
         {
           type: 'Spinner',

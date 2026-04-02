@@ -61,6 +61,7 @@
         :color="store.isRunning.value ? 'error' : 'success'"
         variant="solid"
         size="xs"
+        data-testid="run-button"
         @click="handleRun"
       />
 

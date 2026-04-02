@@ -1,14 +1,17 @@
 <template>
   <div class="w-full h-full">
 
-    <!-- ─── RowContainer / ColContainer ──────────────────────────────────── -->
+    <!-- ─── Container ──────────────────────────────────── -->
     <div
-      v-if="element.type === 'RowContainer' || element.type === 'ColContainer'"
-      class="relative w-full border-2 border-dashed rounded-sm transition-colors duration-100 select-none"
+      v-if="element.type === 'Container'"
+      class="relative w-full transition-colors duration-100 select-none"
       :class="[
+        element.parentId 
+          ? 'border-2 border-dashed rounded-sm' 
+          : '',
         isSelected
           ? 'border-indigo-500 bg-indigo-500/5'
-          : 'border-slate-400/30 hover:border-indigo-400/50',
+          : element.parentId ? 'border-slate-400/30 hover:border-indigo-400/50' : '',
       ]"
       :style="containerStyle"
       @click.stop="handleElementClick"
@@ -17,8 +20,7 @@
         <span class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none">{{ element.type }}</span>
       </div>
       <div
-        class="flex w-full"
-        :class="element.type === 'ColContainer' ? 'flex-col' : 'flex-row items-center'"
+        class="flex w-full flex-col"
         :style="innerFlexStyle"
       >
         <div
@@ -46,9 +48,8 @@
           <EditorCanvasElementRenderer v-if="getElement(childId)" :element="getElement(childId)!" />
         </div>
         <div
-          v-if="element.children.length === 0 || isSelected"
-          class="flex items-center justify-center shrink-0 opacity-40"
-          :class="element.type === 'ColContainer' ? 'w-full h-6' : 'h-full w-8'"
+          v-if="element.parentId && (element.children.length === 0 || isSelected)"
+          class="flex items-center justify-center shrink-0 opacity-40 w-full h-6"
         >
           <UIcon name="i-lucide-plus" class="size-3 text-slate-400" />
         </div>
@@ -809,7 +810,8 @@ const innerFlexStyle = computed(() => {
 function childStyle(childId: string): Record<string, string> {
   const child = getElement(childId)
   if (!child) return {}
-  const isCol = props.element.type === 'ColContainer'
+  const type = props.element.type
+  const isCol = type === 'Container' || type === 'ColContainer'
   return {
     ...(isCol ? { width: '100%' } : { flex: '1', minWidth: '0' }),
     height: `${child.height}px`,

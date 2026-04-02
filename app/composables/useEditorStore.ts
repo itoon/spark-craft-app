@@ -20,7 +20,7 @@ export interface AppElement {
   // Tree structure
   parentId: string | null   // null = root level
   children: string[]        // ordered child IDs (only containers use this meaningfully)
-  direction?: 'row' | 'col' // only used when type is RowContainer or ColContainer
+  direction?: 'row' | 'col' // only used when type is Container
 }
 
 export interface PaletteItem {
@@ -33,7 +33,7 @@ export interface PaletteItem {
 }
 
 // Container types — these can hold children
-const CONTAINER_TYPES = new Set(['RowContainer', 'ColContainer'])
+const CONTAINER_TYPES = new Set(['Container'])
 
 function isContainer(type: string) {
   return CONTAINER_TYPES.has(type)
@@ -51,10 +51,11 @@ const currentPageId = ref<string>('page1')
 
 const isPreviewOpen = ref(false)
 const isRunning = ref(false)
+const elementSnapshot = ref<AppElement[] | null>(null)
 const activeDeviceId = ref<string>('iphone15')
 
 // Shared JS code state (written in Code tab, executed in Run mode)
-const jsCode = ref<string>('')
+const jsCode = ref('')
 const jsCodeInitialized = ref(false)
 
 // 'ios' for iPhone devices, 'android' for Android device
@@ -75,9 +76,9 @@ const selectedElement = computed(() =>
   elements.value.find(el => el.id === selectedElementId.value) ?? null
 )
 
-// Returns only the top-level containers (parentId === null) for the CURRENT page
-const rootContainers = computed(() =>
-  elements.value.filter(el => el.parentId === null && el.pageId === currentPageId.value)
+// Returns only the top-level Container for the CURRENT page
+const rootContainer = computed(() =>
+  elements.value.find(el => el.parentId === null && el.type === 'Container' && el.pageId === currentPageId.value)
 )
 
 function setMode(newMode: EditorMode) {
@@ -100,27 +101,26 @@ function getContainerOf(id: string): AppElement | null {
   return elements.value.find(e => e.id === el.parentId) ?? null
 }
 
-function getRootContainers(): AppElement[] {
-  return elements.value.filter(el => el.parentId === null && el.pageId === currentPageId.value)
+function getRootContainer(): AppElement | undefined {
+  return elements.value.find(el => el.parentId === null && el.type === 'Container' && el.pageId === currentPageId.value)
 }
 
 // Creates a new container at root level and returns it.
-// Used when the canvas is empty or nothing is selected and the user adds an element.
-function _createRootContainer(direction: 'row' | 'col' = 'row'): AppElement {
-  const offset = rootContainers.value.length * 8
-  const type = direction === 'row' ? 'RowContainer' : 'ColContainer'
+function _createRootContainer(): AppElement {
+  const type = 'Container'
+  const direction = 'col'
   const container: AppElement = {
     id: generateId(type),
     pageId: currentPageId.value,
     type,
-    x: 8 + offset,
-    y: 8 + offset,
-    width: 340,
-    height: 60,
+    x: 0,
+    y: 0,
+    width: 393, // Full width of viewport
+    height: 852, // Full height of viewport
     props: {
       direction,
-      gap: 8,
-      padding: 8,
+      gap: 16,
+      padding: 16,
       backgroundColor: 'transparent',
     },
     parentId: null,
@@ -133,14 +133,14 @@ function _createRootContainer(direction: 'row' | 'col' = 'row'): AppElement {
 
 // Smart placement logic per the container-first rules:
 //
-// Case A — item is a RowContainer or ColContainer:
+// Case A — item is a Container:
 //   - If targetId points to a container → add as nested container inside it
 //   - Otherwise → add at root level
 //
 // Case B — regular element:
 //   1. targetId points to a container        → add inside that container
 //   2. targetId points to a non-container    → add as sibling in same parent container
-//   3. no selection / nothing on canvas      → auto-create root RowContainer, add inside it
+//   3. no selection / nothing on canvas      → auto-create root Container, add inside it
 function addElement(item: PaletteItem, targetId?: string): AppElement {
   const newEl: AppElement = {
     id: generateId(item.type),
@@ -160,6 +160,10 @@ function addElement(item: PaletteItem, targetId?: string): AppElement {
 
   const resolvedTarget = targetId ?? selectedElementId.value ?? null
 
+  // Ensure root container exists for the current page
+  let rc = getRootContainer()
+  if (!rc) rc = _createRootContainer()
+
   // Toolbar is always a singleton at root level per page — remove any existing one first
   if (item.type === 'Toolbar') {
     const existing = elements.value.find(e => e.type === 'Toolbar' && e.pageId === currentPageId.value)
@@ -169,76 +173,52 @@ function addElement(item: PaletteItem, targetId?: string): AppElement {
     return newEl
   }
 
-  if (isContainer(item.type)) {
-    // Container palette items
-    if (resolvedTarget) {
-      const targetEl = elements.value.find(e => e.id === resolvedTarget)
-      if (targetEl && isContainer(targetEl.type)) {
-        // Nest inside the targeted container
-        newEl.parentId = targetEl.id
+  // Regular element placement
+  if (resolvedTarget) {
+    const targetEl = elements.value.find(e => e.id === resolvedTarget)
+    if (targetEl && isContainer(targetEl.type)) {
+      newEl.parentId = targetEl.id
+      elements.value.push(newEl)
+      targetEl.children.push(newEl.id)
+    } else if (targetEl && !isContainer(targetEl.type) && targetEl.parentId) {
+      // Add as sibling in the same parent if it exists, else root container
+      const parent = elements.value.find(e => e.id === targetEl.parentId)
+      if (parent) {
+        newEl.parentId = parent.id
         elements.value.push(newEl)
-        targetEl.children.push(newEl.id)
-      } else if (targetEl && !isContainer(targetEl.type) && targetEl.parentId) {
-        // Target is a non-container child — nest in same parent
-        const parent = elements.value.find(e => e.id === targetEl.parentId)
-        if (parent) {
-          newEl.parentId = parent.id
-          elements.value.push(newEl)
-          parent.children.push(newEl.id)
-        } else {
-          _addAtRoot(newEl)
-        }
+        parent.children.push(newEl.id)
       } else {
-        _addAtRoot(newEl)
+        newEl.parentId = rc.id
+        elements.value.push(newEl)
+        rc.children.push(newEl.id)
       }
     } else {
-      _addAtRoot(newEl)
+      newEl.parentId = rc.id
+      elements.value.push(newEl)
+      rc.children.push(newEl.id)
     }
   } else {
-    // Regular (non-container) element
-    if (resolvedTarget) {
-      const targetEl = elements.value.find(e => e.id === resolvedTarget)
-      if (targetEl && isContainer(targetEl.type)) {
-        // Add inside the selected container
-        newEl.parentId = targetEl.id
-        elements.value.push(newEl)
-        targetEl.children.push(newEl.id)
-      } else if (targetEl && !isContainer(targetEl.type) && targetEl.parentId) {
-        // Add as sibling in same parent container
-        const parent = elements.value.find(e => e.id === targetEl.parentId)
-        if (parent && isContainer(parent.type)) {
-          newEl.parentId = parent.id
-          elements.value.push(newEl)
-          parent.children.push(newEl.id)
-        } else {
-          _autoCreateAndAdd(newEl)
-        }
-      } else {
-        // Selected element is a root container of unknown type or something else
-        _autoCreateAndAdd(newEl)
-      }
-    } else {
-      // Nothing selected — auto-create a root RowContainer and add inside it
-      _autoCreateAndAdd(newEl)
-    }
+    // Nothing selected — add directly to root container
+    newEl.parentId = rc.id
+    elements.value.push(newEl)
+    rc.children.push(newEl.id)
   }
 
   selectedElementId.value = newEl.id
   return newEl
 }
 
-// Places a new element at root level with stagger offset
+// Places a new element at root level (like Toolbar)
 function _addAtRoot(el: AppElement) {
-  const offset = rootContainers.value.length * 8
-  el.x = 8 + offset
-  el.y = 8 + offset
+  el.x = 0
+  el.y = 0
   el.parentId = null
   elements.value.push(el)
 }
 
-// Auto-creates a root RowContainer then nests the element inside it
+// Auto-creates a root vertical Container then nests the element inside it
 function _autoCreateAndAdd(el: AppElement) {
-  const container = _createRootContainer('row')
+  const container = _createRootContainer()
   el.parentId = container.id
   elements.value.push(el)
   container.children.push(el.id)
@@ -247,17 +227,17 @@ function _autoCreateAndAdd(el: AppElement) {
 }
 
 // Explicitly add a container (from palette) at root or nested
-function addContainer(direction: 'row' | 'col', targetId?: string): AppElement {
+function addContainer(targetId?: string): AppElement {
   const paletteItem: PaletteItem = {
-    type: direction === 'row' ? 'RowContainer' : 'ColContainer',
-    label: direction === 'row' ? 'Row Container' : 'Col Container',
-    icon: direction === 'row' ? 'i-lucide-rows-3' : 'i-lucide-columns-3',
-    defaultWidth: direction === 'row' ? 340 : 180,
-    defaultHeight: direction === 'row' ? 60 : 120,
+    type: 'Container',
+    label: 'Container',
+    icon: 'i-lucide-box',
+    defaultWidth: 340,
+    defaultHeight: 120,
     defaultProps: {
-      direction,
-      gap: 8,
-      padding: 8,
+      direction: 'col',
+      gap: 16,
+      padding: 16,
       backgroundColor: 'transparent',
     },
   }
@@ -274,9 +254,10 @@ function updateElement(id: string, patch: Partial<AppElement>) {
 function updateElementProps(id: string, propsPatch: Record<string, unknown>) {
   const idx = elements.value.findIndex(el => el.id === id)
   if (idx !== -1) {
+    const el = elements.value[idx]!
     elements.value[idx] = {
-      ...elements.value[idx],
-      props: { ...elements.value[idx].props, ...propsPatch },
+      ...el,
+      props: { ...el.props, ...propsPatch },
     } as AppElement
   }
 }
@@ -309,9 +290,10 @@ function deleteElement(id: string) {
 // Move a child from index `from` to index `to` within a container's children array
 function reorderChildren(containerId: string, from: number, to: number) {
   const el = elements.value.find(e => e.id === containerId)
-  if (!el) return
+  if (!el || !el.children) return
   const children = [...el.children]
-  const [moved] = children.splice(from, 1)
+  const moved = children.splice(from, 1)[0]
+  if (moved === undefined) return
   children.splice(to, 0, moved)
   el.children = children
 }
@@ -321,6 +303,15 @@ function togglePreview() {
 }
 
 function setRunning(val: boolean) {
+  if (val) {
+    // Take snapshot of current state before running logic
+    elementSnapshot.value = JSON.parse(JSON.stringify(elements.value))
+  } else if (elementSnapshot.value) {
+    // Restore original state when stopping
+    elements.value = JSON.parse(JSON.stringify(elementSnapshot.value))
+    elementSnapshot.value = null
+    selectedElementId.value = null
+  }
   isRunning.value = val
 }
 
@@ -347,6 +338,9 @@ function addPage() {
   })
   currentPageId.value = id
   selectedElementId.value = null
+  
+  // Auto-create root Container for the new page
+  _createRootContainer()
 }
 
 function switchPage(id: string) {
@@ -364,7 +358,7 @@ function deletePage(id: string) {
   if (idx !== -1) {
     pages.value.splice(idx, 1)
     if (currentPageId.value === id) {
-      currentPageId.value = pages.value[0].id
+      currentPageId.value = pages.value[0]!.id
     }
   }
   selectedElementId.value = null
@@ -393,7 +387,7 @@ export function useEditorStore() {
     jsCodeInitialized,
     // Derived
     selectedElement,
-    rootContainers,
+    rootContainer,
     // Actions
     setMode,
     selectElement,
@@ -414,7 +408,12 @@ export function useEditorStore() {
     reorderChildren,
     // Helpers
     getContainerOf,
-    getRootContainers,
+    getRootContainer,
     isContainer,
   }
+}
+
+// Initial state — create Page 1 root container if none exists
+if (elements.value.length === 0) {
+  _createRootContainer()
 }

@@ -54,6 +54,7 @@
         <div 
           v-else 
           class="flex items-center gap-1 cursor-pointer group"
+          data-testid="page-label"
           @click="startEditingPageName"
         >
           <span class="text-[11px] font-medium text-neutral-200 min-w-[40px] text-center">
@@ -70,6 +71,7 @@
             variant="ghost"
             size="xs"
             square
+            data-testid="page-switcher"
           />
           <template #content>
             <div class="p-1 min-w-[120px] bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl">
@@ -78,6 +80,7 @@
                 :key="page.id"
                 class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors"
                 :class="store.currentPageId.value === page.id ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:bg-neutral-700 hover:text-white'"
+                data-testid="page-option"
                 @click="store.switchPage(page.id)"
               >
                 <UIcon name="i-lucide-file" class="size-3" />
@@ -94,6 +97,7 @@
         variant="ghost"
         size="xs"
         square
+        data-testid="add-page-button"
         @click="store.addPage"
         title="Add New Page"
       />
