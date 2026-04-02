@@ -1,0 +1,206 @@
+import type { PaletteItem } from './useEditorStore'
+
+export interface PaletteGroup {
+  label: string
+  icon: string
+  items: PaletteItem[]
+}
+
+export function usePaletteItems(): PaletteGroup[] {
+  return [
+    {
+      label: 'Layout',
+      icon: 'i-lucide-layout-dashboard',
+      items: [
+        {
+          type: 'RowContainer',
+          label: 'Row Container',
+          icon: 'i-lucide-rows-3',
+          defaultWidth: 340,
+          defaultHeight: 60,
+          defaultProps: { direction: 'row', gap: 8, padding: 8, backgroundColor: 'transparent' },
+        },
+        {
+          type: 'ColContainer',
+          label: 'Col Container',
+          icon: 'i-lucide-columns-3',
+          defaultWidth: 180,
+          defaultHeight: 120,
+          defaultProps: { direction: 'col', gap: 8, padding: 8, backgroundColor: 'transparent' },
+        },
+        {
+          type: 'Toolbar',
+          label: 'Toolbar',
+          icon: 'i-lucide-panel-top',
+          defaultWidth: 340,
+          defaultHeight: 48,
+          defaultProps: { title: 'My App', showBack: false, backgroundColor: '#6366f1' },
+        },
+        {
+          type: 'List',
+          label: 'List',
+          icon: 'i-lucide-list',
+          defaultWidth: 300,
+          defaultHeight: 160,
+          defaultProps: { items: ['Item 1', 'Item 2', 'Item 3'], backgroundColor: '#ffffff' },
+        },
+        {
+          type: 'Separator',
+          label: 'Separator',
+          icon: 'i-lucide-minus',
+          defaultWidth: 200,
+          defaultHeight: 16,
+          defaultProps: { color: '#e2e8f0', thickness: 1 },
+        },
+        {
+          type: 'Spacer',
+          label: 'Spacer',
+          icon: 'i-lucide-move-vertical',
+          defaultWidth: 40,
+          defaultHeight: 24,
+          defaultProps: { size: 16 },
+        },
+      ],
+    },
+    {
+      label: 'Input',
+      icon: 'i-lucide-mouse-pointer-click',
+      items: [
+        {
+          type: 'Button',
+          label: 'Button',
+          icon: 'i-lucide-square',
+          defaultWidth: 100,
+          defaultHeight: 40,
+          defaultProps: { label: 'Button', variant: 'solid', backgroundColor: '#6366f1', borderRadius: 6 },
+        },
+        {
+          type: 'FloatingActionButton',
+          label: 'FAB',
+          icon: 'i-lucide-circle-plus',
+          defaultWidth: 56,
+          defaultHeight: 56,
+          defaultProps: { icon: 'i-lucide-plus', backgroundColor: '#6366f1', borderRadius: 28 },
+        },
+        {
+          type: 'LabelledInput',
+          label: 'Labelled Input',
+          icon: 'i-lucide-text-cursor',
+          defaultWidth: 220,
+          defaultHeight: 60,
+          defaultProps: { label: 'Label', placeholder: 'Enter value', type: 'text' },
+        },
+        {
+          type: 'Input',
+          label: 'Input',
+          icon: 'i-lucide-text-cursor-input',
+          defaultWidth: 180,
+          defaultHeight: 40,
+          defaultProps: { placeholder: 'Enter text…', type: 'text', borderRadius: 4 },
+        },
+        {
+          type: 'RangeInput',
+          label: 'Range Input',
+          icon: 'i-lucide-sliders-horizontal',
+          defaultWidth: 180,
+          defaultHeight: 40,
+          defaultProps: { min: 0, max: 100, value: 50 },
+        },
+        {
+          type: 'DateTimePicker',
+          label: 'Date Picker',
+          icon: 'i-lucide-calendar',
+          defaultWidth: 180,
+          defaultHeight: 40,
+          defaultProps: { placeholder: 'Select date' },
+        },
+        {
+          type: 'Checkbox',
+          label: 'Checkbox',
+          icon: 'i-lucide-check-square',
+          defaultWidth: 140,
+          defaultHeight: 28,
+          defaultProps: { label: 'Checkbox', checked: false },
+        },
+        {
+          type: 'RadioButton',
+          label: 'Radio Button',
+          icon: 'i-lucide-circle-dot',
+          defaultWidth: 140,
+          defaultHeight: 28,
+          defaultProps: { label: 'Option', selected: false },
+        },
+        {
+          type: 'Toggle',
+          label: 'Toggle',
+          icon: 'i-lucide-toggle-left',
+          defaultWidth: 80,
+          defaultHeight: 32,
+          defaultProps: { label: 'Toggle', on: false },
+        },
+        {
+          type: 'Select',
+          label: 'Select',
+          icon: 'i-lucide-chevrons-up-down',
+          defaultWidth: 160,
+          defaultHeight: 40,
+          defaultProps: { placeholder: 'Select…', options: ['Option 1', 'Option 2'] },
+        },
+      ],
+    },
+    {
+      label: 'Display',
+      icon: 'i-lucide-eye',
+      items: [
+        {
+          type: 'Heading',
+          label: 'Heading',
+          icon: 'i-lucide-heading',
+          defaultWidth: 200,
+          defaultHeight: 36,
+          defaultProps: { text: 'Heading', level: 1, color: '#0f172a' },
+        },
+        {
+          type: 'TextBox',
+          label: 'Text Box',
+          icon: 'i-lucide-type',
+          defaultWidth: 180,
+          defaultHeight: 28,
+          defaultProps: { content: 'Text block', fontSize: 14, color: '#334155' },
+        },
+        {
+          type: 'Image',
+          label: 'Image',
+          icon: 'i-lucide-image',
+          defaultWidth: 160,
+          defaultHeight: 120,
+          defaultProps: { src: 'https://picsum.photos/160/120', alt: 'placeholder', borderRadius: 4 },
+        },
+        {
+          type: 'Link',
+          label: 'Link',
+          icon: 'i-lucide-link',
+          defaultWidth: 120,
+          defaultHeight: 28,
+          defaultProps: { text: 'Click here', href: '#', color: '#6366f1' },
+        },
+        {
+          type: 'Video',
+          label: 'Video',
+          icon: 'i-lucide-film',
+          defaultWidth: 240,
+          defaultHeight: 140,
+          defaultProps: { src: '', poster: '', borderRadius: 4 },
+        },
+        {
+          type: 'Icon',
+          label: 'Icon',
+          icon: 'i-lucide-star',
+          defaultWidth: 32,
+          defaultHeight: 32,
+          defaultProps: { name: 'i-lucide-star', color: '#6366f1', size: 24 },
+        },
+      ],
+    },
+  ]
+}
