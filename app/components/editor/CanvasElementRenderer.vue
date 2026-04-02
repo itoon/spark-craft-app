@@ -34,12 +34,19 @@
         <div
           v-for="childId in element.children"
           :key="childId"
-          class="canvas-element cursor-pointer relative"
+          draggable="true"
+          class="canvas-element cursor-pointer relative transition-shadow duration-100"
           :class="{
             'ring-2 ring-indigo-400 ring-offset-0': store.selectedElementId.value === childId,
+            'ring-2 ring-indigo-300': dragOverChildId === childId && draggingChildId !== childId,
+            'opacity-40': draggingChildId === childId,
           }"
           :style="childStyle(childId)"
           @click.stop="store.selectElement(childId)"
+          @dragstart="onChildDragStart($event, childId)"
+          @dragover.prevent="onChildDragOver($event, childId)"
+          @drop.prevent="onChildDrop($event, childId)"
+          @dragend="onChildDragEnd"
         >
           <!-- Child type badge when selected -->
           <template v-if="store.selectedElementId.value === childId">
@@ -360,7 +367,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import type { AppElement } from '~/composables/useEditorStore'
 import { useEditorStore } from '~/composables/useEditorStore'
 
@@ -397,9 +404,7 @@ function childStyle(childId: string): Record<string, string> {
   if (!child) return {}
   const isCol = props.element.type === 'ColContainer'
   return {
-    // Full width in a column stack; equal share of row width otherwise
     ...(isCol ? { width: '100%' } : { flex: '1', minWidth: '0' }),
-    // Height is always explicit so each element keeps its design-time size
     height: `${child.height}px`,
   }
 }
@@ -419,4 +424,45 @@ const headingFontSize = computed(() => {
   const sizes: Record<number, string> = { 1: '22px', 2: '18px', 3: '15px', 4: '13px', 5: '12px', 6: '11px' }
   return sizes[level] ?? '22px'
 })
+
+// ── Drag-to-reorder children ──────────────────────────────────────────────
+
+const draggingChildId = ref<string | null>(null)
+const dragOverChildId = ref<string | null>(null)
+
+function onChildDragStart(e: DragEvent, childId: string) {
+  draggingChildId.value = childId
+  e.dataTransfer!.setData('application/codecraft-child', childId)
+  e.dataTransfer!.effectAllowed = 'move'
+  // Stop the event from bubbling to parent containers so only one drag fires
+  e.stopPropagation()
+}
+
+function onChildDragOver(e: DragEvent, childId: string) {
+  if (draggingChildId.value === childId) return
+  dragOverChildId.value = childId
+  e.stopPropagation()
+}
+
+function onChildDrop(e: DragEvent, targetChildId: string) {
+  const sourceId = draggingChildId.value
+  if (!sourceId || sourceId === targetChildId) {
+    onChildDragEnd()
+    return
+  }
+
+  const parent = props.element
+  const from = parent.children.indexOf(sourceId)
+  const to = parent.children.indexOf(targetChildId)
+  if (from !== -1 && to !== -1) {
+    store.reorderChildren(parent.id, from, to)
+  }
+  onChildDragEnd()
+  e.stopPropagation()
+}
+
+function onChildDragEnd() {
+  draggingChildId.value = null
+  dragOverChildId.value = null
+}
 </script>

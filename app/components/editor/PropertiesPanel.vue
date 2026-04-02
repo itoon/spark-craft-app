@@ -1,9 +1,9 @@
 <template>
-  <aside class="flex flex-col h-full bg-neutral-900 border-l border-neutral-700 w-75 shrink-0 overflow-hidden">
+  <aside class="flex flex-col h-full bg-white border-l border-neutral-200 w-80 shrink-0 overflow-hidden">
     <!-- Panel header -->
-    <div class="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-700 shrink-0">
+    <div class="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-200 shrink-0">
       <UIcon name="i-lucide-sliders-horizontal" class="text-neutral-400 size-3.5" />
-      <span class="text-xs font-semibold text-neutral-300 uppercase tracking-widest">Properties</span>
+      <span class="text-xs font-semibold text-neutral-500 uppercase tracking-widest">Properties</span>
       <template v-if="selectedElement">
         <div class="ml-auto">
           <UBadge
@@ -21,10 +21,10 @@
       v-if="!selectedElement"
       class="flex-1 flex flex-col items-center justify-center gap-3 p-6"
     >
-      <div class="size-10 rounded-full bg-neutral-800 flex items-center justify-center">
-        <UIcon name="i-lucide-mouse-pointer" class="text-neutral-600 size-5" />
+      <div class="size-10 rounded-full bg-neutral-100 flex items-center justify-center">
+        <UIcon name="i-lucide-mouse-pointer" class="text-neutral-400 size-5" />
       </div>
-      <p class="text-xs text-neutral-500 text-center leading-relaxed">Select an element<br />to edit properties</p>
+      <p class="text-xs text-neutral-400 text-center leading-relaxed">Select an element<br />to edit properties</p>
     </div>
 
     <!-- Properties form when element is selected -->
@@ -36,25 +36,25 @@
         title="Layout"
         icon="i-lucide-layout-dashboard"
       >
-        <div class="space-y-2">
+        <div class="space-y-3">
           <!-- Direction toggle -->
           <EditorPropField label="Direction">
             <div class="flex gap-1">
               <button
-                class="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[11px] font-medium border transition-colors duration-100"
+                class="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors duration-100"
                 :class="selectedElement.direction === 'row'
-                  ? 'bg-indigo-600 border-indigo-600 text-white'
-                  : 'bg-neutral-800 border-neutral-600 text-neutral-400 hover:border-indigo-500 hover:text-indigo-400'"
+                  ? 'bg-indigo-500 border-indigo-500 text-white'
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-600 hover:border-indigo-300'"
                 @click="setDirection('row')"
               >
                 <UIcon name="i-lucide-arrow-right" class="size-3" />
                 Row
               </button>
               <button
-                class="flex-1 flex items-center justify-center gap-1 py-1 rounded text-[11px] font-medium border transition-colors duration-100"
+                class="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors duration-100"
                 :class="selectedElement.direction === 'col'
-                  ? 'bg-indigo-600 border-indigo-600 text-white'
-                  : 'bg-neutral-800 border-neutral-600 text-neutral-400 hover:border-indigo-500 hover:text-indigo-400'"
+                  ? 'bg-indigo-500 border-indigo-500 text-white'
+                  : 'bg-neutral-100 border-neutral-200 text-neutral-600 hover:border-indigo-300'"
                 @click="setDirection('col')"
               >
                 <UIcon name="i-lucide-arrow-down" class="size-3" />
@@ -69,7 +69,6 @@
               :model-value="(selectedElement.props.gap as number) ?? 8"
               type="number"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ gap: Number(v) })"
             />
@@ -81,110 +80,31 @@
               :model-value="(selectedElement.props.padding as number) ?? 8"
               type="number"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ padding: Number(v) })"
             />
           </EditorPropField>
 
-          <!-- Background color -->
+          <!-- Container background color swatches -->
           <EditorPropField label="Background">
-            <div class="flex items-center gap-2">
-              <input
-                type="color"
-                :value="(selectedElement.props.backgroundColor as string) || '#ffffff'"
-                class="color-swatch"
-                @input="(e) => patchProps({ backgroundColor: (e.target as HTMLInputElement).value })"
-              />
-              <UInput
-                :model-value="(selectedElement.props.backgroundColor as string) || ''"
-                size="xs"
-                variant="none"
-                class="prop-input flex-1 font-mono"
-                placeholder="transparent"
-                @update:model-value="(v) => patchProps({ backgroundColor: String(v) })"
+            <div class="grid grid-cols-7 gap-1 mt-1">
+              <button
+                v-for="color in PRESET_COLORS"
+                :key="color.value"
+                class="size-7 rounded-lg border-2 transition-all duration-100 shrink-0"
+                :class="[
+                  color.value === 'transparent'
+                    ? 'bg-white checkerboard'
+                    : '',
+                  (selectedElement.props.backgroundColor as string) === color.value
+                    ? 'ring-2 ring-indigo-500 ring-offset-1 border-indigo-300'
+                    : 'border-neutral-200 hover:border-indigo-300',
+                ]"
+                :style="color.value !== 'transparent' ? { backgroundColor: color.value } : {}"
+                :title="color.label"
+                @click="patchProps({ backgroundColor: color.value })"
               />
             </div>
-          </EditorPropField>
-        </div>
-      </EditorPropertiesSection>
-
-      <!-- ── Position section (only for root containers; children use flex) ── -->
-      <EditorPropertiesSection
-        v-if="isContainerType"
-        title="Position"
-        icon="i-lucide-move"
-      >
-        <div class="grid grid-cols-2 gap-2">
-          <EditorPropField label="X">
-            <UInput
-              :model-value="selectedElement.x"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchElement({ x: Number(v) })"
-            />
-          </EditorPropField>
-          <EditorPropField label="Y">
-            <UInput
-              :model-value="selectedElement.y"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchElement({ y: Number(v) })"
-            />
-          </EditorPropField>
-          <EditorPropField label="W">
-            <UInput
-              :model-value="selectedElement.width"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchElement({ width: Number(v) })"
-            />
-          </EditorPropField>
-          <EditorPropField label="H">
-            <UInput
-              :model-value="selectedElement.height"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchElement({ height: Number(v) })"
-            />
-          </EditorPropField>
-        </div>
-      </EditorPropertiesSection>
-
-      <!-- ── Size for non-container elements ── -->
-      <EditorPropertiesSection
-        v-if="!isContainerType"
-        title="Size"
-        icon="i-lucide-move"
-      >
-        <div class="grid grid-cols-2 gap-2">
-          <EditorPropField label="W">
-            <UInput
-              :model-value="selectedElement.width"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchElement({ width: Number(v) })"
-            />
-          </EditorPropField>
-          <EditorPropField label="H">
-            <UInput
-              :model-value="selectedElement.height"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchElement({ height: Number(v) })"
-            />
           </EditorPropField>
         </div>
       </EditorPropertiesSection>
@@ -195,79 +115,91 @@
         title="Style"
         icon="i-lucide-palette"
       >
-        <div class="space-y-2">
+        <div class="space-y-3">
+          <!-- Background color swatches -->
           <EditorPropField
             v-if="hasProp('backgroundColor')"
             label="Background"
           >
-            <div class="flex items-center gap-2">
-              <input
-                type="color"
-                :value="(selectedElement.props.backgroundColor as string) || '#ffffff'"
-                class="color-swatch"
-                @input="(e) => patchProps({ backgroundColor: (e.target as HTMLInputElement).value })"
-              />
-              <UInput
-                :model-value="(selectedElement.props.backgroundColor as string) || ''"
-                size="xs"
-                variant="none"
-                class="prop-input flex-1 font-mono"
-                placeholder="#ffffff"
-                @update:model-value="(v) => patchProps({ backgroundColor: String(v) })"
+            <div class="grid grid-cols-7 gap-1 mt-1">
+              <button
+                v-for="color in PRESET_COLORS"
+                :key="color.value"
+                class="size-7 rounded-lg border-2 transition-all duration-100 shrink-0"
+                :class="[
+                  color.value === 'transparent'
+                    ? 'bg-white checkerboard'
+                    : '',
+                  (selectedElement.props.backgroundColor as string) === color.value
+                    ? 'ring-2 ring-indigo-500 ring-offset-1 border-indigo-300'
+                    : 'border-neutral-200 hover:border-indigo-300',
+                ]"
+                :style="color.value !== 'transparent' ? { backgroundColor: color.value } : {}"
+                :title="color.label"
+                @click="patchProps({ backgroundColor: color.value })"
               />
             </div>
           </EditorPropField>
 
+          <!-- Border Radius button group -->
           <EditorPropField
             v-if="hasProp('borderRadius')"
             label="Radius"
           >
-            <UInput
-              :model-value="(selectedElement.props.borderRadius as number) ?? 0"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchProps({ borderRadius: Number(v) })"
-            />
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="r in RADIUS_OPTIONS"
+                :key="r.label"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="(selectedElement.props.borderRadius as number) === r.value
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ borderRadius: r.value })"
+              >
+                {{ r.label }}
+              </button>
+            </div>
           </EditorPropField>
 
-          <!-- Text color -->
+          <!-- Text color swatches -->
           <EditorPropField
             v-if="hasProp('color')"
-            label="Color"
+            label="Text Color"
           >
-            <div class="flex items-center gap-2">
-              <input
-                type="color"
-                :value="(selectedElement.props.color as string) || '#000000'"
-                class="color-swatch"
-                @input="(e) => patchProps({ color: (e.target as HTMLInputElement).value })"
-              />
-              <UInput
-                :model-value="(selectedElement.props.color as string) || ''"
-                size="xs"
-                variant="none"
-                class="prop-input flex-1 font-mono"
-                placeholder="#000000"
-                @update:model-value="(v) => patchProps({ color: String(v) })"
+            <div class="grid grid-cols-7 gap-1 mt-1">
+              <button
+                v-for="color in PRESET_COLORS"
+                :key="color.value"
+                class="size-7 rounded-lg border-2 transition-all duration-100 shrink-0"
+                :class="[
+                  color.value === 'transparent'
+                    ? 'bg-white checkerboard'
+                    : '',
+                  (selectedElement.props.color as string) === color.value
+                    ? 'ring-2 ring-indigo-500 ring-offset-1 border-indigo-300'
+                    : 'border-neutral-200 hover:border-indigo-300',
+                ]"
+                :style="color.value !== 'transparent' ? { backgroundColor: color.value } : {}"
+                :title="color.label"
+                @click="patchProps({ color: color.value })"
               />
             </div>
           </EditorPropField>
 
-          <!-- Font size -->
+          <!-- Font size dropdown -->
           <EditorPropField
             v-if="hasProp('fontSize')"
             label="Font size"
           >
-            <UInput
-              :model-value="(selectedElement.props.fontSize as number) ?? 14"
-              type="number"
-              size="xs"
-              variant="none"
-              class="prop-input"
-              @update:model-value="(v) => patchProps({ fontSize: Number(v) })"
-            />
+            <select
+              class="w-full text-xs rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              :value="(selectedElement.props.fontSize as number) ?? 14"
+              @change="(e) => patchProps({ fontSize: Number((e.target as HTMLSelectElement).value) })"
+            >
+              <option v-for="opt in FONT_SIZE_OPTIONS" :key="opt.value" :value="opt.value">
+                {{ opt.label }}
+              </option>
+            </select>
           </EditorPropField>
         </div>
       </EditorPropertiesSection>
@@ -284,7 +216,6 @@
             <UInput
               :model-value="(selectedElement.props.label as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ label: String(v) })"
             />
@@ -295,7 +226,6 @@
             <UInput
               :model-value="(selectedElement.props.placeholder as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ placeholder: String(v) })"
             />
@@ -306,7 +236,6 @@
             <UInput
               :model-value="(selectedElement.props.label as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ label: String(v) })"
             />
@@ -317,7 +246,6 @@
             <UInput
               :model-value="(selectedElement.props.content as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ content: String(v) })"
             />
@@ -328,7 +256,6 @@
             <UInput
               :model-value="(selectedElement.props.text as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ text: String(v) })"
             />
@@ -340,7 +267,6 @@
               :model-value="(selectedElement.props.level as number) ?? 1"
               type="number"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ level: Math.min(6, Math.max(1, Number(v))) })"
             />
@@ -351,7 +277,6 @@
             <UInput
               :model-value="(selectedElement.props.label as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ label: String(v) })"
             />
@@ -362,7 +287,6 @@
             <UInput
               :model-value="(selectedElement.props.label as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ label: String(v) })"
             />
@@ -373,7 +297,6 @@
             <UInput
               :model-value="(selectedElement.props.src as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input font-mono"
               @update:model-value="(v) => patchProps({ src: String(v) })"
             />
@@ -384,7 +307,6 @@
             <UInput
               :model-value="(selectedElement.props.text as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ text: String(v) })"
             />
@@ -395,7 +317,6 @@
             <UInput
               :model-value="(selectedElement.props.href as string) || '#'"
               size="xs"
-              variant="none"
               class="prop-input font-mono"
               @update:model-value="(v) => patchProps({ href: String(v) })"
             />
@@ -406,7 +327,6 @@
             <UInput
               :model-value="(selectedElement.props.title as string) || ''"
               size="xs"
-              variant="none"
               class="prop-input"
               @update:model-value="(v) => patchProps({ title: String(v) })"
             />
@@ -420,7 +340,6 @@
                   :model-value="(selectedElement.props.min as number) ?? 0"
                   type="number"
                   size="xs"
-                  variant="none"
                   class="prop-input"
                   @update:model-value="(v) => patchProps({ min: Number(v) })"
                 />
@@ -430,7 +349,6 @@
                   :model-value="(selectedElement.props.value as number) ?? 50"
                   type="number"
                   size="xs"
-                  variant="none"
                   class="prop-input"
                   @update:model-value="(v) => patchProps({ value: Number(v) })"
                 />
@@ -440,7 +358,6 @@
                   :model-value="(selectedElement.props.max as number) ?? 100"
                   type="number"
                   size="xs"
-                  variant="none"
                   class="prop-input"
                   @update:model-value="(v) => patchProps({ max: Number(v) })"
                 />
@@ -453,19 +370,19 @@
       <!-- ── Events section ── -->
       <EditorPropertiesSection title="Events" icon="i-lucide-zap">
         <div class="space-y-1.5">
-          <div class="flex items-center gap-2 p-2 rounded bg-neutral-800 border border-neutral-700">
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-200">
             <UIcon name="i-lucide-zap" class="text-amber-400 size-3.5 shrink-0" />
-            <span class="text-[10px] text-neutral-400 font-mono flex-1">onClick</span>
-            <span class="text-[9px] text-neutral-600 italic">unassigned</span>
+            <span class="text-[10px] text-neutral-500 font-mono flex-1">onClick</span>
+            <span class="text-[9px] text-neutral-400 italic">unassigned</span>
           </div>
-          <p class="text-[10px] text-neutral-600 px-1">Logic binding via Block mode — coming soon.</p>
+          <p class="text-[10px] text-neutral-400 px-1">Logic binding via Block mode — coming soon.</p>
         </div>
       </EditorPropertiesSection>
 
     </div>
 
     <!-- Delete button — only when element selected -->
-    <div v-if="selectedElement" class="p-3 border-t border-neutral-700 shrink-0">
+    <div v-if="selectedElement" class="p-3 border-t border-neutral-200 shrink-0">
       <UButton
         label="Delete element"
         icon="i-lucide-trash-2"
@@ -494,6 +411,42 @@ const CONTENT_TYPES = new Set([
   'Toolbar', 'RangeInput',
 ])
 
+// Kid-friendly preset color palette for swatches
+const PRESET_COLORS = [
+  { label: 'White',       value: '#ffffff' },
+  { label: 'Light Gray',  value: '#f1f5f9' },
+  { label: 'Sky Blue',    value: '#38bdf8' },
+  { label: 'Indigo',      value: '#6366f1' },
+  { label: 'Purple',      value: '#a855f7' },
+  { label: 'Pink',        value: '#ec4899' },
+  { label: 'Red',         value: '#ef4444' },
+  { label: 'Orange',      value: '#f97316' },
+  { label: 'Yellow',      value: '#eab308' },
+  { label: 'Green',       value: '#22c55e' },
+  { label: 'Teal',        value: '#14b8a6' },
+  { label: 'Dark',        value: '#1e293b' },
+  { label: 'Transparent', value: 'transparent' },
+]
+
+// Named border-radius steps — replaces raw number input
+const RADIUS_OPTIONS = [
+  { label: 'None',   value: 0 },
+  { label: 'Small',  value: 6 },
+  { label: 'Medium', value: 12 },
+  { label: 'Large',  value: 20 },
+  { label: 'Full',   value: 9999 },
+]
+
+// Named font size steps — replaces raw number input
+const FONT_SIZE_OPTIONS = [
+  { label: 'Tiny (10px)',   value: 10 },
+  { label: 'Small (12px)',  value: 12 },
+  { label: 'Normal (14px)', value: 14 },
+  { label: 'Large (18px)',  value: 18 },
+  { label: 'XL (24px)',     value: 24 },
+  { label: 'XXL (32px)',    value: 32 },
+]
+
 const isContainerType = computed(() =>
   !!selectedElement.value && CONTAINER_TYPES.has(selectedElement.value.type)
 )
@@ -502,7 +455,6 @@ const hasContentProps = computed(() =>
   !!selectedElement.value && CONTENT_TYPES.has(selectedElement.value.type)
 )
 
-// Check whether the currently selected element has a particular prop key
 function hasProp(key: string): boolean {
   return !!selectedElement.value && key in selectedElement.value.props
 }
@@ -538,23 +490,14 @@ function handleDelete() {
 </script>
 
 <style scoped>
-.color-swatch {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: 4px;
-  padding: 0;
-  cursor: pointer;
-  background: none;
-  flex-shrink: 0;
-}
-
-.color-swatch::-webkit-color-swatch-wrapper {
-  padding: 0;
-}
-
-.color-swatch::-webkit-color-swatch {
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+/* Checkered pattern for the "transparent" swatch */
+.checkerboard {
+  background-image:
+    linear-gradient(45deg, #ccc 25%, transparent 25%),
+    linear-gradient(-45deg, #ccc 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #ccc 75%),
+    linear-gradient(-45deg, transparent 75%, #ccc 75%);
+  background-size: 8px 8px;
+  background-position: 0 0, 0 4px, 4px -4px, -4px 0px;
 }
 </style>

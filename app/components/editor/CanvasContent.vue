@@ -2,26 +2,52 @@
   <!-- Renders the flat list of root-level containers onto the canvas surface.
        Non-container elements cannot exist at root level; the store enforces this. -->
   <div
-    class="relative w-full min-h-full"
+    class="relative w-full min-h-full transition-shadow duration-150"
+    :class="{ 'ring-2 ring-indigo-400 ring-offset-2': isDragOver }"
     @click.self="store.selectElement(null)"
+    @dragover.prevent="onDragOver"
+    @dragleave="onDragLeave"
+    @drop.prevent="onDrop"
   >
-    <!-- Empty state -->
+    <!-- ── Toolbar — pinned sticky at the top of the canvas ──────────────── -->
+    <div
+      v-if="toolbarElement"
+      class="sticky top-0 z-20 w-full cursor-pointer shrink-0"
+      :class="{
+        'ring-2 ring-inset ring-indigo-500': store.selectedElementId.value === toolbarElement.id,
+      }"
+      :style="{ height: `${toolbarElement.height}px` }"
+      @click.stop="store.selectElement(toolbarElement.id)"
+    >
+      <!-- Selection badge -->
+      <div
+        v-if="store.selectedElementId.value === toolbarElement.id"
+        class="absolute -top-5 left-0 z-30 flex items-center gap-1 pointer-events-none"
+      >
+        <span class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none">
+          Toolbar
+        </span>
+      </div>
+      <EditorCanvasElementRenderer :element="toolbarElement" />
+    </div>
+
+    <!-- Empty state (only when no elements at all) -->
     <div
       v-if="store.rootContainers.value.length === 0"
       class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
     >
-      <div class="border-2 border-dashed border-gray-300 rounded-xl w-48 h-32 flex flex-col items-center justify-center gap-2 opacity-50">
-        <UIcon name="i-lucide-plus-circle" class="size-6 text-gray-400" />
-        <p class="text-xs text-gray-400 font-medium text-center leading-snug px-2">
-          Click a palette item<br />to start building
+      <div class="border-2 border-dashed border-indigo-300 rounded-xl w-56 h-36 flex flex-col items-center justify-center gap-2 opacity-60">
+        <UIcon name="i-lucide-plus-circle" class="size-7 text-indigo-400" />
+        <p class="text-xs text-indigo-400 font-medium text-center leading-snug px-2">
+          Click a palette item or<br />drag it here to start
         </p>
       </div>
     </div>
 
-    <!-- Root-level containers stacked vertically (document flow) -->
-    <div class="flex flex-col w-full">
+    <!-- Body containers stacked vertically — 14px base padding on sides/bottom -->
+    <div class="flex flex-col w-full" style="padding: 14px 14px 14px 14px;">
       <div
-        v-for="container in store.rootContainers.value"
+        v-for="container in bodyContainers"
         :key="container.id"
         class="relative cursor-pointer"
         :class="{
@@ -48,19 +74,57 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
+import { usePaletteItems } from '~/composables/usePaletteItems'
 import type { AppElement } from '~/composables/useEditorStore'
 
 const store = useEditorStore()
+const paletteGroups = usePaletteItems()
+
+// Toolbar is pinned at the top — separate from the scrollable body
+const toolbarElement = computed(() =>
+  store.rootContainers.value.find(el => el.type === 'Toolbar') ?? null
+)
+const bodyContainers = computed(() =>
+  store.rootContainers.value.filter(el => el.type !== 'Toolbar')
+)
 
 // Root containers get their x/y position from the store, but in this document-flow
 // layout we only apply width. Height comes from the element's height prop.
 function rootContainerStyle(el: AppElement): Record<string, string> {
   return {
-    // Root containers always span the full canvas width
     width: '100%',
-    // Height is auto — the container grows to fit its children
-    // (no fixed height set here)
   }
+}
+
+// ── Drag-and-drop from palette ─────────────────────────────────────────────
+
+const isDragOver = ref(false)
+
+function onDragOver(e: DragEvent) {
+  isDragOver.value = true
+  e.dataTransfer!.dropEffect = 'copy'
+}
+
+function onDragLeave() {
+  isDragOver.value = false
+}
+
+function onDrop(e: DragEvent) {
+  isDragOver.value = false
+  const type = e.dataTransfer?.getData('application/codecraft-type')
+  if (!type) return
+  const item = findPaletteItemByType(type)
+  if (item) store.addElement(item)
+}
+
+// Walk the palette groups to find the item definition by type string
+function findPaletteItemByType(type: string) {
+  for (const group of paletteGroups) {
+    const item = group.items.find(i => i.type === type)
+    if (item) return item
+  }
+  return null
 }
 </script>

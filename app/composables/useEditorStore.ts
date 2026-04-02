@@ -126,6 +126,15 @@ function addElement(item: PaletteItem, targetId?: string): AppElement {
 
   const resolvedTarget = targetId ?? selectedElementId.value ?? null
 
+  // Toolbar is always a singleton at root level — remove any existing one first
+  if (item.type === 'Toolbar') {
+    const existing = elements.value.find(e => e.type === 'Toolbar')
+    if (existing) deleteElement(existing.id)
+    _addAtRoot(newEl)
+    selectedElementId.value = newEl.id
+    return newEl
+  }
+
   if (isContainer(item.type)) {
     // Container palette items
     if (resolvedTarget) {
@@ -261,6 +270,16 @@ function deleteElement(id: string) {
   if (selectedElementId.value === id) {
     selectedElementId.value = null
   }
+}
+
+// Move a child from index `from` to index `to` within a container's children array
+function reorderChildren(containerId: string, from: number, to: number) {
+  const el = elements.value.find(e => e.id === containerId)
+  if (!el) return
+  const children = [...el.children]
+  const [moved] = children.splice(from, 1)
+  children.splice(to, 0, moved)
+  el.children = children
 }
 
 function togglePreview() {

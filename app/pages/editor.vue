@@ -69,6 +69,9 @@
     <!-- ── MAIN WORKSPACE ──────────────────────────────────────────── -->
     <div class="editor-workspace flex flex-1 overflow-hidden">
 
+      <!-- First: Learning Panel -->
+      <EditorLearningPanel />
+
       <!-- Left: Element Palette -->
       <EditorElementPalette />
 

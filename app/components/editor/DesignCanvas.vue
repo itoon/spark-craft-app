@@ -54,8 +54,8 @@
           <!-- Dynamic Island -->
           <div class="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-[120px] h-[36px] bg-black rounded-full" />
 
-          <!-- Canvas content — starts below the island -->
-          <div class="absolute inset-0 pt-14 overflow-y-auto overflow-x-hidden" @click.self="store.selectElement(null)">
+          <!-- Canvas content — Toolbar is sticky at top; Dynamic Island floats above -->
+          <div class="absolute inset-0 overflow-y-auto overflow-x-hidden" @click.self="store.selectElement(null)">
             <EditorCanvasContent />
           </div>
 
@@ -116,8 +116,8 @@
           <!-- Punch-hole camera -->
           <div class="absolute top-3 left-1/2 -translate-x-1/2 z-20 size-3 bg-neutral-900 rounded-full" />
 
-          <!-- Canvas content -->
-          <div class="absolute inset-0 pt-10 overflow-y-auto overflow-x-hidden" @click.self="store.selectElement(null)">
+          <!-- Canvas content — Toolbar is sticky at top; punch-hole floats above -->
+          <div class="absolute inset-0 overflow-y-auto overflow-x-hidden" @click.self="store.selectElement(null)">
             <EditorCanvasContent />
           </div>
 
