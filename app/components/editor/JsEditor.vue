@@ -110,12 +110,13 @@ import {
 } from "@codemirror/commands";
 import {
   bracketMatching,
-  defaultHighlightStyle,
   foldGutter,
+  HighlightStyle,
   indentOnInput,
   syntaxHighlighting,
 } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
+import { tags } from "@lezer/highlight";
 
 import { useEditorStore } from "~/composables/useEditorStore";
 import {
@@ -143,6 +144,50 @@ const lineCount = ref(1);
 const componentSchemas = getComponentApiSchemas();
 let editorView: EditorView | null = null;
 let syncingFromEditor = false;
+
+const draculaHighlightStyle = HighlightStyle.define([
+  { tag: tags.keyword, color: "#ff79c6" },
+  {
+    tag: [tags.name, tags.deleted, tags.character, tags.propertyName, tags.macroName],
+    color: "#8be9fd",
+  },
+  {
+    tag: [tags.function(tags.variableName), tags.labelName],
+    color: "#50fa7b",
+  },
+  {
+    tag: [tags.color, tags.constant(tags.name), tags.standard(tags.name)],
+    color: "#bd93f9",
+  },
+  {
+    tag: [tags.definition(tags.name), tags.separator],
+    color: "#f8f8f2",
+  },
+  {
+    tag: [
+      tags.className,
+      tags.number,
+      tags.changed,
+      tags.annotation,
+      tags.modifier,
+      tags.self,
+      tags.namespace,
+    ],
+    color: "#bd93f9",
+  },
+  { tag: [tags.typeName], color: "#8be9fd" },
+  { tag: [tags.operator, tags.operatorKeyword], color: "#ff79c6" },
+  { tag: [tags.url, tags.escape, tags.regexp, tags.link], color: "#8be9fd" },
+  { tag: [tags.meta, tags.comment], color: "#6272a4", fontStyle: "italic" },
+  { tag: [tags.strong], fontWeight: "700", color: "#f8f8f2" },
+  { tag: [tags.emphasis], fontStyle: "italic", color: "#f8f8f2" },
+  { tag: [tags.strikethrough], textDecoration: "line-through" },
+  { tag: [tags.link], color: "#8be9fd", textDecoration: "underline" },
+  { tag: [tags.heading], fontWeight: "700", color: "#ff79c6" },
+  { tag: [tags.atom, tags.bool, tags.special(tags.variableName)], color: "#bd93f9" },
+  { tag: [tags.processingInstruction, tags.string, tags.inserted], color: "#f1fa8c" },
+  { tag: [tags.invalid], color: "#ff5555" },
+]);
 
 const currentElements = computed(() =>
   store.elements.value.filter(
@@ -392,7 +437,7 @@ function createEditorView() {
       drawSelection(),
       dropCursor(),
       indentOnInput(),
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      syntaxHighlighting(draculaHighlightStyle, { fallback: true }),
       bracketMatching(),
       closeBrackets(),
       rectangularSelection(),
@@ -448,7 +493,7 @@ function createEditorView() {
         "&": {
           height: "100%",
           backgroundColor: "transparent",
-          color: "#86efac",
+          color: "#f8f8f2",
           fontSize: "12px",
           fontFamily:
             'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
@@ -460,19 +505,19 @@ function createEditorView() {
         },
         ".cm-content": {
           padding: "16px",
-          caretColor: "#ffffff",
+          caretColor: "#ff79c6",
         },
         ".cm-cursor, .cm-dropCursor": {
-          borderLeftColor: "#ffffff",
+          borderLeftColor: "#ff79c6",
           borderLeftWidth: "2px",
         },
         ".cm-focused .cm-cursor": {
-          borderLeftColor: "#ffffff",
+          borderLeftColor: "#ff79c6",
         },
         ".cm-gutters": {
-          backgroundColor: "rgba(10, 10, 10, 0.35)",
-          color: "#6b7280",
-          borderRight: "1px solid rgba(64, 64, 64, 0.7)",
+          backgroundColor: "#21222c",
+          color: "#6272a4",
+          borderRight: "1px solid rgba(98, 114, 164, 0.28)",
           minWidth: "40px",
         },
         ".cm-lineNumbers .cm-gutterElement": {
@@ -480,19 +525,23 @@ function createEditorView() {
           paddingLeft: "8px",
         },
         ".cm-activeLine": {
-          backgroundColor: "rgba(99, 102, 241, 0.08)",
+          backgroundColor: "rgba(68, 71, 90, 0.7)",
+        },
+        ".cm-activeLineGutter": {
+          backgroundColor: "#282a36",
+          color: "#f8f8f2",
         },
         ".cm-selectionBackground, ::selection": {
-          backgroundColor: "rgba(99, 102, 241, 0.28) !important",
+          backgroundColor: "rgba(68, 71, 90, 0.9) !important",
         },
         ".cm-tooltip.cm-tooltip-autocomplete": {
-          border: "1px solid rgba(55, 65, 81, 1)",
-          backgroundColor: "rgb(23, 23, 23)",
-          color: "#e5e7eb",
+          border: "1px solid rgba(98, 114, 164, 0.32)",
+          backgroundColor: "#282a36",
+          color: "#f8f8f2",
           borderRadius: "10px",
           overflow: "hidden",
           backdropFilter: "blur(10px)",
-          boxShadow: "0 18px 48px rgba(0, 0, 0, 0.42)",
+          boxShadow: "0 18px 48px rgba(0, 0, 0, 0.48)",
           padding: "6px",
         },
         ".cm-tooltip-autocomplete ul": {
@@ -500,30 +549,30 @@ function createEditorView() {
           maxHeight: "260px",
         },
         ".cm-tooltip-autocomplete li": {
-          padding: "8px 16px !important",
+          padding: "12px 16px !important",
           margin: "0",
-          borderBottom: "1px solid rgba(30, 41, 59, 0.72)",
+          borderBottom: "1px solid rgba(68, 71, 90, 0.85)",
           display: "grid",
           gridTemplateColumns: "minmax(0, 1fr) auto",
           alignItems: "center",
           columnGap: "12px",
           rowGap: "4px",
           borderRadius: "8px",
-          backgroundColor: "rgb(23, 23, 23)",
+          backgroundColor: "#282a36",
         },
         ".cm-tooltip-autocomplete li:last-child": {
           borderBottom: "none",
         },
         ".cm-tooltip-autocomplete li:hover": {
-          backgroundColor: "rgba(38, 38, 38, 0.7)",
+          backgroundColor: "#343746",
         },
         ".cm-tooltip-autocomplete li[aria-selected]": {
-          backgroundColor: "rgba(99, 102, 241, 0.15) !important",
-          borderLeftColor: "rgba(129, 140, 248, 0.95)",
-          color: "#f8fafc",
+          backgroundColor: "#343746 !important",
+          borderLeftColor: "#bd93f9",
+          color: "#f8f8f2",
         },
         ".cm-completionLabel": {
-          color: "#f8fafc",
+          color: "#f8f8f2",
           gridColumn: "1 / 2",
           fontSize: "14px",
           lineHeight: "1.35",
@@ -531,11 +580,11 @@ function createEditorView() {
         },
         ".cm-completionMatchedText": {
           textDecoration: "none",
-          color: "#ffffff",
+          color: "#8be9fd",
         },
         ".cc-completion-description": {
           gridColumn: "1 / -1",
-          color: "#a3a3a3",
+          color: "#6272a4",
           fontSize: "12px",
           lineHeight: "1.4",
         },
@@ -558,34 +607,34 @@ function createEditorView() {
           border: "1px solid transparent",
         },
         ".cc-completion-badge-class": {
-          backgroundColor: "rgba(6, 182, 212, 0.15)",
-          color: "#67e8f9",
-          borderColor: "rgba(34, 211, 238, 0.12)",
+          backgroundColor: "rgba(139, 233, 253, 0.12)",
+          color: "#8be9fd",
+          borderColor: "rgba(139, 233, 253, 0.14)",
         },
         ".cc-completion-badge-method": {
-          backgroundColor: "rgba(16, 185, 129, 0.14)",
-          color: "#a7f3d0",
-          borderColor: "rgba(16, 185, 129, 0.14)",
+          backgroundColor: "rgba(80, 250, 123, 0.12)",
+          color: "#50fa7b",
+          borderColor: "rgba(80, 250, 123, 0.14)",
         },
         ".cc-completion-badge-attr": {
-          backgroundColor: "rgba(245, 158, 11, 0.14)",
-          color: "#fcd34d",
-          borderColor: "rgba(245, 158, 11, 0.14)",
+          backgroundColor: "rgba(255, 184, 108, 0.12)",
+          color: "#ffb86c",
+          borderColor: "rgba(255, 184, 108, 0.14)",
         },
         ".cc-completion-badge-global": {
-          backgroundColor: "rgba(168, 85, 247, 0.18)",
-          color: "#f0abfc",
-          borderColor: "rgba(168, 85, 247, 0.14)",
+          backgroundColor: "rgba(255, 121, 198, 0.12)",
+          color: "#ff79c6",
+          borderColor: "rgba(255, 121, 198, 0.14)",
         },
         ".cc-completion-badge-variable": {
-          backgroundColor: "rgba(99, 102, 241, 0.16)",
-          color: "#c7d2fe",
-          borderColor: "rgba(99, 102, 241, 0.14)",
+          backgroundColor: "rgba(189, 147, 249, 0.12)",
+          color: "#bd93f9",
+          borderColor: "rgba(189, 147, 249, 0.14)",
         },
         ".cm-completionInfo": {
-          borderLeft: "1px solid rgba(55, 65, 81, 1)",
-          backgroundColor: "rgba(15, 23, 42, 0.96)",
-          color: "#cbd5e1",
+          borderLeft: "1px solid rgba(98, 114, 164, 0.28)",
+          backgroundColor: "#21222c",
+          color: "#f8f8f2",
           padding: "12px",
           whiteSpace: "pre-wrap",
         },
