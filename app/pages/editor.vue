@@ -138,7 +138,6 @@
 
         <!-- Third: Element Palette -->
         <EditorElementPalette v-if="store.mode.value === 'design'" />
-        <EditorBlockWorkspace v-else-if="store.mode.value === 'block'" />
         <EditorCodeEditor v-else-if="store.mode.value === 'code'" />
 
         <!-- Center: mode-specific workspace -->
@@ -181,7 +180,6 @@ interface ModeTab {
 
 const modeTabs: ModeTab[] = [
   { key: "design", label: "Design", icon: "i-lucide-pen-tool" },
-  { key: "block", label: "Block", icon: "i-lucide-blocks" },
   { key: "code", label: "Code", icon: "i-lucide-code-2" },
 ];
 
@@ -193,6 +191,9 @@ function onWindowKeydown(event: KeyboardEvent) {
 }
 
 onMounted(() => {
+  if (store.mode.value === "block") {
+    store.setMode("design");
+  }
   window.addEventListener("keydown", onWindowKeydown);
 });
 
