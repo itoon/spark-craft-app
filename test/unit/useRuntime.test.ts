@@ -101,6 +101,32 @@ describe("executeCode", () => {
       value: "next labelled",
     });
   });
+
+  it("supports page.goTo(...) from event handlers", () => {
+    const navigate = vi.fn();
+    const elements: AppElement[] = [
+      makeElement("page1_button3", "Button", { label: "Go Page 2" }),
+    ];
+
+    const result = executeCode(
+      [
+        "const button3 = new Button('page1_button3')",
+        "page.add(button3)",
+        "button3.onClick(() => {",
+        "  page.goTo('page2')",
+        "})",
+      ].join("\n"),
+      elements,
+      undefined,
+      navigate,
+    );
+
+    const buttonInstance = result.instances[0];
+
+    buttonInstance?.__onClick?.();
+
+    expect(navigate).toHaveBeenCalledWith("page2");
+  });
 });
 
 describe("syncRuntimeElementProps", () => {

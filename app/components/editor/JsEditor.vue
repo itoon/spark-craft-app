@@ -6,7 +6,7 @@
         <div class="size-2.5 rounded-full bg-red-500" />
         <div class="size-2.5 rounded-full bg-yellow-500" />
         <div class="size-2.5 rounded-full bg-green-500" />
-        <span class="ml-3 text-xs text-neutral-500 font-mono">logic.js</span>
+        <span class="ml-3 text-xs text-neutral-500 font-mono">{{ store.pages.value.find(p => p.id === store.currentPageId.value)?.name ?? 'Page' }} · logic.js</span>
       </div>
       <div class="flex items-center gap-2">
         <UBadge color="info" variant="subtle" size="xs" label="Auto-saving" />
@@ -67,7 +67,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
 import { ELEMENT_CLASS_MAP, varNameFromId, buildScaffold } from '~/composables/useRuntime'
 import type { AppElement } from '~/composables/useEditorStore'
@@ -79,16 +79,20 @@ const editorRef = ref<HTMLTextAreaElement | null>(null)
 const lineNumRef = ref<HTMLDivElement | null>(null)
 
 // Only show elements for the current page
-const currentElements = computed(() => 
+const currentElements = computed(() =>
   store.elements.value.filter((el: AppElement) => el.pageId === store.currentPageId.value)
 )
 
-// Ensure code is initialized if empty
-onMounted(() => {
+// Initialize code for a page if it has none yet
+function initPageCodeIfEmpty() {
   if (!store.jsCode.value || store.jsCode.value.trim() === '') {
-    store.setJsCode(buildScaffold(store.elements.value))
+    store.setJsCode(buildScaffold(currentElements.value))
   }
-})
+}
+
+// Init on mount and whenever the active page changes
+onMounted(initPageCodeIfEmpty)
+watch(() => store.currentPageId.value, initPageCodeIfEmpty)
 
 // ── Line numbers ──────────────────────────────────────────────────────────
 const lineCount = computed(() => (store.jsCode.value || '').split('\n').length)

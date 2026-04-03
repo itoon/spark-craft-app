@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 export type EditorMode = 'design' | 'block' | 'code'
 
@@ -54,8 +54,15 @@ const isRunning = ref(false)
 const elementSnapshot = ref<AppElement[] | null>(null)
 const activeDeviceId = ref<string>('iphone15')
 
-// Shared JS code state (written in Code tab, executed in Run mode)
-const jsCode = ref('')
+// Per-page JS code — keyed by pageId
+const jsCodeByPage = ref<Record<string, string>>({})
+
+// Writable computed: reads/writes code for the current page only
+const jsCode = computed<string>({
+  get: () => jsCodeByPage.value[currentPageId.value] ?? '',
+  set: (val: string) => { jsCodeByPage.value[currentPageId.value] = val },
+})
+
 const jsCodeInitialized = ref(false)
 
 // 'ios' for iPhone devices, 'android' for Android device
@@ -320,7 +327,7 @@ function setActiveDevice(id: string) {
 }
 
 function setJsCode(code: string) {
-  jsCode.value = code
+  jsCodeByPage.value[currentPageId.value] = code
   jsCodeInitialized.value = true
 }
 
@@ -353,7 +360,10 @@ function deletePage(id: string) {
   
   // Delete all elements on this page
   elements.value = elements.value.filter(el => el.pageId !== id)
-  
+
+  // Delete per-page code
+  delete jsCodeByPage.value[id]
+
   const idx = pages.value.findIndex(p => p.id === id)
   if (idx !== -1) {
     pages.value.splice(idx, 1)

@@ -132,7 +132,8 @@ export function syncRuntimeElementProps(
 export function executeCode(
   code: string,
   allElements: AppElement[],
-  onUpdate?: (id: string, props: Record<string, any>) => void
+  onUpdate?: (id: string, props: Record<string, any>) => void,
+  onNavigate?: (pageRef: string) => void
 ): RuntimeResult {
   const logs: ConsoleEntry[] = []
   const pageElements: AppElement[] = []
@@ -256,6 +257,13 @@ export function executeCode(
         instances.push(el)
       }
       logs.push({ type: 'log', message: `Added ${el.__el.type}  ←  ${el.__el.id}` })
+    },
+    goTo(pageRef: string) {
+      if (typeof pageRef !== 'string' || !pageRef.trim()) {
+        throw new TypeError('page.goTo() expects a page id or page name string')
+      }
+      logs.push({ type: 'log', message: `Navigate → ${pageRef}` })
+      onNavigate?.(pageRef)
     },
   }
 

@@ -169,7 +169,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
 import { executeCode, syncRuntimeElementProps } from '~/composables/useRuntime'
 import type { ConsoleEntry, ElementInstance } from '~/composables/useRuntime'
@@ -196,6 +196,9 @@ function runCode() {
       store.elements.value, 
       (id, props) => {
         store.updateElementProps(id, props)
+      },
+      (pageRef) => {
+        navigateToPage(pageRef)
       }
     )
     
@@ -206,6 +209,30 @@ function runCode() {
   } catch (err: any) {
     logs.value.push({ type: 'error', message: `Runtime initialization failed: ${err.message}` })
   }
+}
+
+function navigateToPage(pageRef: string) {
+  const normalizedRef = pageRef.trim().toLowerCase()
+  const targetPage = store.pages.value.find((page) =>
+    page.id.toLowerCase() === normalizedRef || page.name.toLowerCase() === normalizedRef
+  )
+
+  if (!targetPage) {
+    logs.value.push({ type: 'error', message: `Navigation failed: page "${pageRef}" not found` })
+    return
+  }
+
+  if (store.currentPageId.value === targetPage.id) {
+    logs.value.push({ type: 'warn', message: `Already on ${targetPage.name}` })
+    return
+  }
+
+  store.switchPage(targetPage.id)
+  logs.value.push({ type: 'success', message: `Navigated to ${targetPage.name}` })
+
+  nextTick(() => {
+    runCode()
+  })
 }
 
 function handleRunClick(id: string) {
