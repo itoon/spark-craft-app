@@ -161,7 +161,7 @@ interface EditorSuggestion {
   label: string;
   insertText: string;
   detail: string;
-  kind: "class" | "method" | "attr" | "global";
+  kind: "class" | "method" | "attr" | "global" | "variable";
   badgeClass: string;
   replaceRange?: { start: number; end: number };
 }
@@ -299,6 +299,7 @@ function getBadgeClass(kind: EditorSuggestion["kind"]) {
   if (kind === "class") return "bg-cyan-500/15 text-cyan-300";
   if (kind === "method") return "bg-emerald-500/15 text-emerald-300";
   if (kind === "attr") return "bg-amber-500/15 text-amber-300";
+  if (kind === "variable") return "bg-violet-500/15 text-violet-300";
   return "bg-fuchsia-500/15 text-fuchsia-300";
 }
 
@@ -319,6 +320,24 @@ function getVariableClassMap(code: string) {
     variableMap.set(match[1], match[2]);
   }
   return variableMap;
+}
+
+function getDeclaredVariables(code: string) {
+  const variables = new Set<string>();
+  const declarationPattern =
+    /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g;
+  const functionPattern =
+    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g;
+
+  for (const match of code.matchAll(declarationPattern)) {
+    variables.add(match[1]);
+  }
+
+  for (const match of code.matchAll(functionPattern)) {
+    variables.add(match[1]);
+  }
+
+  return Array.from(variables).sort((a, b) => a.localeCompare(b));
 }
 
 function buildGlobalSuggestions(word: string, replaceRange: { start: number; end: number }) {
@@ -351,6 +370,19 @@ function buildGlobalSuggestions(word: string, replaceRange: { start: number; end
         detail: entry.detail,
         kind: entry.kind,
         badgeClass: getBadgeClass(entry.kind),
+        replaceRange,
+      });
+    }
+  }
+
+  for (const variableName of getDeclaredVariables(store.jsCode.value || "")) {
+    if (!needle || variableName.toLowerCase().includes(needle)) {
+      items.push({
+        label: variableName,
+        insertText: variableName,
+        detail: "Declared variable",
+        kind: "variable",
+        badgeClass: getBadgeClass("variable"),
         replaceRange,
       });
     }
