@@ -25,7 +25,7 @@
     >
       <div class="flex min-h-[56px] overflow-hidden">
         <div
-          class="shrink-0 min-w-[40px] bg-neutral-900/40 border-r border-neutral-700/50"
+          class="shrink-0 min-w-[40px] bg-neutral-900 border-r border-neutral-700/50"
           aria-hidden="true"
         />
         <div class="flex-1 pl-4 py-2">
@@ -148,7 +148,13 @@ let syncingFromEditor = false;
 const draculaHighlightStyle = HighlightStyle.define([
   { tag: tags.keyword, color: "#ff79c6" },
   {
-    tag: [tags.name, tags.deleted, tags.character, tags.propertyName, tags.macroName],
+    tag: [
+      tags.name,
+      tags.deleted,
+      tags.character,
+      tags.propertyName,
+      tags.macroName,
+    ],
     color: "#8be9fd",
   },
   {
@@ -184,8 +190,14 @@ const draculaHighlightStyle = HighlightStyle.define([
   { tag: [tags.strikethrough], textDecoration: "line-through" },
   { tag: [tags.link], color: "#8be9fd", textDecoration: "underline" },
   { tag: [tags.heading], fontWeight: "700", color: "#ff79c6" },
-  { tag: [tags.atom, tags.bool, tags.special(tags.variableName)], color: "#bd93f9" },
-  { tag: [tags.processingInstruction, tags.string, tags.inserted], color: "#f1fa8c" },
+  {
+    tag: [tags.atom, tags.bool, tags.special(tags.variableName)],
+    color: "#bd93f9",
+  },
+  {
+    tag: [tags.processingInstruction, tags.string, tags.inserted],
+    color: "#f1fa8c",
+  },
   { tag: [tags.invalid], color: "#ff5555" },
 ]);
 
@@ -515,7 +527,7 @@ function createEditorView() {
           borderLeftColor: "#ff79c6",
         },
         ".cm-gutters": {
-          backgroundColor: "#21222c",
+          backgroundColor: "#0f172b",
           color: "#6272a4",
           borderRight: "1px solid rgba(98, 114, 164, 0.28)",
           minWidth: "40px",
