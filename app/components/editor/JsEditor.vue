@@ -61,65 +61,8 @@
       </div>
     </div>
 
-    <div class="flex-1 flex overflow-hidden relative">
-      <div
-        ref="lineNumRef"
-        class="select-none text-right pr-3 pt-4 pb-4 bg-neutral-900/40 border-r border-neutral-700/50 font-mono text-[12px] leading-[22px] text-neutral-600 min-w-[40px] overflow-hidden"
-        aria-hidden="true"
-      >
-        <div v-for="n in lineCount" :key="n">{{ n }}</div>
-      </div>
-
-      <div class="relative flex-1 overflow-hidden">
-        <textarea
-          ref="editorRef"
-          v-model="store.jsCode.value"
-          class="flex-1 w-full h-full bg-transparent text-green-300 font-mono text-[12px] leading-[22px] p-4 resize-none outline-none caret-white selection:bg-indigo-500/30 overflow-y-auto"
-          spellcheck="false"
-          autocorrect="off"
-          autocapitalize="off"
-          placeholder="Write your logic here..."
-          @keydown="onEditorKeydown"
-          @input="scheduleSuggestionUpdate"
-          @click="scheduleSuggestionUpdate"
-          @keyup="scheduleSuggestionUpdate"
-          @scroll="syncScroll"
-        />
-
-        <div
-          v-if="suggestions.length > 0"
-          class="absolute z-20 w-[320px] max-h-[260px] overflow-y-auto rounded-xl border border-neutral-700 bg-neutral-900/95 shadow-2xl backdrop-blur"
-          :style="suggestionPanelStyle"
-        >
-          <button
-            v-for="(suggestion, index) in suggestions"
-            :key="`${suggestion.label}-${suggestion.insertText}`"
-            type="button"
-            class="w-full px-3 py-2 text-left border-b border-neutral-800/80 last:border-b-0 transition-colors"
-            :class="
-              index === selectedSuggestionIndex
-                ? 'bg-indigo-500/15'
-                : 'hover:bg-neutral-800/80'
-            "
-            @mousedown.prevent="applySuggestion(index)"
-          >
-            <div class="flex items-center justify-between gap-3">
-              <span class="text-[12px] font-mono text-white">
-                {{ suggestion.label }}
-              </span>
-              <span
-                class="rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wider"
-                :class="suggestion.badgeClass"
-              >
-                {{ suggestion.kind }}
-              </span>
-            </div>
-            <p class="mt-1 text-[10px] text-neutral-400 leading-4">
-              {{ suggestion.detail }}
-            </p>
-          </button>
-        </div>
-      </div>
+    <div class="flex-1 overflow-hidden">
+      <div ref="editorHostRef" class="h-full w-full" />
     </div>
 
     <div
@@ -133,21 +76,47 @@
         <span>{{ lineCount }} lines</span>
       </div>
       <div class="text-[10px] text-neutral-500 font-mono">
-        <span v-if="suggestions.length > 0"
-          >Suggestions: Enter/Tab to insert · Esc to close</span
-        >
+        <span>CodeMirror 6</span>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { EditorSelection, EditorState } from "@codemirror/state";
+import {
+  EditorView,
+  drawSelection,
+  dropCursor,
+  highlightActiveLine,
+  highlightSpecialChars,
+  keymap,
+  lineNumbers,
+  rectangularSelection,
+} from "@codemirror/view";
+import {
+  autocompletion,
+  closeBrackets,
+  completionKeymap,
+  type Completion,
+  type CompletionContext,
+} from "@codemirror/autocomplete";
+import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import {
+  bracketMatching,
+  defaultHighlightStyle,
+  foldGutter,
+  indentOnInput,
+  syntaxHighlighting,
+} from "@codemirror/language";
+import { javascript } from "@codemirror/lang-javascript";
+
 import { useEditorStore } from "~/composables/useEditorStore";
 import {
   ELEMENT_CLASS_MAP,
-  varNameFromId,
   buildScaffold,
+  varNameFromId,
 } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
 import {
@@ -157,23 +126,12 @@ import {
   getComponentApiSchemas,
 } from "~/utils/componentApi";
 
-interface EditorSuggestion {
-  label: string;
-  insertText: string;
-  detail: string;
-  kind: "class" | "method" | "attr" | "global" | "variable";
-  badgeClass: string;
-  replaceRange?: { start: number; end: number };
-}
-
 const store = useEditorStore();
-const editorRef = ref<HTMLTextAreaElement | null>(null);
-const lineNumRef = ref<HTMLDivElement | null>(null);
-const suggestions = ref<EditorSuggestion[]>([]);
-const selectedSuggestionIndex = ref(0);
-const suggestionPos = ref({ top: 12, left: 12 });
-const suggestionPlacement = ref<"below" | "above">("below");
+const editorHostRef = ref<HTMLDivElement | null>(null);
+const lineCount = ref(1);
 const componentSchemas = getComponentApiSchemas();
+let editorView: EditorView | null = null;
+let syncingFromEditor = false;
 
 const currentElements = computed(() =>
   store.elements.value.filter(
@@ -185,122 +143,6 @@ function initPageCodeIfEmpty() {
   if (!store.jsCode.value || store.jsCode.value.trim() === "") {
     store.setJsCode(buildScaffold(currentElements.value));
   }
-}
-
-onMounted(initPageCodeIfEmpty);
-watch(() => store.currentPageId.value, initPageCodeIfEmpty);
-
-const lineCount = computed(() => (store.jsCode.value || "").split("\n").length);
-
-const suggestionPanelStyle = computed(() => ({
-  top: `${suggestionPos.value.top}px`,
-  left: `${suggestionPos.value.left}px`,
-}));
-
-function syncScroll() {
-  if (editorRef.value && lineNumRef.value) {
-    lineNumRef.value.scrollTop = editorRef.value.scrollTop;
-  }
-  scheduleSuggestionUpdate();
-}
-
-function insertTab() {
-  const ta = editorRef.value;
-  if (!ta) return;
-  const start = ta.selectionStart;
-  const end = ta.selectionEnd;
-  const code = store.jsCode.value;
-  store.setJsCode(code.substring(0, start) + "  " + code.substring(end));
-  nextTick(() => {
-    ta.selectionStart = ta.selectionEnd = start + 2;
-    updateSuggestions();
-  });
-}
-
-function insertIdSnippet(el: AppElement) {
-  const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
-  const varName = varNameFromId(el.id);
-  const snippet = `var ${varName} = new ${cls}('${el.id}');\npage.add(${varName});\n`;
-
-  const ta = editorRef.value;
-  if (ta) {
-    const pos = ta.selectionStart;
-    const code = store.jsCode.value;
-    store.setJsCode(code.substring(0, pos) + snippet + code.substring(pos));
-    nextTick(() => {
-      ta.selectionStart = ta.selectionEnd = pos + snippet.length;
-      ta.focus();
-      updateSuggestions();
-    });
-  } else {
-    store.setJsCode((store.jsCode.value || "") + "\n" + snippet);
-  }
-}
-
-function scheduleSuggestionUpdate() {
-  nextTick(() => updateSuggestions());
-}
-
-function updateSuggestionPosition(cursor: number) {
-  const ta = editorRef.value;
-  if (!ta) return;
-
-  const before = store.jsCode.value.slice(0, cursor);
-  const lines = before.split("\n");
-  const line = Math.max(lines.length - 1, 0);
-  const col = lines[lines.length - 1]?.length ?? 0;
-  const charWidth = 7.2;
-  const lineHeight = 22;
-  const panelWidth = 320;
-  const panelHeight = Math.min(260, Math.max(120, suggestions.value.length * 52));
-  const gutter = 16;
-  const caretClearanceX = 42;
-  const caretClearanceY = 18;
-
-  const cursorX = 16 + col * charWidth - ta.scrollLeft;
-  const cursorY = 16 + line * lineHeight - ta.scrollTop;
-
-  let left = cursorX + caretClearanceX;
-  let top = cursorY + lineHeight + caretClearanceY;
-
-  if (left + panelWidth > ta.clientWidth - gutter) {
-    left = Math.max(gutter, cursorX - panelWidth - caretClearanceX);
-  }
-
-  if (top + panelHeight > ta.clientHeight - gutter) {
-    top = Math.max(gutter, cursorY - panelHeight - caretClearanceY);
-    suggestionPlacement.value = "above";
-  } else {
-    suggestionPlacement.value = "below";
-  }
-
-  if (
-    left <= cursorX + caretClearanceX &&
-    left + panelWidth >= cursorX - caretClearanceX &&
-    top <= cursorY + lineHeight + caretClearanceY &&
-    top + panelHeight >= cursorY - caretClearanceY
-  ) {
-    const rightCandidate = cursorX + panelWidth + caretClearanceX > ta.clientWidth - gutter
-      ? null
-      : cursorX + caretClearanceX;
-    const leftCandidate = cursorX - panelWidth - caretClearanceX;
-
-    if (rightCandidate !== null) {
-      left = rightCandidate;
-    } else {
-      left = Math.max(gutter, leftCandidate);
-    }
-  }
-
-  suggestionPos.value = { top, left };
-}
-
-function getBadgeClass(kind: EditorSuggestion["kind"]) {
-  if (kind === "class") return "bg-cyan-500/15 text-cyan-300";
-  if (kind === "method") return "bg-emerald-500/15 text-emerald-300";
-  if (kind === "attr") return "bg-amber-500/15 text-amber-300";
-  if (kind === "variable") return "bg-violet-500/15 text-violet-300";
-  return "bg-fuchsia-500/15 text-fuchsia-300";
 }
 
 function getCurrentWordRange(code: string, cursor: number) {
@@ -315,7 +157,8 @@ function getCurrentWordRange(code: string, cursor: number) {
 
 function getVariableClassMap(code: string) {
   const variableMap = new Map<string, string>();
-  const pattern = /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+([A-Za-z_$][\w$]*)\s*\(/g;
+  const pattern =
+    /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)\s*=\s*new\s+([A-Za-z_$][\w$]*)\s*\(/g;
   for (const match of code.matchAll(pattern)) {
     variableMap.set(match[1], match[2]);
   }
@@ -324,10 +167,8 @@ function getVariableClassMap(code: string) {
 
 function getDeclaredVariables(code: string) {
   const variables = new Set<string>();
-  const declarationPattern =
-    /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g;
-  const functionPattern =
-    /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g;
+  const declarationPattern = /\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)/g;
+  const functionPattern = /\bfunction\s+([A-Za-z_$][\w$]*)\s*\(/g;
 
   for (const match of code.matchAll(declarationPattern)) {
     variables.add(match[1]);
@@ -340,242 +181,320 @@ function getDeclaredVariables(code: string) {
   return Array.from(variables).sort((a, b) => a.localeCompare(b));
 }
 
-function buildGlobalSuggestions(word: string, replaceRange: { start: number; end: number }) {
+function buildGlobalCompletions(
+  code: string,
+  word: string,
+): Completion[] {
   const needle = word.toLowerCase();
-  const items: EditorSuggestion[] = [];
+  const completions: Completion[] = [];
 
   for (const schema of componentSchemas) {
     if (!needle || schema.className.toLowerCase().includes(needle)) {
-      items.push({
+      completions.push({
         label: schema.className,
-        insertText: schema.className,
+        type: "class",
         detail: `${schema.label} class`,
-        kind: "class",
-        badgeClass: getBadgeClass("class"),
-        replaceRange,
+        info: `Attrs: ${schema.props.join(", ")}\nMethods: ${schema.methods.join(", ")}`,
       });
     }
   }
 
   const globals = [
-    { label: "page", detail: "Page API object", kind: "global" as const },
-    { label: "console", detail: "Debug console object", kind: "global" as const },
+    { label: "page", detail: "Page API object", type: "constant" as const },
+    { label: "console", detail: "Debug console object", type: "constant" as const },
   ];
 
   for (const entry of globals) {
     if (!needle || entry.label.includes(needle)) {
-      items.push({
+      completions.push({
         label: entry.label,
-        insertText: entry.label,
+        type: entry.type,
         detail: entry.detail,
-        kind: entry.kind,
-        badgeClass: getBadgeClass(entry.kind),
-        replaceRange,
       });
     }
   }
 
-  for (const variableName of getDeclaredVariables(store.jsCode.value || "")) {
+  for (const variableName of getDeclaredVariables(code)) {
     if (!needle || variableName.toLowerCase().includes(needle)) {
-      items.push({
+      completions.push({
         label: variableName,
-        insertText: variableName,
+        type: "variable",
         detail: "Declared variable",
-        kind: "variable",
-        badgeClass: getBadgeClass("variable"),
-        replaceRange,
       });
     }
   }
 
-  return items;
+  return completions;
 }
 
-function buildObjectSuggestions(
+function buildObjectCompletions(
+  code: string,
   objectName: string,
   word: string,
-  replaceRange: { start: number; end: number },
-) {
+): Completion[] {
   const needle = word.toLowerCase();
-  const items: EditorSuggestion[] = [];
 
   if (objectName === "page") {
-    for (const method of PAGE_API_METHODS) {
-      if (!needle || method.toLowerCase().includes(needle)) {
-        items.push({
-          label: method,
-          insertText: method,
-          detail: "Page method",
-          kind: "method",
-          badgeClass: getBadgeClass("method"),
-          replaceRange,
-        });
-      }
-    }
-    return items;
+    return PAGE_API_METHODS.filter(
+      (method) => !needle || method.toLowerCase().includes(needle),
+    ).map((method) => ({
+      label: method,
+      type: "method" as const,
+      detail: "Page method",
+      apply: method,
+    }));
   }
 
   if (objectName === "console") {
-    for (const method of CONSOLE_API_METHODS) {
-      if (!needle || method.toLowerCase().includes(needle)) {
-        items.push({
-          label: method,
-          insertText: method,
-          detail: "Console method",
-          kind: "method",
-          badgeClass: getBadgeClass("method"),
-          replaceRange,
-        });
-      }
-    }
-    return items;
+    return CONSOLE_API_METHODS.filter(
+      (method) => !needle || method.toLowerCase().includes(needle),
+    ).map((method) => ({
+      label: method,
+      type: "method" as const,
+      detail: "Console method",
+      apply: method,
+    }));
   }
 
-  const className = getVariableClassMap(store.jsCode.value).get(objectName);
+  const className = getVariableClassMap(code).get(objectName);
   const schema = className ? findComponentApiSchemaByClassName(className) : undefined;
   if (!schema) return [];
 
-  for (const method of schema.methods) {
-    if (!needle || method.toLowerCase().includes(needle)) {
-      items.push({
-        label: method,
-        insertText: method,
-        detail: `${schema.className} method`,
-        kind: "method",
-        badgeClass: getBadgeClass("method"),
-        replaceRange,
-      });
-    }
-  }
+  const methodCompletions = schema.methods
+    .filter((method) => !needle || method.toLowerCase().includes(needle))
+    .map((method) => ({
+      label: method,
+      type: "method" as const,
+      detail: `${schema.className} method`,
+      apply: method,
+    }));
 
-  for (const prop of schema.props) {
-    if (!needle || prop.toLowerCase().includes(needle)) {
-      items.push({
-        label: prop,
-        insertText: prop,
-        detail: `${schema.className} attr`,
-        kind: "attr",
-        badgeClass: getBadgeClass("attr"),
-        replaceRange,
-      });
-    }
-  }
+  const propCompletions = schema.props
+    .filter((prop) => !needle || prop.toLowerCase().includes(needle))
+    .map((prop) => ({
+      label: prop,
+      type: "property" as const,
+      detail: `${schema.className} attr`,
+    }));
 
-  return items;
+  return [...methodCompletions, ...propCompletions];
 }
 
-function updateSuggestions() {
-  const ta = editorRef.value;
-  if (!ta) return;
-
-  const code = store.jsCode.value || "";
-  const cursor = ta.selectionStart ?? 0;
+function codecraftCompletionSource(context: CompletionContext) {
+  const code = context.state.doc.toString();
+  const cursor = context.pos;
   const before = code.slice(0, cursor);
   const objectMatch = before.match(/([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)?$/);
-  const wordRange = getCurrentWordRange(code, cursor);
-
-  let nextSuggestions: EditorSuggestion[] = [];
 
   if (objectMatch) {
     const objectName = objectMatch[1];
     const partial = objectMatch[2] ?? "";
-    nextSuggestions = buildObjectSuggestions(objectName, partial, {
-      start: cursor - partial.length,
-      end: cursor,
-    });
-  } else if (wordRange.word.length >= 1) {
-    nextSuggestions = buildGlobalSuggestions(wordRange.word, {
-      start: wordRange.start,
-      end: wordRange.end,
-    });
-  } else {
-    nextSuggestions = [];
+    const options = buildObjectCompletions(code, objectName, partial);
+    if (!options.length) return null;
+    return {
+      from: cursor - partial.length,
+      options,
+    };
   }
 
-  suggestions.value = nextSuggestions.slice(0, 12);
-  selectedSuggestionIndex.value = 0;
-  if (suggestions.value.length > 0) {
-    updateSuggestionPosition(cursor);
-  }
+  const wordRange = getCurrentWordRange(code, cursor);
+  if (!context.explicit && !wordRange.word.length) return null;
+
+  const options = buildGlobalCompletions(code, wordRange.word);
+  if (!options.length) return null;
+
+  return {
+    from: wordRange.start,
+    options,
+  };
 }
 
-function applySuggestion(index = selectedSuggestionIndex.value) {
-  const ta = editorRef.value;
-  const suggestion = suggestions.value[index];
-  if (!ta || !suggestion) return;
+function syncStoreFromEditor(doc: string) {
+  syncingFromEditor = true;
+  store.setJsCode(doc);
+  syncingFromEditor = false;
+}
 
-  const code = store.jsCode.value;
-  const range = suggestion.replaceRange ?? {
-    start: ta.selectionStart,
-    end: ta.selectionEnd,
-  };
-  const insert = suggestion.insertText;
+function replaceEditorDoc(nextCode: string) {
+  if (!editorView) return;
+  const current = editorView.state.doc.toString();
+  if (current === nextCode) return;
 
-  store.setJsCode(code.slice(0, range.start) + insert + code.slice(range.end));
-  suggestions.value = [];
-
-  nextTick(() => {
-    const nextPos = range.start + insert.length;
-    ta.selectionStart = ta.selectionEnd = nextPos;
-    ta.focus();
-    updateSuggestions();
+  editorView.dispatch({
+    changes: {
+      from: 0,
+      to: current.length,
+      insert: nextCode,
+    },
+    selection: EditorSelection.cursor(Math.min(nextCode.length, editorView.state.selection.main.head)),
   });
 }
 
-function moveSuggestion(delta: number) {
-  if (suggestions.value.length === 0) return;
-  const next =
-    (selectedSuggestionIndex.value + delta + suggestions.value.length) %
-    suggestions.value.length;
-  selectedSuggestionIndex.value = next;
+function insertSnippetAtCursor(snippet: string) {
+  if (!editorView) return;
+  const selection = editorView.state.selection.main;
+  editorView.dispatch({
+    changes: { from: selection.from, to: selection.to, insert: snippet },
+    selection: EditorSelection.cursor(selection.from + snippet.length),
+  });
+  editorView.focus();
 }
 
-function onEditorKeydown(event: KeyboardEvent) {
-  if (suggestions.value.length > 0) {
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      moveSuggestion(1);
-      return;
-    }
-    if (event.key === "ArrowUp") {
-      event.preventDefault();
-      moveSuggestion(-1);
-      return;
-    }
-    if (event.key === "Enter" || event.key === "Tab") {
-      event.preventDefault();
-      applySuggestion();
-      return;
-    }
-    if (event.key === "Escape") {
-      event.preventDefault();
-      suggestions.value = [];
-      return;
-    }
-  }
-
-  if (event.key === "Tab") {
-    event.preventDefault();
-    insertTab();
-  }
+function insertIdSnippet(el: AppElement) {
+  const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
+  const varName = varNameFromId(el.id);
+  const snippet = `var ${varName} = new ${cls}('${el.id}');\npage.add(${varName});\n`;
+  insertSnippetAtCursor(snippet);
 }
+
+function createEditorView() {
+  if (!editorHostRef.value) return;
+
+  const state = EditorState.create({
+    doc: store.jsCode.value || "",
+    extensions: [
+      lineNumbers(),
+      highlightSpecialChars(),
+      history(),
+      drawSelection(),
+      dropCursor(),
+      indentOnInput(),
+      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      bracketMatching(),
+      closeBrackets(),
+      rectangularSelection(),
+      foldGutter(),
+      highlightActiveLine(),
+      javascript(),
+      autocompletion({
+        override: [codecraftCompletionSource],
+        activateOnTyping: true,
+      }),
+      keymap.of([
+        indentWithTab,
+        ...defaultKeymap,
+        ...historyKeymap,
+        ...completionKeymap,
+      ]),
+      EditorView.updateListener.of((update) => {
+        if (!update.docChanged) return;
+        const doc = update.state.doc.toString();
+        lineCount.value = update.state.doc.lines;
+        syncStoreFromEditor(doc);
+      }),
+      EditorView.theme({
+        "&": {
+          height: "100%",
+          backgroundColor: "transparent",
+          color: "#86efac",
+          fontSize: "12px",
+          fontFamily:
+            'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+        },
+        ".cm-scroller": {
+          overflow: "auto",
+          fontFamily: "inherit",
+          lineHeight: "22px",
+        },
+        ".cm-content": {
+          padding: "16px",
+          caretColor: "#ffffff",
+        },
+        ".cm-gutters": {
+          backgroundColor: "rgba(10, 10, 10, 0.35)",
+          color: "#6b7280",
+          borderRight: "1px solid rgba(64, 64, 64, 0.7)",
+          minWidth: "40px",
+        },
+        ".cm-lineNumbers .cm-gutterElement": {
+          paddingRight: "12px",
+          paddingLeft: "8px",
+        },
+        ".cm-activeLine": {
+          backgroundColor: "rgba(99, 102, 241, 0.08)",
+        },
+        ".cm-selectionBackground, ::selection": {
+          backgroundColor: "rgba(99, 102, 241, 0.28) !important",
+        },
+        ".cm-tooltip.cm-tooltip-autocomplete": {
+          border: "1px solid rgba(55, 65, 81, 1)",
+          backgroundColor: "rgba(10, 15, 30, 0.96)",
+          color: "#e5e7eb",
+          borderRadius: "14px",
+          overflow: "hidden",
+          backdropFilter: "blur(10px)",
+          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.45)",
+        },
+        ".cm-tooltip-autocomplete ul": {
+          fontFamily: "inherit",
+          maxHeight: "260px",
+        },
+        ".cm-tooltip-autocomplete li": {
+          padding: "8px 12px",
+          borderBottom: "1px solid rgba(31, 41, 55, 0.9)",
+        },
+        ".cm-tooltip-autocomplete li:last-child": {
+          borderBottom: "none",
+        },
+        ".cm-tooltip-autocomplete li[aria-selected]": {
+          backgroundColor: "rgba(99, 102, 241, 0.18)",
+          color: "#ffffff",
+        },
+        ".cm-completionLabel": {
+          color: "#ffffff",
+        },
+        ".cm-completionDetail": {
+          color: "#94a3b8",
+          fontStyle: "normal",
+        },
+        ".cm-completionInfo": {
+          borderLeft: "1px solid rgba(55, 65, 81, 1)",
+          backgroundColor: "rgba(15, 23, 42, 0.96)",
+          color: "#cbd5e1",
+          padding: "12px",
+          whiteSpace: "pre-wrap",
+        },
+      }),
+    ],
+  });
+
+  editorView = new EditorView({
+    state,
+    parent: editorHostRef.value,
+  });
+  lineCount.value = state.doc.lines;
+}
+
+onMounted(() => {
+  initPageCodeIfEmpty();
+  createEditorView();
+});
+
+watch(
+  () => store.currentPageId.value,
+  () => {
+    initPageCodeIfEmpty();
+    replaceEditorDoc(store.jsCode.value || "");
+    lineCount.value = (store.jsCode.value || "").split("\n").length;
+  },
+);
+
+watch(
+  () => store.jsCode.value,
+  (nextCode) => {
+    if (syncingFromEditor) return;
+    replaceEditorDoc(nextCode || "");
+    lineCount.value = (nextCode || "").split("\n").length;
+  },
+);
+
+onBeforeUnmount(() => {
+  editorView?.destroy();
+  editorView = null;
+});
 </script>
 
 <style scoped>
-textarea {
-  tab-size: 2;
-}
-textarea::-webkit-scrollbar {
-  width: 10px;
-}
-textarea::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-}
-textarea::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
 .available-ids ::-webkit-scrollbar {
   width: 6px;
 }
