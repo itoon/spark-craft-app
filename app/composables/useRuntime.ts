@@ -21,6 +21,11 @@ export interface RuntimeResult {
   logs: ConsoleEntry[]
 }
 
+export interface RuntimeState {
+  pageElements: AppElement[]
+  instances: ElementInstance[]
+}
+
 // ── Class name map ─────────────────────────────────────────────────────────
 export const ELEMENT_CLASS_MAP: Record<string, string> = {
   Toolbar:              'Toolbar',
@@ -94,6 +99,33 @@ export function buildScaffold(elements: AppElement[]): string {
   }
 
   return lines.join('\n')
+}
+
+export function syncRuntimeElementProps(
+  runtime: RuntimeState,
+  id: string,
+  propsPatch: Record<string, unknown>
+): RuntimeState {
+  const pageElements = runtime.pageElements.map((el) =>
+    el.id === id
+      ? {
+          ...el,
+          props: { ...el.props, ...propsPatch },
+        }
+      : el
+  )
+
+  const instances = runtime.instances.map((instance) => {
+    if (instance.__el.id !== id) return instance
+
+    instance.__el = {
+      ...instance.__el,
+      props: { ...instance.__el.props, ...propsPatch },
+    }
+    return instance
+  })
+
+  return { pageElements, instances }
 }
 
 // ── Execute student code ───────────────────────────────────────────────────

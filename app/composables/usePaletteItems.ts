@@ -75,7 +75,7 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: 'i-lucide-text-cursor',
           defaultWidth: 220,
           defaultHeight: 56,
-          defaultProps: { label: 'Label', placeholder: 'Enter value', type: 'text' },
+          defaultProps: { label: 'Label', placeholder: 'Enter value', type: 'text', value: '' },
         },
         {
           type: 'Input',
@@ -83,7 +83,7 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: 'i-lucide-text-cursor-input',
           defaultWidth: 196,
           defaultHeight: 42,
-          defaultProps: { placeholder: 'Enter text…', type: 'text', borderRadius: 4 },
+          defaultProps: { placeholder: 'Enter text…', type: 'text', borderRadius: 4, value: '' },
         },
         {
           type: 'RangeInput',

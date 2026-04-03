@@ -220,6 +220,15 @@
             />
           </EditorPropField>
 
+          <EditorPropField v-if="selectedElement.type === 'Input' || selectedElement.type === 'LabelledInput'" label="Value">
+            <UInput
+              :model-value="(selectedElement.props.value as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ value: String(v) })"
+            />
+          </EditorPropField>
+
           <!-- LabelledInput label text -->
           <EditorPropField v-if="selectedElement.type === 'LabelledInput'" label="Label text">
             <UInput

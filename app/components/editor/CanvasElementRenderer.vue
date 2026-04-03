@@ -6,17 +6,17 @@
       v-if="element.type === 'Container'"
       class="relative w-full transition-colors duration-100 select-none"
       :class="[
-        element.parentId 
+        element.parentId && !props.isRunMode
           ? 'border-2 border-dashed rounded-sm' 
           : '',
-        isSelected
+        isSelected && !props.isRunMode
           ? 'border-indigo-500 bg-indigo-500/5'
-          : element.parentId ? 'border-slate-400/30 hover:border-indigo-400/50' : '',
+          : element.parentId && !props.isRunMode ? 'border-slate-400/30 hover:border-indigo-400/50' : '',
       ]"
       :style="containerStyle"
       @click.stop="handleElementClick"
     >
-      <div v-if="isSelected" class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none">
+      <div v-if="isSelected && !props.isRunMode" class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none">
         <span class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none">{{ element.type }}</span>
       </div>
       <div
@@ -26,12 +26,13 @@
         <div
           v-for="childId in element.children"
           :key="childId"
-          draggable="true"
-          class="canvas-element cursor-pointer relative transition-shadow duration-100"
+          :draggable="!props.isRunMode"
+          class="canvas-element relative transition-shadow duration-100"
           :class="{
             'ring-2 ring-indigo-400 ring-offset-0': store.selectedElementId.value === childId,
             'ring-2 ring-indigo-300': dragOverChildId === childId && draggingChildId !== childId,
             'opacity-40': draggingChildId === childId,
+            'cursor-pointer': !props.isRunMode,
           }"
           :style="childStyle(childId)"
           @click.stop="handleElementClick"
@@ -40,15 +41,21 @@
           @drop.prevent="onChildDrop($event, childId)"
           @dragend="onChildDragEnd"
         >
-          <template v-if="store.selectedElementId.value === childId">
+          <template v-if="store.selectedElementId.value === childId && !props.isRunMode">
             <div class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none">
               <span class="text-[9px] bg-indigo-400 text-white px-1.5 py-0.5 rounded font-mono leading-none">{{ getElement(childId)?.type }}</span>
             </div>
           </template>
-          <EditorCanvasElementRenderer v-if="getElement(childId)" :element="getElement(childId)!" />
+          <EditorCanvasElementRenderer
+            v-if="getElement(childId)"
+            :element="getElement(childId)!"
+            :is-run-mode="props.isRunMode"
+            @run-click="emit('run-click', $event)"
+            @run-input="(id, patch) => emit('run-input', id, patch)"
+          />
         </div>
         <div
-          v-if="element.parentId && (element.children.length === 0 || isSelected)"
+          v-if="!props.isRunMode && element.parentId && (element.children.length === 0 || isSelected)"
           class="flex items-center justify-center shrink-0 opacity-40 w-full h-6"
         >
           <UIcon name="i-lucide-plus" class="size-3 text-slate-400" />
@@ -121,6 +128,7 @@
           :key="idx"
           class="flex-1 flex items-center justify-center text-[11px] font-semibold relative transition-colors duration-150"
           :style="segmentItemStyle(idx)"
+          @click.stop="props.isRunMode ? updateRunProps({ selected: idx }) : handleElementClick()"
         >
           {{ opt }}
           <!-- Android underline indicator -->
@@ -141,6 +149,8 @@
       class="w-full h-full flex items-center justify-center text-[13px] font-semibold select-none"
       :style="buttonStyle"
       @click.stop="handleElementClick"
+      :role="props.isRunMode ? 'button' : undefined"
+      :tabindex="props.isRunMode ? 0 : undefined"
     >
       {{ (element.props.label as string) || 'Button' }}
     </div>
@@ -162,12 +172,21 @@
          Android: rounded-sm, subtle bg, magnifier + mic icon              -->
     <div
       v-else-if="element.type === 'Searchbar'"
-      class="w-full h-full flex items-center gap-2 px-3 select-none"
+      class="w-full h-full flex items-center gap-2 px-3"
       :style="searchbarStyle"
       @click.stop="handleElementClick"
     >
       <UIcon name="i-lucide-search" class="size-3.5 text-gray-400 shrink-0" />
-      <span class="text-[12px] text-gray-400 flex-1 truncate">
+      <input
+        v-if="props.isRunMode"
+        class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
+        type="search"
+        :value="(element.props.value as string) || ''"
+        :placeholder="(element.props.placeholder as string) || 'Search'"
+        @click.stop
+        @input="handleTextInput($event)"
+      />
+      <span v-else class="text-[12px] text-gray-400 flex-1 truncate">
         {{ (element.props.placeholder as string) || 'Search' }}
       </span>
       <UIcon v-if="platform === 'android'" name="i-lucide-mic" class="size-3.5 text-gray-400 shrink-0" />
@@ -178,7 +197,7 @@
          Android: underline + floating label (Material)                    -->
     <div
       v-else-if="element.type === 'LabelledInput'"
-      class="w-full h-full flex flex-col justify-center select-none"
+      class="w-full h-full flex flex-col justify-center"
       :style="labelledInputWrapStyle"
       @click.stop="handleElementClick"
     >
@@ -186,8 +205,17 @@
         {{ (element.props.label as string) || 'Label' }}
       </span>
       <div class="flex-1 flex items-center px-2" :style="labelledInputFieldStyle">
-        <span class="text-[12px] text-gray-400 truncate">
-          {{ (element.props.placeholder as string) || 'Enter value' }}
+        <input
+          v-if="props.isRunMode"
+          class="w-full bg-transparent text-[12px] text-gray-700 outline-none"
+          type="text"
+          :value="(element.props.value as string) || ''"
+          :placeholder="(element.props.placeholder as string) || 'Enter value'"
+          @click.stop
+          @input="handleTextInput($event)"
+        />
+        <span v-else class="text-[12px] text-gray-400 truncate">
+          {{ inputDisplayValue((element.props.value as string) || '', (element.props.placeholder as string) || 'Enter value') }}
         </span>
       </div>
     </div>
@@ -197,12 +225,21 @@
          Android: bottom-border only (Material underline)                  -->
     <div
       v-else-if="element.type === 'Input'"
-      class="w-full h-full flex items-center px-3 select-none"
+      class="w-full h-full flex items-center px-3"
       :style="inputStyle"
       @click.stop="handleElementClick"
     >
-      <span class="text-[12px] text-gray-400 truncate">
-        {{ (element.props.placeholder as string) || 'Enter text…' }}
+      <input
+        v-if="props.isRunMode"
+        class="w-full bg-transparent text-[12px] text-gray-700 outline-none"
+        type="text"
+        :value="(element.props.value as string) || ''"
+        :placeholder="(element.props.placeholder as string) || 'Enter text...'"
+        @click.stop
+        @input="handleTextInput($event)"
+      />
+      <span v-else class="text-[12px] text-gray-400 truncate">
+        {{ inputDisplayValue((element.props.value as string) || '', (element.props.placeholder as string) || 'Enter text...') }}
       </span>
     </div>
 
@@ -211,9 +248,19 @@
          Android: rectangular track ends, Material thumb                   -->
     <div
       v-else-if="element.type === 'RangeInput'"
-      class="w-full h-full flex flex-col justify-center gap-1 px-2 select-none"
+      class="w-full h-full flex flex-col justify-center gap-1 px-2"
       @click.stop="handleElementClick"
     >
+      <input
+        v-if="props.isRunMode"
+        class="w-full"
+        type="range"
+        :min="element.props.min ?? 0"
+        :max="element.props.max ?? 100"
+        :value="element.props.value ?? 50"
+        @click.stop
+        @input="handleRangeInput($event)"
+      />
       <div class="relative h-1.5 rounded-full" :style="{ backgroundColor: '#e5e7eb' }">
         <div class="absolute left-0 top-0 h-full rounded-full" :style="{ width: `${rangePercent}%`, backgroundColor: ionColor }" />
         <div
@@ -232,11 +279,19 @@
          Android: text field style                                         -->
     <div
       v-else-if="element.type === 'DateTimePicker'"
-      class="w-full h-full flex items-center px-3 gap-2 select-none"
+      class="w-full h-full flex items-center px-3 gap-2"
       :style="inputStyle"
       @click.stop="handleElementClick"
     >
-      <span class="text-[12px] text-gray-400 flex-1 truncate">
+      <input
+        v-if="props.isRunMode"
+        class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
+        type="date"
+        :value="(element.props.value as string) || ''"
+        @click.stop
+        @input="handleTextInput($event)"
+      />
+      <span v-else class="text-[12px] text-gray-400 flex-1 truncate">
         {{ (element.props.placeholder as string) || 'Select date' }}
       </span>
       <UIcon
@@ -250,8 +305,8 @@
          Android: rounded-sm, Material style                               -->
     <div
       v-else-if="element.type === 'Checkbox'"
-      class="w-full h-full flex items-center gap-2 select-none"
-      @click.stop="handleElementClick"
+      class="w-full h-full flex items-center gap-2"
+      @click.stop="props.isRunMode ? toggleBooleanProp('checked') : handleElementClick()"
     >
       <div
         class="shrink-0 flex items-center justify-center"
@@ -267,8 +322,8 @@
          Android: outer ring + filled inner circle                         -->
     <div
       v-else-if="element.type === 'RadioButton'"
-      class="w-full h-full flex items-center gap-2 select-none"
-      @click.stop="handleElementClick"
+      class="w-full h-full flex items-center gap-2"
+      @click.stop="props.isRunMode ? updateRunProps({ selected: true }) : handleElementClick()"
     >
       <!-- iOS: checkmark inside circle -->
       <div
@@ -290,8 +345,8 @@
          Android: narrower track, colored when on                          -->
     <div
       v-else-if="element.type === 'Toggle'"
-      class="w-full h-full flex items-center gap-2 select-none"
-      @click.stop="handleElementClick"
+      class="w-full h-full flex items-center gap-2"
+      @click.stop="props.isRunMode ? toggleBooleanProp('on') : handleElementClick()"
     >
       <div class="relative shrink-0 rounded-full transition-colors duration-150" :style="toggleTrackStyle">
         <div class="absolute top-1/2 -translate-y-1/2 bg-white rounded-full shadow transition-transform duration-150" :style="toggleThumbStyle" />
@@ -304,11 +359,27 @@
          Android: underline field + dropdown arrow                         -->
     <div
       v-else-if="element.type === 'Select'"
-      class="w-full h-full flex items-center px-3 gap-1 select-none"
+      class="w-full h-full flex items-center px-3 gap-1"
       :style="inputStyle"
       @click.stop="handleElementClick"
     >
-      <span class="text-[12px] text-gray-400 flex-1 truncate">{{ (element.props.placeholder as string) || 'Select…' }}</span>
+      <select
+        v-if="props.isRunMode"
+        class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
+        :value="(element.props.value as string) || ''"
+        @click.stop
+        @change="handleTextInput($event)"
+      >
+        <option value="" disabled>{{ (element.props.placeholder as string) || 'Select...' }}</option>
+        <option
+          v-for="(opt, idx) in ((element.props.options as string[]) || ['Option 1', 'Option 2'])"
+          :key="idx"
+          :value="opt"
+        >
+          {{ opt }}
+        </option>
+      </select>
+      <span v-else class="text-[12px] text-gray-400 flex-1 truncate">{{ (element.props.placeholder as string) || 'Select...' }}</span>
       <UIcon
         :name="platform === 'ios' ? 'i-lucide-chevrons-up-down' : 'i-lucide-chevron-down'"
         class="size-3.5 text-gray-400 shrink-0"
@@ -484,8 +555,11 @@ import { useEditorStore } from '~/composables/useEditorStore'
 
 const props = defineProps<{ 
   element: AppElement,
-  isRunMode?: boolean,
-  onRunClick?: (id: string) => void
+  isRunMode?: boolean
+}>()
+const emit = defineEmits<{
+  (e: 'run-click', id: string): void
+  (e: 'run-input', id: string, propsPatch: Record<string, unknown>): void
 }>()
 const store = useEditorStore()
 
@@ -496,10 +570,33 @@ const platform = computed(() => store.activePlatform.value)
 
 function handleElementClick() {
   if (props.isRunMode) {
-    if (props.onRunClick) props.onRunClick(props.element.id)
+    emit('run-click', props.element.id)
   } else {
     store.selectElement(props.element.id)
   }
+}
+
+function updateRunProps(propsPatch: Record<string, unknown>) {
+  if (!props.isRunMode) return
+  emit('run-input', props.element.id, propsPatch)
+}
+
+function handleTextInput(event: Event) {
+  const target = event.target as HTMLInputElement | HTMLSelectElement
+  updateRunProps({ value: target.value })
+}
+
+function handleRangeInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  updateRunProps({ value: Number(target.value) })
+}
+
+function toggleBooleanProp(propName: string) {
+  updateRunProps({ [propName]: !props.element.props[propName] })
+}
+
+function inputDisplayValue(value: string, placeholder: string) {
+  return value.trim() ? value : placeholder
 }
 
 // Ionic primary color
@@ -827,17 +924,20 @@ const draggingChildId = ref<string | null>(null)
 const dragOverChildId = ref<string | null>(null)
 
 function onChildDragStart(e: DragEvent, childId: string) {
+  if (props.isRunMode) return
   draggingChildId.value = childId
   e.dataTransfer!.setData('application/codecraft-child', childId)
   e.dataTransfer!.effectAllowed = 'move'
   e.stopPropagation()
 }
 function onChildDragOver(e: DragEvent, childId: string) {
+  if (props.isRunMode) return
   if (draggingChildId.value === childId) return
   dragOverChildId.value = childId
   e.stopPropagation()
 }
 function onChildDrop(e: DragEvent, targetChildId: string) {
+  if (props.isRunMode) return
   const sourceId = draggingChildId.value
   if (!sourceId || sourceId === targetChildId) { onChildDragEnd(); return }
   const parent = props.element

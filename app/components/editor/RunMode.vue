@@ -133,7 +133,6 @@
                     <EditorCanvasElementRenderer
                       :element="toolbarElement"
                       is-run-mode
-                      :run-mode-element-ids="runModeElementIds"
                       @run-click="handleRunClick"
                       @run-input="handleRunInput"
                     />
@@ -146,7 +145,6 @@
                         <EditorCanvasElementRenderer
                           :element="el"
                           is-run-mode
-                          :run-mode-element-ids="runModeElementIds"
                           @run-click="handleRunClick"
                           @run-input="handleRunInput"
                         />
@@ -173,7 +171,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
-import { executeCode } from '~/composables/useRuntime'
+import { executeCode, syncRuntimeElementProps } from '~/composables/useRuntime'
 import type { ConsoleEntry, ElementInstance } from '~/composables/useRuntime'
 import type { AppElement } from '~/composables/useEditorStore'
 
@@ -221,8 +219,18 @@ function handleRunClick(id: string) {
   }
 }
 
-function handleRunInput(id: string, value: any) {
-  store.updateElementProps(id, { value })
+function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
+  store.updateElementProps(id, propsPatch)
+  const nextRuntime = syncRuntimeElementProps(
+    {
+      pageElements: pageElements.value,
+      instances: instances.value,
+    },
+    id,
+    propsPatch
+  )
+  pageElements.value = nextRuntime.pageElements
+  instances.value = nextRuntime.instances
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────
