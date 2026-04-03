@@ -37,12 +37,19 @@
                     :element="toolbarElement"
                     is-run-mode
                     :runtime-element-ids="Array.from(runModeElementIds)"
+                    :runtime-elements="pageElements"
                     @run-click="handleRunClick"
                     @run-input="handleRunInput"
                   />
                 </div>
 
-                <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px] pt-[14px] pb-[14px]">
+                <div
+                  class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px]"
+                  :style="{
+                    paddingTop: `${bodyTopPadding}px`,
+                    paddingBottom: `${BODY_BOTTOM_PADDING}px`,
+                  }"
+                >
                   <template v-for="element in bodyElements" :key="element.id">
                     <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(element)}px` }">
                       <EditorCanvasElementRenderer
@@ -50,6 +57,7 @@
                         is-run-mode
                         :forced-height="bodyElementHeight(element)"
                         :runtime-element-ids="Array.from(runModeElementIds)"
+                        :runtime-elements="pageElements"
                         @run-click="handleRunClick"
                         @run-input="handleRunInput"
                       />
@@ -75,7 +83,6 @@
 import { computed, nextTick, ref, watch } from "vue";
 
 import { executeCode, syncRuntimeElementProps } from "~/composables/useRuntime";
-import { useEditorStore } from "~/composables/useEditorStore";
 import type { AppElement } from "~/composables/useEditorStore";
 import type { ElementInstance } from "~/composables/useRuntime";
 import type { SharedExportPayload } from "~/utils/sharedExport";
@@ -83,7 +90,6 @@ import type { SharedExportPayload } from "~/utils/sharedExport";
 const props = defineProps<{
   payload: SharedExportPayload;
 }>();
-const store = useEditorStore();
 
 function cloneElements(elements: AppElement[]): AppElement[] {
   return JSON.parse(JSON.stringify(elements)) as AppElement[];
@@ -98,6 +104,12 @@ const runtimeError = ref("");
 const toolbarElement = computed(() =>
   pageElements.value.find((element) => element.type === "Toolbar") ?? null,
 );
+const DEFAULT_TOOLBAR_HEIGHT = 56;
+const BODY_TOP_PADDING = 14;
+const BODY_BOTTOM_PADDING = 14;
+const bodyTopPadding = computed(() =>
+  toolbarElement.value ? BODY_TOP_PADDING : DEFAULT_TOOLBAR_HEIGHT + BODY_TOP_PADDING,
+);
 
 const runModeElementIds = computed(() => new Set(pageElements.value.map((element) => element.id)));
 
@@ -111,16 +123,6 @@ const bodyElements = computed(() =>
 
 const deviceLabel = computed(() =>
   props.payload.activeDeviceId === "android" ? "Android" : "iPhone 15",
-);
-
-watch(
-  [elementState, currentPageId],
-  () => {
-    store.elements.value = cloneElements(elementState.value);
-    store.currentPageId.value = currentPageId.value;
-    store.selectElement(null);
-  },
-  { deep: true, immediate: true },
 );
 
 watch(
@@ -200,7 +202,10 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
 
 function bodyElementHeight(element: AppElement) {
   if (element.type !== "Container" || element.parentId !== null) return element.height;
-  const toolbarHeight = toolbarElement.value?.height ?? 56;
-  return Math.max(element.height - toolbarHeight - 28, 0);
+  const toolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT;
+  return Math.max(
+    element.height - toolbarHeight - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
+    0,
+  );
 }
 </script>

@@ -36,7 +36,13 @@
 
     <!-- Empty state (only when no elements at all) -->
     <!-- Body containers stacked vertically -->
-    <div class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[14px] pt-[14px] pb-[14px]">
+    <div
+      class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[14px]"
+      :style="{
+        paddingTop: `${bodyTopPadding}px`,
+        paddingBottom: `${BODY_BOTTOM_PADDING}px`,
+      }"
+    >
       <div
         v-if="bodyContainers.length === 0"
         class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
@@ -126,7 +132,12 @@ const bodyContainers = computed(() => {
 });
 
 const DEFAULT_TOOLBAR_HEIGHT = 56;
-const BODY_VERTICAL_PADDING = 28;
+const BODY_TOP_PADDING = 14;
+const BODY_BOTTOM_PADDING = 14;
+
+const bodyTopPadding = computed(() =>
+  toolbarElement.value ? BODY_TOP_PADDING : DEFAULT_TOOLBAR_HEIGHT + BODY_TOP_PADDING,
+);
 
 // Root containers get their x/y position from the store, but in this document-flow
 // layout we only apply width. Height comes from the element's height prop.
@@ -140,7 +151,10 @@ function rootContainerStyle(el: AppElement): Record<string, string> {
 function rootContainerHeight(el: AppElement): number {
   if (el.parentId !== null) return el.height;
   const detachedToolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT;
-  return Math.max(el.height - detachedToolbarHeight - BODY_VERTICAL_PADDING, 0);
+  return Math.max(
+    el.height - detachedToolbarHeight - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
+    0,
+  );
 }
 
 // ── Drag-and-drop from palette ─────────────────────────────────────────────

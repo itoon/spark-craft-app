@@ -41,7 +41,7 @@ export const ELEMENT_CLASS_MAP: Record<string, string> = {
   Toggle:               'Toggle',
   Select:               'Select',
   Heading:              'Heading',
-  TextBox:              'TextBox',
+  TextBox:              'Textarea',
   Badge:                'Badge',
   Chip:                 'Chip',
   Spinner:              'Spinner',
@@ -255,6 +255,7 @@ export function executeCode(
   const Select        = make('Select')
   const Heading       = make('Heading')
   const TextBox       = make('TextBox')
+  const Textarea      = make('TextBox')
   const Badge         = make('Badge')
   const Chip          = make('Chip')
   const Spinner       = make('Spinner')
@@ -307,7 +308,7 @@ export function executeCode(
     new Function(
       'Toolbar','Button','FAB','Input','LabelledInput','Searchbar',
       'Range','DatePicker','Checkbox','Radio','Toggle','Select',
-      'Heading','TextBox','Badge','Chip','Spinner',
+      'Heading','TextBox','Textarea','Badge','Chip','Spinner',
       'Image','Link','Video','List','Card','Segment',
       'Separator','Spacer','Container',
       'page','console',
@@ -315,7 +316,7 @@ export function executeCode(
     )(
       Toolbar,Button,FAB,Input,LabelledInput,Searchbar,
       Range,DatePicker,Checkbox,Radio,Toggle,Select,
-      Heading,TextBox,Badge,Chip,Spinner,
+      Heading,TextBox,Textarea,Badge,Chip,Spinner,
       Image,Link,Video,List,Card,Segment,
       Separator,Spacer,Container,
       page,console

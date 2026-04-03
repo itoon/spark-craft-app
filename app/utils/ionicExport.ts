@@ -26,6 +26,8 @@ const ELEMENT_CLASS_MAP: Record<string, string> = {
   Checkbox: "Checkbox",
   RadioButton: "Radio",
   Toggle: "Toggle",
+  Heading: "Heading",
+  TextBox: "Textarea",
   Badge: "Badge",
   Chip: "Chip",
   Spinner: "Spinner",
@@ -316,6 +318,7 @@ export function executeCode(
   const Checkbox = make('Checkbox');
   const Radio = make('Radio');
   const Toggle = make('Toggle');
+  const Textarea = make('TextBox');
   const Badge = make('Badge');
   const Chip = make('Chip');
   const Spinner = make('Spinner');
@@ -365,6 +368,7 @@ export function executeCode(
     'Checkbox',
     'Radio',
     'Toggle',
+    'Textarea',
     'Badge',
     'Chip',
     'Spinner',
@@ -392,6 +396,7 @@ export function executeCode(
     Checkbox,
     Radio,
     Toggle,
+    Textarea,
     Badge,
     Chip,
     Spinner,
@@ -540,7 +545,9 @@ function buildRendererFile(): string {
   </ion-item>
 
   <ion-item v-else-if="element.type === 'Toggle'" lines="none">
-    <ion-label>{{ element.props.label || 'Toggle' }}</ion-label>
+    <ion-label :style="{ fontSize: String((element.props.fontSize || 16)) + 'px' }">
+      {{ element.props.content || element.props.label || 'Label' }}
+    </ion-label>
     <ion-toggle
       slot="end"
       :checked="Boolean(element.props.on)"

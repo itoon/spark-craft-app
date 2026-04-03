@@ -223,4 +223,28 @@ describe("usePaletteItems", () => {
     expect(input?.defaultProps.value).toBe("");
     expect(labelledInput?.defaultProps.value).toBe("");
   });
+
+  it("includes Heading and Textarea with learning-friendly defaults", () => {
+    const groups = usePaletteItems();
+    const displayGroup = groups.find((group) => group.label === "Display");
+
+    const heading = displayGroup?.items.find((item) => item.type === "Heading");
+    const textBox = displayGroup?.items.find((item) => item.type === "TextBox");
+
+    expect(heading?.defaultProps.text).toBe("Heading");
+    expect(heading?.defaultProps.level).toBe(2);
+    expect(textBox?.defaultProps.placeholder).toBe("Write something...");
+    expect(textBox?.defaultProps.textAlign).toBe("left");
+    expect(textBox?.defaultProps.wrap).toBe("wrap");
+  });
+
+  it("gives Toggle content and font-size defaults for the new design", () => {
+    const groups = usePaletteItems();
+    const inputGroup = groups.find((group) => group.label === "Input");
+    const toggle = inputGroup?.items.find((item) => item.type === "Toggle");
+
+    expect(toggle?.defaultProps.content).toBe("Label");
+    expect(toggle?.defaultProps.fontSize).toBe(16);
+    expect(toggle?.defaultProps.on).toBe(false);
+  });
 });

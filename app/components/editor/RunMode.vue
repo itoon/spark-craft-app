@@ -134,13 +134,20 @@
                       :element="toolbarElement"
                       is-run-mode
                       :runtime-element-ids="Array.from(runModeElementIds)"
+                      :runtime-elements="pageElements"
                       @run-click="handleRunClick"
                       @run-input="handleRunInput"
                     />
                   </div>
 
                   <!-- Body elements -->
-                  <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px] pt-[14px] pb-[14px]">
+                  <div
+                    class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px]"
+                    :style="{
+                      paddingTop: `${bodyTopPadding}px`,
+                      paddingBottom: `${BODY_BOTTOM_PADDING}px`,
+                    }"
+                  >
                     <template v-for="el in bodyElements" :key="el.id">
                       <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(el)}px` }">
                         <EditorCanvasElementRenderer
@@ -148,6 +155,7 @@
                           is-run-mode
                           :forced-height="bodyElementHeight(el)"
                           :runtime-element-ids="Array.from(runModeElementIds)"
+                          :runtime-elements="pageElements"
                           @run-click="handleRunClick"
                           @run-input="handleRunInput"
                         />
@@ -289,7 +297,11 @@ const toolbarElement = computed(() =>
 )
 
 const DEFAULT_TOOLBAR_HEIGHT = 56
-const BODY_VERTICAL_PADDING = 28
+const BODY_TOP_PADDING = 14
+const BODY_BOTTOM_PADDING = 14
+const bodyTopPadding = computed(() =>
+  toolbarElement.value ? BODY_TOP_PADDING : DEFAULT_TOOLBAR_HEIGHT + BODY_TOP_PADDING
+)
 
 const bodyElements = computed(() => {
   return pageElements.value.filter(el => {
@@ -309,7 +321,10 @@ const bodyElements = computed(() => {
 function bodyElementHeight(el: AppElement) {
   if (el.type !== 'Container' || el.parentId !== null) return el.height
   const detachedToolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT
-  return Math.max(el.height - detachedToolbarHeight - BODY_VERTICAL_PADDING, 0)
+  return Math.max(
+    el.height - detachedToolbarHeight - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
+    0
+  )
 }
 </script>
 

@@ -177,7 +177,7 @@
 
           <!-- Font size dropdown -->
           <EditorPropField
-            v-if="hasProp('fontSize')"
+            v-if="hasProp('fontSize') && selectedElement.type !== 'TextBox'"
             label="Font size"
           >
             <select
@@ -206,6 +206,25 @@
                 @click="patchProps({ fill: option })"
               >
                 {{ option }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'TextBox'"
+            label="Font size"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in FONT_SIZE_OPTIONS"
+                :key="option.value"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.fontSize as number) ?? 14) === option.value
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ fontSize: option.value })"
+              >
+                {{ option.value }}
               </button>
             </div>
           </EditorPropField>
@@ -362,6 +381,15 @@
             />
           </EditorPropField>
 
+          <EditorPropField v-if="selectedElement.type === 'TextBox'" label="Placeholder">
+            <UInput
+              :model-value="(selectedElement.props.placeholder as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ placeholder: String(v) })"
+            />
+          </EditorPropField>
+
           <!-- Heading text -->
           <EditorPropField v-if="selectedElement.type === 'Heading'" label="Text">
             <UInput
@@ -373,14 +401,44 @@
           </EditorPropField>
 
           <!-- Heading level -->
-          <EditorPropField v-if="selectedElement.type === 'Heading'" label="Level (1–6)">
-            <UInput
-              :model-value="(selectedElement.props.level as number) ?? 1"
-              type="number"
-              size="xs"
-              class="prop-input"
-              @update:model-value="(v) => patchProps({ level: Math.min(6, Math.max(1, Number(v))) })"
-            />
+          <EditorPropField v-if="selectedElement.type === 'Heading'" label="Size">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in HEADING_LEVEL_OPTIONS"
+                :key="option.label"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.level as number) ?? 2) === option.value
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ level: option.value })"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'TextBox'" label="Text align">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in TEXTAREA_ALIGN_OPTIONS"
+                :key="option"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100 capitalize"
+                :class="(
+                  option === 'wrap' || option === 'unwrap'
+                    ? ((selectedElement.props.wrap as string) ?? 'wrap') === option
+                    : ((selectedElement.props.textAlign as string) ?? 'left') === option
+                )
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps(
+                  option === 'wrap' || option === 'unwrap'
+                    ? { wrap: option }
+                    : { textAlign: option }
+                )"
+              >
+                {{ option }}
+              </button>
+            </div>
           </EditorPropField>
 
           <!-- Checkbox / RadioButton label -->
@@ -393,14 +451,46 @@
             />
           </EditorPropField>
 
-          <!-- Toggle label -->
-          <EditorPropField v-if="selectedElement.type === 'Toggle'" label="Label">
+          <!-- Toggle content -->
+          <EditorPropField v-if="selectedElement.type === 'Toggle'" label="Content">
             <UInput
-              :model-value="(selectedElement.props.label as string) || ''"
+              :model-value="(selectedElement.props.content as string) || (selectedElement.props.label as string) || ''"
               size="xs"
               class="prop-input"
-              @update:model-value="(v) => patchProps({ label: String(v) })"
+              @update:model-value="(v) => patchProps({ content: String(v), label: String(v) })"
             />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Toggle'" label="Font size">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in FONT_SIZE_OPTIONS"
+                :key="option.value"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.fontSize as number) ?? 16) === option.value
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ fontSize: option.value })"
+              >
+                {{ option.value }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Toggle'" label="Value">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BOOLEAN_OPTIONS"
+                :key="String(option)"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.on as boolean) ?? false) === option
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ on: option })"
+              >
+                {{ String(option) }}
+              </button>
+            </div>
           </EditorPropField>
 
           <!-- Image src -->
@@ -642,7 +732,7 @@ const CONTENT_TYPES = new Set([
   'Button', 'Searchbar', 'Input', 'LabelledInput',
   'Checkbox', 'RadioButton', 'Toggle', 'Image',
   'Toolbar', 'RangeInput', 'Card', 'List', 'Segment',
-  'Select', 'Badge', 'Chip',
+  'Select', 'Badge', 'Chip', 'Heading', 'TextBox',
 ])
 
 // Kid-friendly preset color palette for swatches
@@ -680,6 +770,17 @@ const FONT_SIZE_OPTIONS = [
   { label: 'XL (24px)',     value: 24 },
   { label: 'XXL (32px)',    value: 32 },
 ]
+
+const HEADING_LEVEL_OPTIONS = [
+  { label: 'h1', value: 1 },
+  { label: 'h2', value: 2 },
+  { label: 'h3', value: 3 },
+  { label: 'h4', value: 4 },
+  { label: 'h5', value: 5 },
+  { label: 'h6', value: 6 },
+]
+
+const TEXTAREA_ALIGN_OPTIONS = ['left', 'center', 'right', 'justify', 'wrap', 'unwrap'] as const
 
 const FAB_HORIZONTAL_OPTIONS = ['start', 'center', 'end'] as const
 const FAB_VERTICAL_OPTIONS = ['top', 'center', 'bottom'] as const
