@@ -192,6 +192,44 @@
           </EditorPropField>
 
           <EditorPropField
+            v-if="selectedElement.type === 'Button'"
+            label="Fill"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BUTTON_FILL_OPTIONS"
+                :key="option"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.fill as string) ?? 'solid') === option
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ fill: option })"
+              >
+                {{ option }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'Chip'"
+            label="Outline"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BOOLEAN_OPTIONS"
+                :key="String(option)"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.outline as boolean) ?? false) === option
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ outline: option })"
+              >
+                {{ String(option) }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField
             v-if="selectedElement.type === 'FloatingActionButton'"
             label="Horizontal Alignment"
           >
@@ -264,6 +302,24 @@
               size="xs"
               class="prop-input"
               @update:model-value="(v) => patchProps({ label: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Searchbar'" label="Placeholder">
+            <UInput
+              :model-value="(selectedElement.props.placeholder as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ placeholder: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Searchbar'" label="Value">
+            <UInput
+              :model-value="(selectedElement.props.value as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ value: String(v) })"
             />
           </EditorPropField>
 
@@ -387,6 +443,119 @@
             />
           </EditorPropField>
 
+          <EditorPropField v-if="selectedElement.type === 'Toolbar'" label="Back Button">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BOOLEAN_OPTIONS"
+                :key="String(option)"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.showBack as boolean) ?? false) === option
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ showBack: option })"
+              >
+                {{ String(option) }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Card'" label="Title">
+            <UInput
+              :model-value="(selectedElement.props.title as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ title: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Card'" label="Subtitle">
+            <UInput
+              :model-value="(selectedElement.props.subtitle as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ subtitle: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'List'" label="Items">
+            <UInput
+              :model-value="joinOptions(selectedElement.props.items)"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ items: parseOptions(String(v)) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Segment'" label="Options">
+            <UInput
+              :model-value="joinOptions(selectedElement.props.options)"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ options: parseOptions(String(v)) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Segment'" label="Selected">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="(option, idx) in parseOptions(joinOptions(selectedElement.props.options))"
+                :key="`${option}-${idx}`"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.selected as number) ?? 0) === idx
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ selected: idx })"
+              >
+                {{ option }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Select'" label="Placeholder">
+            <UInput
+              :model-value="(selectedElement.props.placeholder as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ placeholder: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Select'" label="Options">
+            <UInput
+              :model-value="joinOptions(selectedElement.props.options)"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ options: parseOptions(String(v)) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Select'" label="Value">
+            <UInput
+              :model-value="(selectedElement.props.value as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ value: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Badge'" label="Text">
+            <UInput
+              :model-value="(selectedElement.props.text as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ text: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Chip'" label="Label">
+            <UInput
+              :model-value="(selectedElement.props.label as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ label: String(v) })"
+            />
+          </EditorPropField>
+
           <!-- Range min/max/value -->
           <template v-if="selectedElement.type === 'RangeInput'">
             <div class="grid grid-cols-3 gap-1">
@@ -470,9 +639,10 @@ function copyId() {
 
 const CONTAINER_TYPES = new Set(['Container'])
 const CONTENT_TYPES = new Set([
-  'Button', 'Input', 'LabelledInput', 'TextBox', 'Heading',
-  'Checkbox', 'RadioButton', 'Toggle', 'Image', 'Link',
-  'Toolbar', 'RangeInput',
+  'Button', 'Searchbar', 'Input', 'LabelledInput',
+  'Checkbox', 'RadioButton', 'Toggle', 'Image',
+  'Toolbar', 'RangeInput', 'Card', 'List', 'Segment',
+  'Select', 'Badge', 'Chip',
 ])
 
 // Kid-friendly preset color palette for swatches
@@ -514,6 +684,8 @@ const FONT_SIZE_OPTIONS = [
 const FAB_HORIZONTAL_OPTIONS = ['start', 'center', 'end'] as const
 const FAB_VERTICAL_OPTIONS = ['top', 'center', 'bottom'] as const
 const FAB_EDGE_OPTIONS = [true, false] as const
+const BUTTON_FILL_OPTIONS = ['solid', 'outline', 'clear'] as const
+const BOOLEAN_OPTIONS = [true, false] as const
 
 const isContainerType = computed(() =>
   !!selectedElement.value && CONTAINER_TYPES.has(selectedElement.value.type)
@@ -537,6 +709,17 @@ function patchProps(patch: Record<string, unknown>) {
   if (selectedElement.value) {
     store.updateElementProps(selectedElement.value.id, patch)
   }
+}
+
+function parseOptions(value: string): string[] {
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+}
+
+function joinOptions(value: unknown): string {
+  return Array.isArray(value) ? value.join(', ') : ''
 }
 
 // Direction toggle removed — Container is always vertical.

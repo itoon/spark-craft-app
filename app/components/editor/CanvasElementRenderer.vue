@@ -672,10 +672,32 @@ function segmentItemStyle(idx: number) {
 // ── Button ────────────────────────────────────────────────────────────────
 const buttonStyle = computed(() => {
   const bg = (props.element.props.backgroundColor as string) || '#3880ff'
+  const fill = (props.element.props.fill as string) || 'solid'
+  const radius = platform.value === 'ios' ? '12px' : '6px'
+  if (fill === 'clear') {
+    return {
+      backgroundColor: 'transparent',
+      border: 'none',
+      borderRadius: radius,
+      color: bg,
+      textTransform: platform.value === 'android' ? 'uppercase' as const : 'none',
+      letterSpacing: platform.value === 'android' ? '0.08em' : '0.01em',
+    }
+  }
+  if (fill === 'outline') {
+    return {
+      backgroundColor: 'transparent',
+      border: `1.5px solid ${bg}`,
+      borderRadius: radius,
+      color: bg,
+      textTransform: platform.value === 'android' ? 'uppercase' as const : 'none',
+      letterSpacing: platform.value === 'android' ? '0.08em' : '0.01em',
+    }
+  }
   if (platform.value === 'ios') {
     return {
       backgroundColor: bg,
-      borderRadius: '12px',
+      borderRadius: radius,
       color: '#ffffff',
       letterSpacing: '0.01em',
     }
@@ -683,7 +705,7 @@ const buttonStyle = computed(() => {
   // Android: Material contained
   return {
     backgroundColor: bg,
-    borderRadius: '6px',
+    borderRadius: radius,
     color: '#ffffff',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.08em',
