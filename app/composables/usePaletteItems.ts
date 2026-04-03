@@ -45,6 +45,22 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultHeight: 40,
           defaultProps: { options: ['Tab 1', 'Tab 2', 'Tab 3'], selected: 0, color: '#3880ff' },
         },
+        {
+          type: 'Separator',
+          label: 'Separator',
+          icon: 'i-lucide-minus',
+          defaultWidth: 300,
+          defaultHeight: 17,
+          defaultProps: { color: '#e2e8f0', thickness: 1, paddingTop: 8, paddingBottom: 8 },
+        },
+        {
+          type: 'Spacer',
+          label: 'Spacer',
+          icon: 'i-lucide-move-vertical',
+          defaultWidth: 300,
+          defaultHeight: 50,
+          defaultProps: {},
+        },
       ],
     },
 
@@ -180,6 +196,14 @@ export function usePaletteItems(): PaletteGroup[] {
           },
         },
         {
+          type: 'Label',
+          label: 'Label',
+          icon: 'i-lucide-type',
+          defaultWidth: 220,
+          defaultHeight: 28,
+          defaultProps: { content: 'Label', fontSize: 14, color: '#334155' },
+        },
+        {
           type: 'Badge',
           label: 'Badge',
           icon: 'i-lucide-tag',
@@ -210,6 +234,14 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultWidth: 168,
           defaultHeight: 112,
           defaultProps: { src: 'https://picsum.photos/160/120', alt: 'placeholder', borderRadius: 4 },
+        },
+        {
+          type: 'Link',
+          label: 'Link',
+          icon: 'i-lucide-link',
+          defaultWidth: 160,
+          defaultHeight: 24,
+          defaultProps: { content: 'Click here', href: '#' },
         },
         {
           type: 'Icon',

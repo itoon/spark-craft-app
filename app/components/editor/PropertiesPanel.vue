@@ -177,7 +177,7 @@
 
           <!-- Font size dropdown -->
           <EditorPropField
-            v-if="hasProp('fontSize') && selectedElement.type !== 'TextBox'"
+            v-if="hasProp('fontSize') && selectedElement.type !== 'TextBox' && selectedElement.type !== 'Toggle' && selectedElement.type !== 'Label'"
             label="Font size"
           >
             <select
@@ -213,6 +213,25 @@
           <EditorPropField
             v-if="selectedElement.type === 'TextBox'"
             label="Font size"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in FONT_SIZE_OPTIONS"
+                :key="option.value"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.fontSize as number) ?? 14) === option.value
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ fontSize: option.value })"
+              >
+                {{ option.value }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'Label'"
+            label="Size"
           >
             <div class="flex gap-1 flex-wrap">
               <button
@@ -400,6 +419,15 @@
             />
           </EditorPropField>
 
+          <EditorPropField v-if="selectedElement.type === 'Label'" label="Content">
+            <UInput
+              :model-value="(selectedElement.props.content as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ content: String(v) })"
+            />
+          </EditorPropField>
+
           <!-- Heading level -->
           <EditorPropField v-if="selectedElement.type === 'Heading'" label="Size">
             <div class="flex gap-1 flex-wrap">
@@ -503,13 +531,12 @@
             />
           </EditorPropField>
 
-          <!-- Link text -->
-          <EditorPropField v-if="selectedElement.type === 'Link'" label="Text">
+          <EditorPropField v-if="selectedElement.type === 'Link'" label="Content">
             <UInput
-              :model-value="(selectedElement.props.text as string) || ''"
+              :model-value="(selectedElement.props.content as string) || (selectedElement.props.text as string) || ''"
               size="xs"
               class="prop-input"
-              @update:model-value="(v) => patchProps({ text: String(v) })"
+              @update:model-value="(v) => patchProps({ content: String(v), text: String(v) })"
             />
           </EditorPropField>
 
@@ -646,6 +673,39 @@
             />
           </EditorPropField>
 
+          <template v-if="selectedElement.type === 'Separator'">
+            <div class="grid grid-cols-2 gap-1">
+              <EditorPropField label="Padding top">
+                <UInput
+                  :model-value="(selectedElement.props.paddingTop as number) ?? 8"
+                  type="number"
+                  size="xs"
+                  class="prop-input"
+                  @update:model-value="(v) => patchProps({ paddingTop: Number(v) })"
+                />
+              </EditorPropField>
+              <EditorPropField label="Padding bottom">
+                <UInput
+                  :model-value="(selectedElement.props.paddingBottom as number) ?? 8"
+                  type="number"
+                  size="xs"
+                  class="prop-input"
+                  @update:model-value="(v) => patchProps({ paddingBottom: Number(v) })"
+                />
+              </EditorPropField>
+            </div>
+          </template>
+
+          <EditorPropField v-if="selectedElement.type === 'Spacer'" label="Height">
+            <UInput
+              :model-value="selectedElement.height"
+              type="number"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchElement({ height: Number(v) })"
+            />
+          </EditorPropField>
+
           <!-- Range min/max/value -->
           <template v-if="selectedElement.type === 'RangeInput'">
             <div class="grid grid-cols-3 gap-1">
@@ -733,6 +793,7 @@ const CONTENT_TYPES = new Set([
   'Checkbox', 'RadioButton', 'Toggle', 'Image',
   'Toolbar', 'RangeInput', 'Card', 'List', 'Segment',
   'Select', 'Badge', 'Chip', 'Heading', 'TextBox',
+  'Label', 'Link', 'Separator', 'Spacer',
 ])
 
 // Kid-friendly preset color palette for swatches

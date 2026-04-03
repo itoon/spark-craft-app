@@ -27,6 +27,7 @@ const ELEMENT_CLASS_MAP: Record<string, string> = {
   RadioButton: "Radio",
   Toggle: "Toggle",
   Heading: "Heading",
+  Label: "Label",
   TextBox: "Textarea",
   Badge: "Badge",
   Chip: "Chip",

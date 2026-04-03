@@ -559,6 +559,20 @@
       {{ (element.props.text as string) || "Heading" }}
     </div>
 
+    <!-- ─── Label ────────────────────────────────────────────────────────── -->
+    <div
+      v-else-if="element.type === 'Label'"
+      class="w-full h-full flex items-center overflow-hidden select-none"
+      @click.stop="handleElementClick"
+      :style="{
+        color: (element.props.color as string) || '#334155',
+        fontSize: `${element.props.fontSize ?? 14}px`,
+        lineHeight: '1.3',
+      }"
+    >
+      {{ (element.props.content as string) || "Label" }}
+    </div>
+
     <!-- ─── TextBox ──────────────────────────────────────────────────────── -->
     <div
       v-else-if="element.type === 'TextBox'"
@@ -635,7 +649,7 @@
         class="text-[12px] underline truncate"
         :style="{ color: (element.props.color as string) || ionColor }"
       >
-        {{ (element.props.text as string) || "Click here" }}
+        {{ (element.props.content as string) || (element.props.text as string) || "Click here" }}
       </span>
     </div>
 
@@ -659,7 +673,12 @@
     <!-- ─── Separator ────────────────────────────────────────────────────── -->
     <div
       v-else-if="element.type === 'Separator'"
-      class="w-full h-full flex items-center select-none"
+      class="w-full h-full flex items-center select-none box-border"
+      @click.stop="handleElementClick"
+      :style="{
+        paddingTop: `${element.props.paddingTop ?? 8}px`,
+        paddingBottom: `${element.props.paddingBottom ?? 8}px`,
+      }"
     >
       <div
         class="w-full"

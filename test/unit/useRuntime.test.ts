@@ -247,4 +247,23 @@ describe("usePaletteItems", () => {
     expect(toggle?.defaultProps.fontSize).toBe(16);
     expect(toggle?.defaultProps.on).toBe(false);
   });
+
+  it("includes Spacer, Separator, Label, and Link with the requested design defaults", () => {
+    const groups = usePaletteItems();
+    const layoutGroup = groups.find((group) => group.label === "Layout");
+    const displayGroup = groups.find((group) => group.label === "Display");
+
+    const spacer = layoutGroup?.items.find((item) => item.type === "Spacer");
+    const separator = layoutGroup?.items.find((item) => item.type === "Separator");
+    const label = displayGroup?.items.find((item) => item.type === "Label");
+    const link = displayGroup?.items.find((item) => item.type === "Link");
+
+    expect(spacer?.defaultHeight).toBe(50);
+    expect(separator?.defaultProps.paddingTop).toBe(8);
+    expect(separator?.defaultProps.paddingBottom).toBe(8);
+    expect(label?.defaultProps.content).toBe("Label");
+    expect(label?.defaultProps.fontSize).toBe(14);
+    expect(link?.defaultProps.content).toBe("Click here");
+    expect(link?.defaultProps.href).toBe("#");
+  });
 });

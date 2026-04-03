@@ -1,47 +1,36 @@
 <template>
   <aside
-    class="editor-learn flex flex-col h-full bg-white border-r border-neutral-200 w-90 shrink-0 overflow-hidden"
+    ref="panelRef"
+    class="editor-learn relative flex h-full w-90 shrink-0 flex-col overflow-hidden border-r border-neutral-200 bg-white"
   >
-    <!-- Panel header -->
-    <div
-      class="flex items-center gap-2 px-3 py-2.5 border-b border-neutral-200 shrink-0 bg-indigo-600"
-    >
-      <UIcon name="i-lucide-book-open" class="text-white size-4 shrink-0" />
-      <span
-        class="text-xs font-bold text-white uppercase tracking-widest truncate flex-1"
-        >{{ title }}</span
-      >
+    <div class="flex items-center gap-2 border-b border-neutral-200 bg-indigo-600 px-3 py-2.5 shrink-0">
+      <UIcon name="i-lucide-book-open" class="size-4 shrink-0 text-white" />
+      <span class="flex-1 truncate text-xs font-bold uppercase tracking-widest text-white">
+        {{ title }}
+      </span>
     </div>
 
-    <!-- Page navigation bar -->
-    <div
-      class="flex items-center justify-between gap-2 px-3 py-2 border-b border-neutral-100 bg-neutral-50 shrink-0"
-    >
+    <div class="flex items-center justify-between gap-2 border-b border-neutral-100 bg-neutral-50 px-3 py-2 shrink-0">
       <button
-        class="p-1 rounded hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        class="rounded p-1 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
         :disabled="currentPage === 0"
         @click="prev"
       >
         <UIcon name="i-lucide-chevron-left" class="size-4 text-neutral-600" />
       </button>
 
-      <!-- Page dots -->
-      <div class="flex items-center gap-1 flex-1 justify-center flex-wrap">
+      <div class="flex flex-1 flex-wrap items-center justify-center gap-1">
         <button
           v-for="(_, idx) in pages"
           :key="idx"
           class="rounded-full transition-all duration-150"
-          :class="
-            idx === currentPage
-              ? 'bg-indigo-600 w-4 h-2'
-              : 'bg-neutral-300 hover:bg-indigo-300 w-2 h-2'
-          "
+          :class="idx === currentPage ? 'h-2 w-4 bg-indigo-600' : 'h-2 w-2 bg-neutral-300 hover:bg-indigo-300'"
           @click="currentPage = idx"
         />
       </div>
 
       <button
-        class="p-1 rounded hover:bg-neutral-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        class="rounded p-1 transition-colors hover:bg-neutral-200 disabled:cursor-not-allowed disabled:opacity-30"
         :disabled="currentPage === pages.length - 1"
         @click="next"
       >
@@ -49,86 +38,151 @@
       </button>
     </div>
 
-    <!-- Progress label -->
-    <div
-      class="flex items-center justify-between px-3 py-1.5 bg-neutral-50 border-b border-neutral-100 shrink-0"
-    >
-      <span class="text-[10px] text-neutral-400 font-medium"
-        >Step {{ currentPage + 1 }} of {{ pages.length }}</span
-      >
-      <div class="flex-1 mx-2 h-1 bg-neutral-200 rounded-full overflow-hidden">
+    <div class="flex items-center justify-between border-b border-neutral-100 bg-neutral-50 px-3 py-1.5 shrink-0">
+      <span class="text-[10px] font-medium text-neutral-400">
+        Step {{ currentPage + 1 }} of {{ pages.length }}
+      </span>
+      <div class="mx-2 h-1 flex-1 overflow-hidden rounded-full bg-neutral-200">
         <div
-          class="h-full bg-indigo-500 rounded-full transition-all duration-300"
+          class="h-full rounded-full bg-indigo-500 transition-all duration-300"
           :style="{ width: `${((currentPage + 1) / pages.length) * 100}%` }"
         />
       </div>
-      <span class="text-[10px] text-indigo-500 font-semibold"
-        >{{ Math.round(((currentPage + 1) / pages.length) * 100) }}%</span
-      >
+      <span class="text-[10px] font-semibold text-indigo-500">
+        {{ Math.round(((currentPage + 1) / pages.length) * 100) }}%
+      </span>
     </div>
 
-    <!-- Page content (scrollable) -->
     <div class="flex-1 overflow-y-auto">
       <transition name="page-fade" mode="out-in">
-        <div :key="currentPage" class="flex flex-col gap-0">
-          <!-- Image -->
-          <div
-            class="relative w-full aspect-video bg-neutral-100 overflow-hidden shrink-0"
-          >
-            <img
-              :src="page.image"
-              :alt="page.title"
-              class="w-full h-full object-cover"
-            />
-            <div
-              class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"
-            />
+        <div :key="page.id" class="flex flex-col">
+          <div class="relative aspect-video w-full shrink-0 overflow-hidden bg-neutral-100">
+            <img :src="page.heroImage" :alt="page.heroAlt || page.title" class="h-full w-full object-cover" />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
             <div class="absolute bottom-2 left-3 right-3">
-              <span
-                class="text-white text-xs font-bold drop-shadow leading-tight block"
-                >{{ page.title }}</span
-              >
+              <span class="block text-xs font-bold leading-tight text-white drop-shadow">
+                {{ page.title }}
+              </span>
             </div>
           </div>
 
-          <!-- Text content -->
-          <div class="p-3 space-y-2">
-            <p class="text-xs text-neutral-700 leading-relaxed">
-              {{ page.content }}
-            </p>
-
-            <!-- Tips / highlights -->
-            <div
-              v-if="page.tip"
-              class="flex gap-2 bg-indigo-50 border border-indigo-100 rounded-lg p-2 mt-1"
-            >
-              <UIcon
-                name="i-lucide-lightbulb"
-                class="size-3.5 text-indigo-500 shrink-0 mt-0.5"
-              />
-              <span class="text-[11px] text-indigo-700 leading-snug">{{
-                page.tip
-              }}</span>
-            </div>
-
-            <!-- Tags -->
-            <div v-if="page.tags?.length" class="flex flex-wrap gap-1 pt-1">
-              <span
-                v-for="tag in page.tags"
-                :key="tag"
-                class="text-[10px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded font-medium"
-                >{{ tag }}</span
+          <div class="space-y-3 p-3">
+            <template v-for="block in page.blocks" :key="block.id">
+              <p
+                v-if="block.type === 'text'"
+                class="text-xs leading-relaxed text-neutral-700"
               >
-            </div>
+                {{ block.content }}
+              </p>
+
+              <div
+                v-else-if="block.type === 'tip' || block.type === 'note' || block.type === 'warning'"
+                class="flex gap-2 rounded-lg border p-2"
+                :class="messageClassMap[block.type]"
+              >
+                <UIcon :name="messageIconMap[block.type]" class="mt-0.5 size-3.5 shrink-0" />
+                <span class="text-[11px] leading-snug">{{ block.content }}</span>
+              </div>
+
+              <ul
+                v-else-if="block.type === 'bullet-list'"
+                class="space-y-1.5 pl-4 text-xs leading-relaxed text-neutral-700"
+              >
+                <li v-for="item in block.items" :key="item" class="list-disc">
+                  {{ item }}
+                </li>
+              </ul>
+
+              <div
+                v-else-if="block.type === 'tags'"
+                class="flex flex-wrap gap-1"
+              >
+                <span
+                  v-for="item in block.items"
+                  :key="item"
+                  class="rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] font-medium text-neutral-500"
+                >
+                  {{ item }}
+                </span>
+              </div>
+
+              <button
+                v-else-if="block.type === 'image'"
+                class="group block w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 text-left transition-shadow hover:shadow-md"
+                @click="openImage(block)"
+              >
+                <img
+                  :src="block.src"
+                  :alt="block.alt || page.title"
+                  class="aspect-video w-full object-cover"
+                />
+                <div v-if="block.caption" class="px-2.5 py-2 text-[11px] text-neutral-500">
+                  {{ block.caption }}
+                </div>
+              </button>
+
+              <button
+                v-else-if="block.type === 'youtube'"
+                class="group block w-full overflow-hidden rounded-xl border border-neutral-200 bg-neutral-50 text-left transition-shadow hover:shadow-md"
+                @click="openYoutube(block)"
+              >
+                <div class="relative aspect-video w-full overflow-hidden bg-neutral-900">
+                  <img
+                    :src="youtubeThumbnail(block)"
+                    :alt="block.title || page.title"
+                    class="h-full w-full object-cover opacity-90 transition-transform duration-200 group-hover:scale-[1.02]"
+                  />
+                  <div class="absolute inset-0 bg-black/20" />
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="flex size-14 items-center justify-center rounded-2xl bg-red-600 shadow-lg">
+                      <UIcon name="i-lucide-play" class="ml-0.5 size-7 text-white" />
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-1 px-2.5 py-2">
+                  <p v-if="block.title" class="text-xs font-semibold text-neutral-800">
+                    {{ block.title }}
+                  </p>
+                  <p v-if="block.caption" class="text-[11px] text-neutral-500">
+                    {{ block.caption }}
+                  </p>
+                </div>
+              </button>
+
+              <div
+                v-else-if="block.type === 'code'"
+                class="group relative rounded-xl border border-dashed border-neutral-300 bg-white p-2.5"
+                @mouseenter="showCodePreview(block, $event)"
+                @mouseleave="scheduleHideCodePreview"
+              >
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="truncate text-xs font-semibold text-neutral-700">
+                      {{ block.title || 'Code Example' }}
+                    </p>
+                    <p v-if="block.language" class="text-[10px] uppercase tracking-wider text-neutral-400">
+                      {{ block.language }}
+                    </p>
+                  </div>
+                  <UButton
+                    label="Copy"
+                    icon="i-lucide-copy"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    @click.stop="copyCode(block.code)"
+                  />
+                </div>
+
+                <pre class="max-h-40 overflow-hidden rounded-lg bg-neutral-50 p-3 text-[11px] leading-relaxed text-slate-700"><code>{{ block.code }}</code></pre>
+              </div>
+            </template>
           </div>
         </div>
       </transition>
     </div>
 
-    <!-- Bottom nav buttons -->
-    <div
-      class="flex gap-2 px-3 py-2.5 border-t border-neutral-200 shrink-0 bg-neutral-50"
-    >
+    <div class="flex gap-2 border-t border-neutral-200 bg-neutral-50 px-3 py-2.5 shrink-0">
       <UButton
         v-if="currentPage > 0"
         label="Back"
@@ -141,7 +195,7 @@
       />
       <UButton
         v-if="currentPage < pages.length - 1"
-        label="Next"
+        label="Continue"
         trailing-icon="i-lucide-arrow-right"
         color="primary"
         variant="solid"
@@ -159,124 +213,187 @@
         class="flex-1"
       />
     </div>
+
+    <Teleport to="body">
+      <div
+        v-if="hoveredCodePreview"
+        class="fixed z-[70] w-[520px] max-w-[calc(100vw-32px)] rounded-2xl border border-dashed border-neutral-300 bg-white p-3 shadow-2xl"
+        :style="{ left: `${hoveredCodePreview.left}px`, top: `${hoveredCodePreview.top}px` }"
+        @mouseenter="clearHideCodePreview"
+        @mouseleave="scheduleHideCodePreview"
+      >
+        <div class="mb-2 flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <p class="truncate text-sm font-semibold text-neutral-800">
+              {{ hoveredCodePreview.block.title || "Code Example" }}
+            </p>
+            <p v-if="hoveredCodePreview.block.language" class="text-[10px] uppercase tracking-wider text-neutral-400">
+              {{ hoveredCodePreview.block.language }}
+            </p>
+          </div>
+          <UButton
+            label="Copy"
+            icon="i-lucide-copy"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            @click.stop="copyCode(hoveredCodePreview.block.code)"
+          />
+        </div>
+        <pre class="max-h-[420px] overflow-auto rounded-xl bg-neutral-50 p-4 text-sm leading-relaxed text-slate-700"><code>{{ hoveredCodePreview.block.code }}</code></pre>
+      </div>
+    </Teleport>
+
+    <Teleport to="body">
+      <div
+        v-if="activeOverlay"
+        class="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-6 backdrop-blur-sm"
+        @click.self="closeOverlay"
+      >
+        <div class="relative w-full max-w-5xl rounded-2xl bg-white p-3 shadow-2xl">
+          <button
+            class="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white transition-colors hover:bg-black"
+            @click="closeOverlay"
+          >
+            <UIcon name="i-lucide-x" class="size-4" />
+          </button>
+
+          <img
+            v-if="activeOverlay.type === 'image'"
+            :src="activeOverlay.src"
+            :alt="activeOverlay.alt"
+            class="max-h-[80vh] w-full rounded-xl object-contain bg-neutral-100"
+          />
+
+          <div v-else class="aspect-video w-full overflow-hidden rounded-xl bg-black">
+            <iframe
+              class="h-full w-full"
+              :src="activeOverlay.embedUrl"
+              title="YouTube video"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowfullscreen
+            />
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 
-const title = "Calculator App";
+import {
+  learningContent,
+  type LearningBlock,
+  type LearningPage,
+} from "~/data/learningContent";
 
-interface LearningPage {
-  title: string;
-  content: string;
-  image: string;
-  tip?: string;
-  tags?: string[];
-}
+type CodeBlock = Extract<LearningBlock, { type: "code" }>;
+type ImageBlock = Extract<LearningBlock, { type: "image" }>;
+type YoutubeBlock = Extract<LearningBlock, { type: "youtube" }>;
 
-const pages: LearningPage[] = [
-  {
-    title: "Welcome to CodeCraft",
-    content:
-      "In this tutorial you will build a fully working Calculator app from scratch using the CodeCraft visual editor. No prior coding knowledge is required — just follow each step!",
-    image:
-      "https://images.unsplash.com/photo-1587145820266-a5951ee6f620?w=400&h=225&fit=crop",
-    tip: "Each step builds on the last. Take your time and experiment freely.",
-    tags: ["Beginner", "Calculator"],
-  },
-  {
-    title: "The Design Canvas",
-    content:
-      "The center area is your Design Canvas. This is where your app takes shape. You can drag elements from the left panel onto the canvas and rearrange them freely.",
-    image:
-      "https://images.unsplash.com/photo-1545665277-5937489579f2?w=400&h=225&fit=crop",
-    tip: "Try dragging a Button element onto the canvas now to get a feel for it.",
-    tags: ["Canvas", "Drag & Drop"],
-  },
-  {
-    title: "Adding a Text Box",
-    content:
-      'Find "Text box" in the Elements panel on the left. Click it or drag it to the canvas to add a display label. This will show the numbers the user types.',
-    image:
-      "https://images.unsplash.com/photo-1555421689-d68471e189f2?w=400&h=225&fit=crop",
-    tip: "Select the element after placing it to edit its content in the Properties panel on the right.",
-    tags: ["Text box", "UI"],
-  },
-  {
-    title: "Creating Number Inputs",
-    content:
-      'Add two Input elements below the Text box. These will hold the first and second numbers for the calculation. Set their labels to "Number 1" and "Number 2".',
-    image:
-      "https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400&h=225&fit=crop",
-    tip: "Use the Properties panel to set the placeholder text for each input field.",
-    tags: ["Input", "Forms"],
-  },
-  {
-    title: "Adding Operator Buttons",
-    content:
-      "Place four Button elements on the canvas — one each for Addition, Subtraction, Multiplication, and Division. Color-code them: cyan, red, green, and yellow.",
-    image:
-      "https://images.unsplash.com/photo-1596496181848-3091d4878b24?w=400&h=225&fit=crop",
-    tip: "Hold Shift while clicking elements to select multiple buttons at once.",
-    tags: ["Buttons", "Layout"],
-  },
-  {
-    title: "Adding a Result Display",
-    content:
-      "Add a final Text box at the bottom. This element will show the calculation result. Give it a larger font size (e.g. 28) to make the result stand out clearly.",
-    image:
-      "https://images.unsplash.com/photo-1510519138101-570d1dca3d66?w=400&h=225&fit=crop",
-    tip: "Set the text color to a highlight color so the result is easy to read at a glance.",
-    tags: ["Text box", "Result"],
-  },
-  {
-    title: "Writing the Logic",
-    content:
-      "Switch to the Block or Code tab at the top. For each button, write logic that reads the two input values, performs the math operation, and writes the result to the result Text box.",
-    image:
-      "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=225&fit=crop",
-    tip: "Use the Block editor for a visual approach, or the Code tab if you prefer JavaScript.",
-    tags: ["Logic", "Block", "Code"],
-  },
-  {
-    title: "Handling Division by Zero",
-    content:
-      'Add a condition in the Division button logic: if the second number equals 0, show "Error: divide by zero" in the result display instead of crashing.',
-    image:
-      "https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=400&h=225&fit=crop",
-    tip: "Good apps handle edge cases gracefully. Users will always find unexpected ways to use your app!",
-    tags: ["Logic", "Error Handling"],
-  },
-  {
-    title: "Preview Your App",
-    content:
-      "Click the green Run button in the header to launch a live preview of your calculator. Try entering numbers and pressing each operation button to verify everything works.",
-    image:
-      "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=400&h=225&fit=crop",
-    tip: "The preview panel at the bottom mirrors a real mobile device screen.",
-    tags: ["Run", "Preview", "Test"],
-  },
-  {
-    title: "Export & Share",
-    content:
-      "Press the Export button to download your finished Calculator app as a Vue SFC file. You can open it in any code editor, deploy it, or share it with friends!",
-    image:
-      "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=400&h=225&fit=crop",
-    tip: "Congratulations on finishing your first CodeCraft app! Try building something new next.",
-    tags: ["Export", "Deploy", "Share"],
-  },
-];
-
+const title = learningContent.title;
+const pages = learningContent.pages;
 const currentPage = ref(0);
-const page = computed(() => pages[currentPage.value]!);
+const page = computed<LearningPage>(() => pages[currentPage.value]!);
+const panelRef = ref<HTMLElement | null>(null);
+
+const messageClassMap = {
+  tip: "border-indigo-100 bg-indigo-50 text-indigo-700",
+  note: "border-sky-100 bg-sky-50 text-sky-700",
+  warning: "border-amber-100 bg-amber-50 text-amber-800",
+} satisfies Record<"tip" | "note" | "warning", string>;
+
+const messageIconMap = {
+  tip: "i-lucide-lightbulb",
+  note: "i-lucide-info",
+  warning: "i-lucide-triangle-alert",
+} satisfies Record<"tip" | "note" | "warning", string>;
+
+const hoveredCodePreview = ref<{
+  block: CodeBlock;
+  left: number;
+  top: number;
+} | null>(null);
+
+const activeOverlay = ref<
+  | { type: "image"; src: string; alt: string }
+  | { type: "youtube"; embedUrl: string }
+  | null
+>(null);
+
+let hidePreviewTimer: ReturnType<typeof setTimeout> | null = null;
 
 function prev() {
   if (currentPage.value > 0) currentPage.value--;
 }
+
 function next() {
   if (currentPage.value < pages.length - 1) currentPage.value++;
 }
+
+async function copyCode(code: string) {
+  await navigator.clipboard?.writeText(code).catch(() => undefined);
+}
+
+function clearHideCodePreview() {
+  if (hidePreviewTimer) {
+    clearTimeout(hidePreviewTimer);
+    hidePreviewTimer = null;
+  }
+}
+
+function scheduleHideCodePreview() {
+  clearHideCodePreview();
+  hidePreviewTimer = setTimeout(() => {
+    hoveredCodePreview.value = null;
+  }, 120);
+}
+
+function showCodePreview(block: CodeBlock, event: MouseEvent) {
+  clearHideCodePreview();
+  const blockRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  const panelRect = panelRef.value?.getBoundingClientRect();
+  const left = Math.min(
+    (panelRect?.right ?? blockRect.right) + 12,
+    window.innerWidth - 540,
+  );
+  const top = Math.min(blockRect.top, window.innerHeight - 520);
+
+  hoveredCodePreview.value = {
+    block,
+    left: Math.max(16, left),
+    top: Math.max(16, top),
+  };
+}
+
+function openImage(block: ImageBlock) {
+  activeOverlay.value = {
+    type: "image",
+    src: block.src,
+    alt: block.alt || page.value.title,
+  };
+}
+
+function youtubeThumbnail(block: YoutubeBlock) {
+  return block.thumbnail || `https://img.youtube.com/vi/${block.videoId}/hqdefault.jpg`;
+}
+
+function openYoutube(block: YoutubeBlock) {
+  activeOverlay.value = {
+    type: "youtube",
+    embedUrl: `https://www.youtube.com/embed/${block.videoId}?autoplay=1&rel=0`,
+  };
+}
+
+function closeOverlay() {
+  activeOverlay.value = null;
+}
+
+onBeforeUnmount(() => {
+  clearHideCodePreview();
+});
 </script>
 
 <style scoped>
@@ -286,10 +403,12 @@ function next() {
     opacity 0.18s ease,
     transform 0.18s ease;
 }
+
 .page-fade-enter-from {
   opacity: 0;
   transform: translateX(10px);
 }
+
 .page-fade-leave-to {
   opacity: 0;
   transform: translateX(-10px);
