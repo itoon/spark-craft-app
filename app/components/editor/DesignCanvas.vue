@@ -119,6 +119,7 @@
 
     <!-- ─── Scale wrapper — keeps the frame inside the viewport ───────── -->
     <div
+      v-if="isClientReady"
       class="shrink-0"
       :style="{
         width: `${activeDevice.totalW}px`,
@@ -142,6 +143,14 @@
         </div>
       </PreviewDeviceFrame>
     </div>
+    <div
+      v-else
+      class="shrink-0 rounded-[36px] border border-neutral-800 bg-neutral-900/50"
+      :style="{
+        width: `${activeDevice.totalW}px`,
+        height: `${activeDevice.totalH}px`,
+      }"
+    />
     <!-- end scale wrapper -->
 
     <!-- Canvas size label -->
@@ -204,6 +213,7 @@ const activeDevice = computed(
 const workspaceRef = ref<HTMLElement | null>(null);
 const workspaceW = ref(800);
 const workspaceH = ref(700);
+const isClientReady = ref(false);
 
 const scale = computed(() => {
   // Leave room for the device selector row (~56px) + label (~24px) + padding
@@ -217,6 +227,7 @@ const scale = computed(() => {
 let resizeObserver: ResizeObserver | null = null;
 
 onMounted(() => {
+  isClientReady.value = true;
   if (!workspaceRef.value) return;
   // Plain ResizeObserver — VueUse is not installed
   resizeObserver = new ResizeObserver((entries) => {
