@@ -37,7 +37,9 @@
             'ring-2 ring-indigo-400 ring-offset-0':
               !props.isRunMode && store.selectedElementId.value === childId,
             'ring-2 ring-indigo-300':
-              !props.isRunMode && dragOverChildId === childId && draggingChildId !== childId,
+              !props.isRunMode &&
+              dragOverChildId === childId &&
+              draggingChildId !== childId,
             'opacity-40': !props.isRunMode && draggingChildId === childId,
             'cursor-pointer': !props.isRunMode,
           }"
@@ -648,7 +650,9 @@
     <div
       v-else-if="element.type === 'Camera'"
       class="w-full h-full overflow-hidden rounded-2xl border border-slate-200 select-none"
-      :class="props.isRunMode && !element.props.open ? 'hidden' : 'flex flex-col'"
+      :class="
+        props.isRunMode && !element.props.open ? 'hidden' : 'flex flex-col'
+      "
       @click.stop="handleElementClick"
     >
       <div
@@ -658,11 +662,14 @@
         <div class="flex items-center gap-2">
           <UIcon name="i-lucide-camera" class="size-4" />
           <span class="text-xs font-semibold">
-            {{ (element.props.title as string) || 'Camera' }}
+            {{ (element.props.title as string) || "Camera" }}
           </span>
         </div>
-        <span class="rounded-full px-2 py-0.5 text-[10px] font-medium" :style="cameraStatusStyle">
-          {{ element.props.open ? 'Open' : 'Closed' }}
+        <span
+          class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+          :style="cameraStatusStyle"
+        >
+          {{ element.props.open ? "Open" : "Closed" }}
         </span>
       </div>
       <div
@@ -686,12 +693,13 @@
               cameraError
                 ? cameraError
                 : element.props.open
-                  ? 'Camera preview active'
-                  : 'Camera is closed'
+                  ? "Camera preview active"
+                  : "Camera is closed"
             }}
           </span>
           <span v-if="cameraError" class="text-[10px] text-white/70">
-            Camera access usually needs permission and often requires HTTPS or localhost.
+            Camera access usually needs permission and often requires HTTPS or
+            localhost.
           </span>
         </div>
       </div>
@@ -707,7 +715,11 @@
         class="text-[12px] underline truncate"
         :style="{ color: (element.props.color as string) || ionColor }"
       >
-        {{ (element.props.content as string) || (element.props.text as string) || "Click here" }}
+        {{
+          (element.props.content as string) ||
+          (element.props.text as string) ||
+          "Click here"
+        }}
       </span>
     </div>
 
@@ -808,7 +820,9 @@ let cameraStream: MediaStream | null = null;
 const isSelected = computed(
   () => store.selectedElementId.value === props.element.id,
 );
-const platform = computed(() => props.platformOverride ?? store.activePlatform.value);
+const platform = computed(
+  () => props.platformOverride ?? store.activePlatform.value,
+);
 const visibleChildIds = computed(() =>
   getVisibleRuntimeChildIds(
     props.element.children,
@@ -817,7 +831,10 @@ const visibleChildIds = computed(() =>
   ),
 );
 const shouldUseLiveCamera = computed(
-  () => props.isRunMode && props.element.type === "Camera" && !!props.element.props.open,
+  () =>
+    props.isRunMode &&
+    props.element.type === "Camera" &&
+    !!props.element.props.open,
 );
 
 // ── Run Mode Click Handling ──────────────────────────────────────────────
@@ -853,7 +870,8 @@ async function startCameraPreview() {
     cameraVideoRef.value.srcObject = cameraStream;
     await cameraVideoRef.value.play().catch(() => undefined);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to access the camera.";
+    const message =
+      error instanceof Error ? error.message : "Unable to access the camera.";
     cameraError.value = message;
     stopCameraPreview();
   }

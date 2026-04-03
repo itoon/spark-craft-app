@@ -546,6 +546,16 @@
             </div>
           </EditorPropField>
 
+          <EditorPropField v-if="selectedElement.type === 'Camera'" label="Height">
+            <UInput
+              :model-value="selectedElement.height"
+              type="number"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchElement({ height: Number(v) })"
+            />
+          </EditorPropField>
+
           <!-- Image src -->
           <EditorPropField v-if="selectedElement.type === 'Image'" label="Src">
             <UInput

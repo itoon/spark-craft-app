@@ -41,7 +41,7 @@
 
       <div class="flex items-center gap-2 px-2 border-x border-neutral-700">
         <UIcon name="i-lucide-file-text" class="size-3 text-indigo-400" />
-        
+
         <input
           v-if="isEditingPageName"
           ref="pageNameInput"
@@ -51,16 +51,24 @@
           @keydown.enter="savePageName"
           @keydown.esc="isEditingPageName = false"
         />
-        <div 
-          v-else 
+        <div
+          v-else
           class="flex items-center gap-1 cursor-pointer group"
           data-testid="page-label"
           @click="startEditingPageName"
         >
-          <span class="text-[11px] font-medium text-neutral-200 min-w-[40px] text-center">
-            {{ store.pages.value.find(p => p.id === store.currentPageId.value)?.name }}
+          <span
+            class="text-[11px] font-medium text-neutral-200 min-w-[40px] text-center"
+          >
+            {{
+              store.pages.value.find((p) => p.id === store.currentPageId.value)
+                ?.name
+            }}
           </span>
-          <UIcon name="i-lucide-edit-2" class="size-2.5 text-neutral-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <UIcon
+            name="i-lucide-edit-2"
+            class="size-2.5 text-neutral-500 opacity-0 group-hover:opacity-100 transition-opacity"
+          />
         </div>
 
         <!-- Small page switcher if multiple pages exist -->
@@ -74,12 +82,18 @@
             data-testid="page-switcher"
           />
           <template #content>
-            <div class="p-1 min-w-[120px] bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl">
+            <div
+              class="p-1 min-w-[120px] bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl"
+            >
               <button
                 v-for="page in store.pages.value"
                 :key="page.id"
                 class="w-full flex items-center gap-2 px-2 py-1.5 rounded text-[11px] transition-colors"
-                :class="store.currentPageId.value === page.id ? 'bg-indigo-600 text-white' : 'text-neutral-400 hover:bg-neutral-700 hover:text-white'"
+                :class="
+                  store.currentPageId.value === page.id
+                    ? 'bg-indigo-600 text-white'
+                    : 'text-neutral-400 hover:bg-neutral-700 hover:text-white'
+                "
                 data-testid="page-option"
                 @click="store.switchPage(page.id)"
               >
@@ -157,9 +171,11 @@ const editingName = ref("");
 const pageNameInput = ref<HTMLInputElement | null>(null);
 
 function startEditingPageName() {
-  const currentPage = store.pages.value.find(p => p.id === store.currentPageId.value);
+  const currentPage = store.pages.value.find(
+    (p) => p.id === store.currentPageId.value,
+  );
   if (!currentPage) return;
-  
+
   editingName.value = currentPage.name;
   isEditingPageName.value = true;
   nextTick(() => {

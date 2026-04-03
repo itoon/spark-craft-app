@@ -126,9 +126,6 @@
         <EditorPropertiesPanel />
       </template>
     </div>
-
-    <!-- ── BOTTOM PREVIEW PANEL (design mode only) ──────────────────── -->
-    <EditorPreviewPanel v-if="!store.isRunning.value" />
   </div>
 </template>
 
@@ -226,7 +223,9 @@ async function handleLocalExport() {
     );
   } catch (error) {
     const message =
-      error instanceof Error ? error.message : "Unable to export Ionic project.";
+      error instanceof Error
+        ? error.message
+        : "Unable to export Ionic project.";
     window.alert(message);
   } finally {
     isExporting.value = false;
