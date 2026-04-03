@@ -1,0 +1,63 @@
+<template>
+  <div class="absolute inset-0 flex flex-col overflow-hidden">
+    <div
+      v-if="toolbarElement"
+      class="sticky top-0 z-10 w-full shrink-0"
+      :style="{ height: `${toolbarElement.height}px` }"
+    >
+      <EditorCanvasElementRenderer
+        :element="toolbarElement"
+        is-run-mode
+        :platform-override="platformOverride"
+        :runtime-element-ids="Array.from(runtimeElementIds)"
+        :runtime-elements="pageElements"
+        @run-click="emit('run-click', $event)"
+        @run-input="(id, patch) => emit('run-input', id, patch)"
+      />
+    </div>
+
+    <div
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px]"
+      :style="{
+        paddingTop: `${bodyTopPadding}px`,
+        paddingBottom: `${BODY_BOTTOM_PADDING}px`,
+      }"
+    >
+      <template v-for="element in bodyElements" :key="element.id">
+        <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(element)}px` }">
+          <EditorCanvasElementRenderer
+            :element="element"
+            is-run-mode
+            :platform-override="platformOverride"
+            :forced-height="bodyElementHeight(element)"
+            :runtime-element-ids="Array.from(runtimeElementIds)"
+            :runtime-elements="pageElements"
+            @run-click="emit('run-click', $event)"
+            @run-input="(id, patch) => emit('run-input', id, patch)"
+          />
+        </div>
+      </template>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+import type { AppElement } from '~/composables/useEditorStore'
+import { BODY_BOTTOM_PADDING, usePreviewPageLayout } from '~/composables/usePreviewPageLayout'
+
+const props = defineProps<{
+  pageElements: AppElement[]
+  platformOverride?: 'ios' | 'android'
+}>()
+
+const emit = defineEmits<{
+  (e: 'run-click', id: string): void
+  (e: 'run-input', id: string, patch: Record<string, unknown>): void
+}>()
+
+const pageElements = computed(() => props.pageElements)
+const { runtimeElementIds, toolbarElement, bodyTopPadding, bodyElements, bodyElementHeight } =
+  usePreviewPageLayout(pageElements)
+</script>

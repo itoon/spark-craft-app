@@ -89,89 +89,32 @@
       </div>
 
       <!-- ── RIGHT: Device Viewer ── -->
-      <div class="flex-1 flex flex-col items-center justify-center bg-neutral-900/50 p-6 overflow-auto">
-        <!-- Scale to fit roughly -->
-        <div class="flex flex-col items-center gap-6" style="transform: scale(0.9); transform-origin: center center;">
-          
-          <!-- iPhone 15 frame -->
-          <div
-            class="relative bg-neutral-800 border-[12px] border-neutral-600 shadow-2xl shadow-black/50"
-            style="width: 417px; height: 900px; border-radius: 52px;"
-          >
-            <!-- Screen -->
+      <div ref="viewerRef" class="flex-1 flex flex-col items-center justify-center bg-neutral-900/50 p-6 overflow-auto">
+        <div class="flex flex-col items-center gap-6 w-full">
+          <PreviewDeviceFrame :device="activeDevice" :scale="scale">
             <div
-              class="relative bg-white overflow-hidden w-full h-full"
-              style="border-radius: 44px;"
+              v-if="!hasRun || pageElements.length === 0"
+              class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-10 pointer-events-none"
             >
-              <!-- Dynamic Island -->
-              <div class="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-[120px] h-[36px] bg-black rounded-full" />
-
-              <!-- Rendered page content -->
-              <div class="absolute inset-0 flex flex-col overflow-hidden">
-                <!-- Empty state -->
-                <div
-                  v-if="!hasRun || pageElements.length === 0"
-                  class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-10 pointer-events-none"
-                >
-                  <div class="size-16 rounded-full bg-neutral-100 flex items-center justify-center mb-2">
-                    <UIcon name="i-lucide-activity" class="size-8 text-neutral-300 animate-pulse" />
-                  </div>
-                  <p class="text-sm font-medium text-neutral-600">Initializing Runtime...</p>
-                  <p class="text-xs text-neutral-400 leading-relaxed">
-                    Connecting to design elements and applying your logic.
-                  </p>
-                </div>
-
-                <!-- Rendered elements -->
-                <div v-else class="flex flex-col w-full h-full">
-                  <!-- Toolbar is sticky at top -->
-                  <div
-                    v-if="toolbarElement"
-                    class="sticky top-0 z-10 w-full shrink-0"
-                    :style="{ height: `${toolbarElement.height}px` }"
-                  >
-                    <EditorCanvasElementRenderer
-                      :element="toolbarElement"
-                      is-run-mode
-                      :runtime-element-ids="Array.from(runModeElementIds)"
-                      :runtime-elements="pageElements"
-                      @run-click="handleRunClick"
-                      @run-input="handleRunInput"
-                    />
-                  </div>
-
-                  <!-- Body elements -->
-                  <div
-                    class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px]"
-                    :style="{
-                      paddingTop: `${bodyTopPadding}px`,
-                      paddingBottom: `${BODY_BOTTOM_PADDING}px`,
-                    }"
-                  >
-                    <template v-for="el in bodyElements" :key="el.id">
-                      <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(el)}px` }">
-                        <EditorCanvasElementRenderer
-                          :element="el"
-                          is-run-mode
-                          :forced-height="bodyElementHeight(el)"
-                          :runtime-element-ids="Array.from(runModeElementIds)"
-                          :runtime-elements="pageElements"
-                          @run-click="handleRunClick"
-                          @run-input="handleRunInput"
-                        />
-                      </div>
-                    </template>
-                  </div>
-                </div>
+              <div class="size-16 rounded-full bg-neutral-100 flex items-center justify-center mb-2">
+                <UIcon name="i-lucide-activity" class="size-8 text-neutral-300 animate-pulse" />
               </div>
-
-              <!-- Home indicator -->
-              <div class="absolute bottom-2 left-1/2 -translate-x-1/2 w-[130px] h-[5px] bg-neutral-400/30 rounded-full" />
+              <p class="text-sm font-medium text-neutral-600">Initializing Runtime...</p>
+              <p class="text-xs text-neutral-400 leading-relaxed">
+                Connecting to design elements and applying your logic.
+              </p>
             </div>
-          </div>
+
+            <PreviewRuntimePageRenderer
+              v-else
+              :page-elements="pageElements"
+              @run-click="handleRunClick"
+              @run-input="handleRunInput"
+            />
+          </PreviewDeviceFrame>
 
           <p class="text-[10px] font-mono text-neutral-600 tracking-widest uppercase">
-            Preview · iPhone 15 · 393 × 852
+            Preview · {{ activeDevice.label }} · {{ activeDevice.canvasW }} × {{ activeDevice.canvasH }}
           </p>
         </div>
       </div>
@@ -185,6 +128,8 @@ import { useEditorStore } from '~/composables/useEditorStore'
 import { executeCode, syncRuntimeElementProps } from '~/composables/useRuntime'
 import type { ConsoleEntry, ElementInstance } from '~/composables/useRuntime'
 import type { AppElement } from '~/composables/useEditorStore'
+import { PREVIEW_DEVICES } from '~/composables/usePreviewDevices'
+import { usePreviewDeviceScale } from '~/composables/usePreviewDeviceScale'
 
 const store = useEditorStore()
 
@@ -193,6 +138,14 @@ const logs = ref<ConsoleEntry[]>([])
 const pageElements = ref<AppElement[]>([])
 const instances = ref<ElementInstance[]>([])
 const hasRun = ref(false)
+const viewerRef = ref<HTMLElement | null>(null)
+const activeDevice = computed(
+  () => PREVIEW_DEVICES.find((device) => device.id === store.activeDeviceId.value) ?? PREVIEW_DEVICES[0]
+)
+const { scale } = usePreviewDeviceScale(viewerRef, activeDevice, {
+  widthPadding: 48,
+  heightPadding: 120,
+})
 
 // ── Run logic ─────────────────────────────────────────────────────────────
 function runCode() {
@@ -288,45 +241,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   hasRun.value = false
 })
-
-// ── Computed Helpers ──────────────────────────────────────────────────────
-const runModeElementIds = computed(() => new Set(pageElements.value.map(e => e.id)))
-
-const toolbarElement = computed(() =>
-  pageElements.value.find(el => el.type === 'Toolbar') ?? null
-)
-
-const DEFAULT_TOOLBAR_HEIGHT = 56
-const BODY_TOP_PADDING = 14
-const BODY_BOTTOM_PADDING = 14
-const bodyTopPadding = computed(() =>
-  toolbarElement.value ? BODY_TOP_PADDING : DEFAULT_TOOLBAR_HEIGHT + BODY_TOP_PADDING
-)
-
-const bodyElements = computed(() => {
-  return pageElements.value.filter(el => {
-    if (el.type === 'Toolbar') return false
-    
-    // An element should be rendered directly by RunMode (at root level) IF:
-    // 1. It structurally has no parent.
-    // OR
-    // 2. Its structural parent was NOT added to the page by the user code.
-    // If the parent IS present on the page, the parent will render this child recursively.
-    const parentIsPresent = el.parentId && runModeElementIds.value.has(el.parentId)
-    
-    return !parentIsPresent
-  })
-})
-
-function bodyElementHeight(el: AppElement) {
-  if (el.type === 'Camera' && !el.props.open) return 0
-  if (el.type !== 'Container' || el.parentId !== null) return el.height
-  const detachedToolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT
-  return Math.max(
-    el.height - detachedToolbarHeight - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
-    0
-  )
-}
 </script>
 
 <style scoped>

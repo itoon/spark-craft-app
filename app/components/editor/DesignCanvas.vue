@@ -115,125 +115,10 @@
         marginBottom: `${activeDevice.totalH * scale - activeDevice.totalH}px`,
       }"
     >
-      <!-- ─── iPhone 15 frame ──────────────────────────────────────────── -->
-      <div
-        v-if="store.activeDeviceId.value === 'iphone15'"
-        class="relative bg-neutral-800 border-[12px] border-neutral-600"
-        :style="{
-          width: `${activeDevice.totalW}px`,
-          height: `${activeDevice.totalH}px`,
-          borderRadius: `${activeDevice.cornerRadius}px`,
-        }"
-      >
-        <!-- Screen -->
-        <div
-          class="relative bg-white overflow-hidden w-full h-full"
-          style="border-radius: 44px"
-          @click.self="store.selectElement(null)"
-        >
-          <!-- Dynamic Island -->
-          <div
-            class="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-[120px] h-[36px] bg-black rounded-full"
-          />
-
-          <!-- Canvas content — Toolbar is sticky at top; Dynamic Island floats above -->
-          <div
-            class="absolute inset-0 overflow-y-auto overflow-x-hidden"
-            @click.self="store.selectElement(null)"
-          >
-            <EditorCanvasContent />
-          </div>
-
-          <!-- Home indicator -->
-          <div
-            class="absolute bottom-2 left-1/2 -translate-x-1/2 w-[130px] h-[5px] bg-neutral-400 rounded-full"
-          />
-        </div>
-      </div>
-
-      <!-- ─── iPhone SE frame ──────────────────────────────────────────── -->
-      <div
-        v-else-if="store.activeDeviceId.value === 'iphonese'"
-        class="relative bg-neutral-800 border-[10px] border-neutral-600 flex flex-col"
-        :style="{
-          width: `${activeDevice.totalW}px`,
-          height: `${activeDevice.totalH}px`,
-          borderRadius: `${activeDevice.cornerRadius}px`,
-        }"
-      >
-        <!-- Top bar: speaker + camera -->
-        <div
-          class="shrink-0 h-[60px] flex flex-col items-center justify-center gap-2"
-        >
-          <div class="w-12 h-1.5 bg-neutral-600 rounded-full" />
-          <div class="size-3 bg-neutral-600 rounded-full" />
-        </div>
-
-        <!-- Screen -->
-        <div
-          class="relative flex-1 bg-white overflow-hidden"
-          style="border-radius: 4px"
-          @click.self="store.selectElement(null)"
-        >
-          <div
-            class="absolute inset-0 overflow-y-auto overflow-x-hidden"
-            @click.self="store.selectElement(null)"
-          >
-            <EditorCanvasContent />
-          </div>
-        </div>
-
-        <!-- Bottom bar: home button -->
-        <div class="shrink-0 h-[60px] flex items-center justify-center">
-          <div class="size-10 border-2 border-neutral-600 rounded-full" />
-        </div>
-      </div>
-
-      <!-- ─── Android (Pixel) frame ────────────────────────────────────── -->
-      <div
-        v-else-if="store.activeDeviceId.value === 'android'"
-        class="relative bg-neutral-900 border-[8px] border-neutral-700"
-        :style="{
-          width: `${activeDevice.totalW}px`,
-          height: `${activeDevice.totalH}px`,
-          borderRadius: `${activeDevice.cornerRadius}px`,
-        }"
-      >
-        <!-- Screen -->
-        <div
-          class="relative bg-white overflow-hidden w-full h-full"
-          style="border-radius: 36px"
-          @click.self="store.selectElement(null)"
-        >
-          <!-- Punch-hole camera -->
-          <div
-            class="absolute top-3 left-1/2 -translate-x-1/2 z-20 size-3 bg-neutral-900 rounded-full"
-          />
-
-          <!-- Canvas content — Toolbar is sticky at top; punch-hole floats above -->
-          <div
-            class="absolute inset-0 overflow-y-auto overflow-x-hidden"
-            @click.self="store.selectElement(null)"
-          >
-            <EditorCanvasContent />
-          </div>
-
-          <!-- Home indicator -->
-          <div
-            class="absolute bottom-2 left-1/2 -translate-x-1/2 w-[140px] h-[4px] bg-neutral-400 rounded-full"
-          />
-        </div>
-      </div>
-
-      <!-- ─── Custom (no frame) ────────────────────────────────────────── -->
-      <div
-        v-else
-        class="relative bg-white border border-neutral-300 overflow-hidden"
-        :style="{
-          width: `${activeDevice.canvasW}px`,
-          height: `${activeDevice.canvasH}px`,
-        }"
-        @click.self="store.selectElement(null)"
+      <PreviewDeviceFrame
+        :device="activeDevice"
+        :scale="1"
+        @screen-click="store.selectElement(null)"
       >
         <div
           class="absolute inset-0 overflow-y-auto overflow-x-hidden"
@@ -241,7 +126,7 @@
         >
           <EditorCanvasContent />
         </div>
-      </div>
+      </PreviewDeviceFrame>
     </div>
     <!-- end scale wrapper -->
 
@@ -261,6 +146,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
+import { PREVIEW_DEVICES } from "~/composables/usePreviewDevices";
 
 const store = useEditorStore();
 
@@ -291,43 +177,10 @@ function savePageName() {
 
 // ─── Device definitions ───────────────────────────────────────────────────
 
-interface DeviceDef {
-  id: string;
-  label: string;
-  icon: string;
-  canvasW: number;
-  canvasH: number;
-  totalW: number; // shell outer width (canvas + border*2 + insets)
-  totalH: number; // shell outer height
-  cornerRadius: number;
-}
-
-const DEVICES: DeviceDef[] = [
-  {
-    id: "iphone15",
-    label: "iPhone 15",
-    icon: "i-lucide-smartphone",
-    canvasW: 393,
-    canvasH: 852,
-    // 12px border on each side → +24; same height
-    totalW: 393 + 24,
-    totalH: 852 + 24,
-    cornerRadius: 52,
-  },
-  {
-    id: "android",
-    label: "Android",
-    icon: "i-lucide-tablet-smartphone",
-    canvasW: 412,
-    canvasH: 915,
-    totalW: 412 + 16,
-    totalH: 915 + 16,
-    cornerRadius: 44,
-  },
-];
+const DEVICES = PREVIEW_DEVICES;
 
 const activeDevice = computed(
-  () => (DEVICES.find((d) => d.id === store.activeDeviceId.value) ?? DEVICES[0]) as DeviceDef,
+  () => DEVICES.find((d) => d.id === store.activeDeviceId.value) ?? DEVICES[0],
 );
 
 // ─── Scale to fit ─────────────────────────────────────────────────────────

@@ -31,8 +31,9 @@
           v-for="childId in visibleChildIds"
           :key="childId"
           :draggable="!props.isRunMode"
-          class="canvas-element relative transition-shadow duration-100"
+          class="relative transition-shadow duration-100"
           :class="{
+            'canvas-element': !props.isRunMode,
             'ring-2 ring-indigo-400 ring-offset-0':
               !props.isRunMode && store.selectedElementId.value === childId,
             'ring-2 ring-indigo-300':
@@ -1014,54 +1015,83 @@ function segmentItemStyle(idx: number) {
 const buttonStyle = computed(() => {
   const bg = (props.element.props.backgroundColor as string) || "#3880ff";
   const fill = (props.element.props.fill as string) || "solid";
-  const radius = platform.value === "ios" ? "12px" : "6px";
+  const isDisabled = Boolean(props.element.props.disabled);
+  const radius =
+    typeof props.element.props.borderRadius === "number"
+      ? `${props.element.props.borderRadius}px`
+      : platform.value === "ios"
+        ? "14px"
+        : "4px";
+
+  const sharedStyle = {
+    opacity: isDisabled ? "0.58" : "1",
+    cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
+    fontWeight: platform.value === "ios" ? "500" : "500",
+    fontSize: platform.value === "ios" ? "17px" : "14px",
+    lineHeight: platform.value === "ios" ? "1.2" : "1",
+  };
+
   if (fill === "clear") {
     return {
+      ...sharedStyle,
       backgroundColor: "transparent",
       border: "none",
       borderRadius: radius,
       color: bg,
       textTransform:
         platform.value === "android" ? ("uppercase" as const) : "none",
-      letterSpacing: platform.value === "android" ? "0.08em" : "0.01em",
+      letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
+      boxShadow: "none",
     };
   }
   if (fill === "outline") {
     return {
+      ...sharedStyle,
       backgroundColor: "transparent",
-      border: `1.5px solid ${bg}`,
+      border: `1px solid ${bg}`,
       borderRadius: radius,
       color: bg,
       textTransform:
         platform.value === "android" ? ("uppercase" as const) : "none",
-      letterSpacing: platform.value === "android" ? "0.08em" : "0.01em",
+      letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
+      boxShadow: "none",
     };
   }
   if (platform.value === "ios") {
     return {
+      ...sharedStyle,
       backgroundColor: bg,
       borderRadius: radius,
+      border: "none",
       color: "#ffffff",
-      letterSpacing: "0.01em",
+      letterSpacing: "-0.01em",
+      boxShadow: "none",
     };
   }
   // Android: Material contained
   return {
+    ...sharedStyle,
     backgroundColor: bg,
     borderRadius: radius,
+    border: "none",
     color: "#ffffff",
     textTransform: "uppercase" as const,
-    letterSpacing: "0.08em",
-    boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+    letterSpacing: "0.06em",
+    boxShadow: isDisabled
+      ? "none"
+      : "0 2px 3px rgba(0,0,0,0.2), 0 1px 8px rgba(0,0,0,0.12)",
   };
 });
 
 const buttonRuntimeClass = computed(() => {
   if (!props.isRunMode) return "";
-  if (platform.value === "ios") {
-    return "hover:brightness-95 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400";
+  if (props.element.props.disabled) {
+    return "pointer-events-none focus-visible:outline-none";
   }
-  return "hover:brightness-110 active:translate-y-px active:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-400";
+  if (platform.value === "ios") {
+    return "hover:brightness-[0.97] active:brightness-[0.92] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400";
+  }
+  return "hover:brightness-[1.03] active:brightness-[0.94] active:shadow-[0_1px_2px_rgba(0,0,0,0.18),0_1px_3px_rgba(0,0,0,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-400";
 });
 
 // ── FAB ───────────────────────────────────────────────────────────────────
