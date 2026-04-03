@@ -1,3 +1,5 @@
+import type { LearningRequirement } from "~/utils/learningRequirements";
+
 export type LearningBlock =
   | {
       id: string;
@@ -48,6 +50,7 @@ export interface LearningPage {
   heroImage: string;
   heroAlt?: string;
   blocks: LearningBlock[];
+  requirements?: LearningRequirement[];
 }
 
 export interface LearningContentDocument {
@@ -113,6 +116,16 @@ export const learningContent: LearningContentDocument = {
             "Try dragging a Button element onto the canvas now to get a feel for it.",
         },
       ],
+      requirements: [
+        {
+          id: "design-canvas-add-button",
+          type: "element-count",
+          elementType: "Button",
+          pageId: "page1",
+          minCount: 1,
+          message: "Please add at least 1 Button to Page 1 before continuing.",
+        },
+      ],
     },
     {
       id: "logic-example",
@@ -160,6 +173,33 @@ additionButton.onClick(addOperation);`,
           type: "warning",
           content:
             "Fill the inputs and click the button to run the function and check the mission.",
+        },
+      ],
+      requirements: [
+        {
+          id: "logic-runtime-button",
+          type: "runtime-added",
+          elementType: "Button",
+          pageId: "page1",
+          minCount: 1,
+          message: "Please add at least 1 Button to the runtime page with page.add(...).",
+        },
+        {
+          id: "logic-click-handler",
+          type: "runtime-handler",
+          elementType: "Button",
+          pageId: "page1",
+          event: "onClick",
+          minCount: 1,
+          message: "Please attach onClick(...) to at least 1 Button before continuing.",
+        },
+        {
+          id: "logic-code-pattern",
+          type: "code-pattern",
+          pageId: "page1",
+          pattern: ".onClick(",
+          mode: "includes",
+          message: "Your code should include .onClick(...).",
         },
       ],
     },

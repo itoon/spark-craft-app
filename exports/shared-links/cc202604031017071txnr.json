@@ -1,0 +1,34 @@
+{
+  "appName": "CodeCraft Shared App",
+  "pages": [
+    {
+      "id": "page1",
+      "name": "Page 1"
+    }
+  ],
+  "elements": [
+    {
+      "id": "page1_container1",
+      "pageId": "page1",
+      "type": "Container",
+      "x": 0,
+      "y": 0,
+      "width": 393,
+      "height": 852,
+      "props": {
+        "direction": "col",
+        "gap": 16,
+        "padding": 16,
+        "backgroundColor": "transparent"
+      },
+      "parentId": null,
+      "children": [],
+      "direction": "col"
+    }
+  ],
+  "jsCodeByPage": {},
+  "startPageId": "page1",
+  "activeDeviceId": "iphone15",
+  "id": "cc202604031017071txnr",
+  "createdAt": "2026-04-03T10:17:07.120Z"
+}

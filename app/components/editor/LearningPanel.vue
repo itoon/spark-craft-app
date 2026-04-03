@@ -25,7 +25,7 @@
           :key="idx"
           class="rounded-full transition-all duration-150"
           :class="idx === currentPage ? 'h-2 w-4 bg-indigo-600' : 'h-2 w-2 bg-neutral-300 hover:bg-indigo-300'"
-          @click="currentPage = idx"
+          @click="goToPage(idx)"
         />
       </div>
 
@@ -67,6 +67,25 @@
           </div>
 
           <div class="space-y-3 p-3">
+            <div
+              v-if="requirementResults.length"
+              class="rounded-xl border border-indigo-100 bg-indigo-50 p-2.5"
+            >
+              <p class="mb-2 text-[11px] font-semibold text-indigo-700">Mission Check</p>
+              <div
+                v-for="result in requirementResults"
+                :key="result.id"
+                class="flex items-start gap-2 text-[11px] leading-snug"
+                :class="result.met ? 'text-emerald-700' : 'text-amber-700'"
+              >
+                <UIcon
+                  :name="result.met ? 'i-lucide-check-circle-2' : 'i-lucide-circle-alert'"
+                  class="mt-0.5 size-3.5 shrink-0"
+                />
+                <span>{{ result.message }}</span>
+              </div>
+            </div>
+
             <template v-for="block in page.blocks" :key="block.id">
               <p
                 v-if="block.type === 'text'"
@@ -282,12 +301,14 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
+import { useEditorStore } from "~/composables/useEditorStore";
 
 import {
   learningContent,
   type LearningBlock,
   type LearningPage,
 } from "~/data/learningContent";
+import { evaluateLearningRequirements } from "~/utils/learningRequirements";
 
 type CodeBlock = Extract<LearningBlock, { type: "code" }>;
 type ImageBlock = Extract<LearningBlock, { type: "image" }>;
@@ -298,6 +319,20 @@ const pages = learningContent.pages;
 const currentPage = ref(0);
 const page = computed<LearningPage>(() => pages[currentPage.value]!);
 const panelRef = ref<HTMLElement | null>(null);
+const store = useEditorStore();
+const requirementResults = computed(() =>
+  evaluateLearningRequirements(
+    page.value.requirements,
+    {
+      elements: store.elements.value,
+      currentPageId: store.currentPageId.value,
+      jsCode: store.jsCode.value,
+    },
+  ),
+);
+const hasUnmetRequirements = computed(() =>
+  requirementResults.value.some((result) => !result.met),
+);
 
 const messageClassMap = {
   tip: "border-indigo-100 bg-indigo-50 text-indigo-700",
@@ -330,7 +365,20 @@ function prev() {
 }
 
 function next() {
-  if (currentPage.value < pages.length - 1) currentPage.value++;
+  goToPage(currentPage.value + 1);
+}
+
+function goToPage(targetIndex: number) {
+  if (targetIndex < 0 || targetIndex >= pages.length) return;
+
+  const isMovingForward = targetIndex > currentPage.value;
+  if (isMovingForward && hasUnmetRequirements.value) {
+    const firstUnmet = requirementResults.value.find((result) => !result.met);
+    window.alert(firstUnmet?.message || "Please complete this step before continuing.");
+    return;
+  }
+
+  currentPage.value = targetIndex;
 }
 
 async function copyCode(code: string) {

@@ -32,6 +32,17 @@ export interface PaletteItem {
   defaultProps: Record<string, unknown>
 }
 
+export interface PersistedEditorState {
+  projectId: string
+  projectName: string
+  shareLinkId: string | null
+  elements: AppElement[]
+  pages: Page[]
+  currentPageId: string
+  activeDeviceId: string
+  jsCodeByPage: Record<string, string>
+}
+
 // Container types — these can hold children
 const CONTAINER_TYPES = new Set(['Container'])
 
@@ -43,6 +54,9 @@ function isContainer(type: string) {
 const mode = ref<EditorMode>('design')
 const selectedElementId = ref<string | null>(null)
 const elements = ref<AppElement[]>([])
+const projectId = ref<string>('')
+const projectName = ref<string>('Untitled Project')
+const shareLinkId = ref<string | null>(null)
 
 const pages = ref<Page[]>([
   { id: 'page1', name: 'Page 1' }
@@ -72,6 +86,163 @@ const activePlatform = computed<'ios' | 'android'>(() =>
 
 // Per-type counter so IDs read like page1_button1, page1_toolbar1, etc.
 const typeCounters: Record<string, number> = {}
+const STORAGE_KEY = 'codecraft-current-project-v1'
+let persistenceInitialized = false
+
+function generateProjectId(timestamp = Date.now(), random = Math.random()): string {
+  return `project_${timestamp.toString(36)}${Math.floor(random * 0xffffff).toString(36).padStart(5, '0')}`
+}
+
+function resetTypeCounters() {
+  for (const key of Object.keys(typeCounters)) {
+    delete typeCounters[key]
+  }
+}
+
+function syncTypeCountersFromElements(nextElements: AppElement[]) {
+  resetTypeCounters()
+  for (const el of nextElements) {
+    const match = el.id.match(/_([a-z0-9]+?)(\d+)$/i)
+    if (!match) continue
+    const [, rawType, rawCount] = match
+    const key = rawType.toLowerCase()
+    const count = Number(rawCount)
+    if (Number.isFinite(count)) {
+      typeCounters[key] = Math.max(typeCounters[key] ?? 0, count)
+    }
+  }
+}
+
+function buildRootContainer(pageId: string): AppElement {
+  typeCounters.container = (typeCounters.container ?? 0) + 1
+  return {
+    id: `${pageId}_container${typeCounters.container}`,
+    pageId,
+    type: 'Container',
+    x: 0,
+    y: 0,
+    width: 393,
+    height: 852,
+    props: {
+      direction: 'col',
+      gap: 16,
+      padding: 16,
+      backgroundColor: 'transparent',
+    },
+    parentId: null,
+    children: [],
+    direction: 'col',
+  }
+}
+
+function buildPersistedState(): PersistedEditorState {
+  return {
+    projectId: projectId.value,
+    projectName: projectName.value,
+    shareLinkId: shareLinkId.value,
+    elements: elements.value,
+    pages: pages.value,
+    currentPageId: currentPageId.value,
+    activeDeviceId: activeDeviceId.value,
+    jsCodeByPage: jsCodeByPage.value,
+  }
+}
+
+export function serializeEditorState(): PersistedEditorState {
+  return JSON.parse(JSON.stringify(buildPersistedState())) as PersistedEditorState
+}
+
+export function applyPersistedEditorState(state: Partial<PersistedEditorState>) {
+  if (!Array.isArray(state.elements) || !Array.isArray(state.pages) || !state.currentPageId) {
+    return false
+  }
+
+  projectId.value = typeof state.projectId === 'string' && state.projectId
+    ? state.projectId
+    : generateProjectId()
+  projectName.value = typeof state.projectName === 'string' && state.projectName
+    ? state.projectName
+    : 'Untitled Project'
+  shareLinkId.value = typeof state.shareLinkId === 'string' ? state.shareLinkId : null
+  elements.value = state.elements
+  pages.value = state.pages
+  currentPageId.value = state.currentPageId
+  activeDeviceId.value =
+    typeof state.activeDeviceId === 'string' && state.activeDeviceId ? state.activeDeviceId : 'iphone15'
+  jsCodeByPage.value = state.jsCodeByPage ?? {}
+  selectedElementId.value = null
+  isPreviewOpen.value = false
+  isRunning.value = false
+  elementSnapshot.value = null
+  jsCodeInitialized.value = Object.keys(jsCodeByPage.value).length > 0
+  syncTypeCountersFromElements(elements.value)
+
+  if (!elements.value.find((el) => el.pageId === currentPageId.value && el.parentId === null && el.type === 'Container')) {
+    elements.value.push(buildRootContainer(currentPageId.value))
+  }
+
+  return true
+}
+
+export function resetEditorStoreForTests() {
+  persistenceInitialized = false
+  createBlankProject({ keepProjectId: false })
+}
+
+function persistProject() {
+  if (!import.meta.client) return
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistedState()))
+}
+
+function createBlankProject(options?: { keepProjectId?: boolean }) {
+  const nextProjectId = options?.keepProjectId ? projectId.value || generateProjectId() : generateProjectId()
+  resetTypeCounters()
+  mode.value = 'design'
+  selectedElementId.value = null
+  projectId.value = nextProjectId
+  projectName.value = 'Untitled Project'
+  shareLinkId.value = null
+  pages.value = [{ id: 'page1', name: 'Page 1' }]
+  currentPageId.value = 'page1'
+  isPreviewOpen.value = false
+  isRunning.value = false
+  elementSnapshot.value = null
+  activeDeviceId.value = 'iphone15'
+  jsCodeByPage.value = {}
+  jsCodeInitialized.value = false
+  elements.value = [buildRootContainer('page1')]
+}
+
+function loadPersistedProject() {
+  if (!import.meta.client) return false
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return false
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PersistedEditorState>
+    return applyPersistedEditorState(parsed)
+  } catch {
+    return false
+  }
+}
+
+function initializePersistence() {
+  if (!import.meta.client || persistenceInitialized) return
+  persistenceInitialized = true
+
+  const loaded = loadPersistedProject()
+  if (!loaded && elements.value.length === 0) {
+    createBlankProject({ keepProjectId: false })
+  }
+
+  watch(
+    [projectId, projectName, shareLinkId, elements, pages, currentPageId, activeDeviceId, jsCodeByPage],
+    () => {
+      persistProject()
+    },
+    { deep: true }
+  )
+}
 
 function generateId(type: string): string {
   const key = type.toLowerCase()
@@ -114,26 +285,7 @@ function getRootContainer(): AppElement | undefined {
 
 // Creates a new container at root level and returns it.
 function _createRootContainer(): AppElement {
-  const type = 'Container'
-  const direction = 'col'
-  const container: AppElement = {
-    id: generateId(type),
-    pageId: currentPageId.value,
-    type,
-    x: 0,
-    y: 0,
-    width: 393, // Full width of viewport
-    height: 852, // Full height of viewport
-    props: {
-      direction,
-      gap: 16,
-      padding: 16,
-      backgroundColor: 'transparent',
-    },
-    parentId: null,
-    children: [],
-    direction,
-  }
+  const container = buildRootContainer(currentPageId.value)
   elements.value.push(container)
   return container
 }
@@ -326,6 +478,23 @@ function setActiveDevice(id: string) {
   activeDeviceId.value = id
 }
 
+function setProjectName(name: string) {
+  projectName.value = name.trim() || 'Untitled Project'
+}
+
+function setShareLinkId(id: string | null) {
+  shareLinkId.value = id
+}
+
+function saveProject() {
+  persistProject()
+}
+
+function newProject() {
+  createBlankProject()
+  persistProject()
+}
+
 function setJsCode(code: string) {
   jsCodeByPage.value[currentPageId.value] = code
   jsCodeInitialized.value = true
@@ -387,6 +556,9 @@ export function useEditorStore() {
     mode,
     selectedElementId,
     elements,
+    projectId,
+    projectName,
+    shareLinkId,
     pages,
     currentPageId,
     isPreviewOpen,
@@ -410,6 +582,10 @@ export function useEditorStore() {
     togglePreview,
     setRunning,
     setActiveDevice,
+    setProjectName,
+    setShareLinkId,
+    saveProject,
+    newProject,
     setJsCode,
     markJsCodeInitialized,
     addPage,
@@ -424,7 +600,14 @@ export function useEditorStore() {
   }
 }
 
-// Initial state — create Page 1 root container if none exists
-if (elements.value.length === 0) {
-  _createRootContainer()
+if (projectId.value === '') {
+  projectId.value = generateProjectId()
+}
+
+if (import.meta.client) {
+  initializePersistence()
+}
+
+if (elements.value.length === 0 && !import.meta.client) {
+  createBlankProject({ keepProjectId: true })
 }

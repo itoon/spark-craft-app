@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { getRequestHost, getRequestProtocol } from "h3";
@@ -15,18 +15,30 @@ export default defineEventHandler(async (event) => {
     jsCodeByPage: body.jsCodeByPage ?? {},
     startPageId: body.startPageId || body.pages?.[0]?.id || "page1",
     activeDeviceId: body.activeDeviceId || "iphone15",
+    shareId: body.shareId || null,
   };
 
-  const id = buildShareId();
-  const record: SharedExportRecord = {
-    ...payload,
-    id,
-    createdAt: new Date().toISOString(),
-  };
-
+  const id = payload.shareId?.trim() || buildShareId();
   const directory = join(process.cwd(), "exports", "shared-links");
   const filePath = join(directory, `${id}.json`);
   await mkdir(directory, { recursive: true });
+
+  let createdAt = new Date().toISOString();
+  try {
+    const existing = JSON.parse(await readFile(filePath, "utf8")) as Partial<SharedExportRecord>;
+    if (typeof existing.createdAt === "string" && existing.createdAt) {
+      createdAt = existing.createdAt;
+    }
+  } catch {
+    // No previous shared file for this id yet.
+  }
+
+  const record: SharedExportRecord = {
+    ...payload,
+    id,
+    createdAt,
+  };
+
   await writeFile(filePath, JSON.stringify(record, null, 2), "utf8");
 
   const protocol = getRequestProtocol(event, { xForwardedProto: true });
@@ -38,5 +50,6 @@ export default defineEventHandler(async (event) => {
     id,
     shareUrl,
     filePath,
+    reused: Boolean(payload.shareId?.trim()),
   };
 });

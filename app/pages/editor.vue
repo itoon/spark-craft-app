@@ -41,6 +41,29 @@
       <!-- Spacer -->
       <div class="flex-1" />
 
+      <div class="hidden lg:flex items-center gap-2 text-[10px] text-neutral-500 mr-2">
+        <UIcon name="i-lucide-folder-open" class="size-3" />
+        <span class="font-mono truncate max-w-[180px]">{{ store.projectName.value }}</span>
+      </div>
+
+      <UButton
+        label="New"
+        icon="i-lucide-file-plus-2"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        @click="handleNewProject"
+      />
+
+      <UButton
+        label="Save"
+        icon="i-lucide-save"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        @click="handleSaveProject"
+      />
+
       <!-- Element count indicator -->
       <div
         v-if="store.elements.value.length > 0"
@@ -188,6 +211,21 @@ function handleRun() {
   store.setRunning(!store.isRunning.value);
 }
 
+function handleNewProject() {
+  const confirmed = window.confirm(
+    "Create a new project?\n\nYour current project is auto-saved, but this will clear the editor and start a fresh project."
+  );
+
+  if (!confirmed) return;
+
+  store.newProject();
+}
+
+function handleSaveProject() {
+  store.saveProject();
+  window.alert("Project saved.");
+}
+
 async function handleLocalExport() {
   if (isExporting.value) return;
 
@@ -244,20 +282,26 @@ async function handleCreateShareLink() {
     }>("/api/export/link", {
       method: "POST",
       body: {
-        appName: "CodeCraft Shared App",
+        appName: store.projectName.value || "CodeCraft Shared App",
         pages: store.pages.value,
         elements: store.elements.value,
         jsCodeByPage: store.jsCodeByPage.value,
         startPageId: store.currentPageId.value,
         activeDeviceId: store.activeDeviceId.value,
+        shareId: store.shareLinkId.value,
       },
     });
+
+    store.setShareLinkId(result.id);
+    store.saveProject();
 
     const copied = await copyToClipboard(result.shareUrl);
 
     window.alert(
       [
-        `Shared link created successfully.`,
+        result.reused
+          ? `Shared link updated successfully.`
+          : `Shared link created successfully.`,
         ``,
         `URL: ${result.shareUrl}`,
         `Saved snapshot: ${result.filePath}`,
