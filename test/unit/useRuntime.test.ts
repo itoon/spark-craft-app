@@ -9,6 +9,7 @@ import {
   executeCode,
   syncRuntimeElementProps,
   type ElementInstance,
+  type RuntimeExecutionEvent,
 } from "../../app/composables/useRuntime";
 import type { AppElement } from "../../app/composables/useEditorStore";
 
@@ -243,6 +244,76 @@ describe("executeCode", () => {
     expect(onLog).toHaveBeenCalledWith({
       type: "log",
       message: "hello runtime",
+    });
+  });
+
+  it("captures execution events for adds, updates, logs, and navigation", () => {
+    const updates = vi.fn();
+    const navigate = vi.fn();
+    const liveEvents: RuntimeExecutionEvent[] = [];
+    const elements: AppElement[] = [
+      makeElement("page1_input1", "Input", {
+        placeholder: "Enter text",
+        value: "",
+      }),
+      makeElement("page1_button1", "Button", { label: "Go" }),
+    ];
+
+    const result = executeCode(
+      [
+        "const input1 = new Input('page1_input1')",
+        "const button1 = new Button('page1_button1')",
+        "page.add(input1)",
+        "page.add(button1)",
+        "input1.value = '42'",
+        "console.log(input1.value)",
+        "button1.onClick(() => {",
+        "  page.goTo('page2')",
+        "})",
+      ].join("\n"),
+      elements,
+      updates,
+      navigate,
+      undefined,
+      (event) => {
+        liveEvents.push(event);
+      },
+    );
+
+    expect(result.events.length).toBeGreaterThanOrEqual(6);
+    expect(result.events.slice(0, 6).map((event) => event.type)).toEqual([
+      "add",
+      "log",
+      "add",
+      "log",
+      "update",
+      "log",
+    ]);
+    expect(result.events[0]).toMatchObject({
+      type: "add",
+      elementId: "page1_input1",
+      elementType: "Input",
+    });
+    expect(result.events[4]).toMatchObject({
+      type: "update",
+      elementId: "page1_input1",
+      propName: "value",
+      value: "42",
+    });
+
+    const buttonInstance = result.instances.find(
+      (instance) => instance.__el.id === "page1_button1",
+    );
+    buttonInstance?.__onClick?.();
+
+    expect(navigate).toHaveBeenCalledWith("page2");
+    expect(liveEvents.at(-2)).toMatchObject({
+      type: "navigate",
+      pageRef: "page2",
+    });
+    expect(liveEvents.at(-1)).toMatchObject({
+      type: "log",
+      message: "Navigate → page2",
     });
   });
 });

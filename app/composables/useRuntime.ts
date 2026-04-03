@@ -6,6 +6,18 @@ export interface ConsoleEntry {
   message: string
 }
 
+export interface RuntimeExecutionEvent {
+  step: number
+  type: 'add' | 'update' | 'navigate' | 'log'
+  message: string
+  elementId?: string
+  elementType?: string
+  propName?: string
+  value?: unknown
+  pageRef?: string
+  logType?: ConsoleEntry['type']
+}
+
 /** A live element instance returned from student code */
 export interface ElementInstance {
   __el: AppElement
@@ -20,6 +32,7 @@ export interface RuntimeResult {
   /** Instances in page order — carry onClick handlers */
   instances: ElementInstance[]
   logs: ConsoleEntry[]
+  events: RuntimeExecutionEvent[]
 }
 
 export interface RuntimeState {
@@ -108,14 +121,31 @@ export function executeCode(
   allElements: AppElement[],
   onUpdate?: (id: string, props: Record<string, any>) => void,
   onNavigate?: (pageRef: string) => void,
-  onLog?: (entry: ConsoleEntry) => void
+  onLog?: (entry: ConsoleEntry) => void,
+  onEvent?: (event: RuntimeExecutionEvent) => void
 ): RuntimeResult {
   const logs: ConsoleEntry[] = []
   const pageElements: AppElement[] = []
   const instances: ElementInstance[] = []
+  const events: RuntimeExecutionEvent[] = []
+  let step = 0
+
+  function pushEvent(event: Omit<RuntimeExecutionEvent, 'step'>) {
+    const nextEvent: RuntimeExecutionEvent = {
+      step: ++step,
+      ...event,
+    }
+    events.push(nextEvent)
+    onEvent?.(nextEvent)
+  }
 
   function pushLog(entry: ConsoleEntry) {
     logs.push(entry)
+    pushEvent({
+      type: 'log',
+      message: entry.message,
+      logType: entry.type,
+    })
     onLog?.(entry)
   }
 
@@ -161,6 +191,14 @@ export function executeCode(
           get: () => this.__el.props[propName],
           set: (val) => {
             this.__el.props[propName] = val
+            pushEvent({
+              type: 'update',
+              message: `${this.__el.id}.${propName} = ${String(val)}`,
+              elementId: this.__el.id,
+              elementType: this.__el.type,
+              propName,
+              value: val,
+            })
             onUpdate?.(this.__el.id, { [propName]: val })
           },
           configurable: true,
@@ -180,6 +218,14 @@ export function executeCode(
             const mapped = this._mapProp(propName)
             // Update local ref immediately for synchronous logic
             this.__el.props[mapped] = val
+            pushEvent({
+              type: 'update',
+              message: `${this.__el.id}.${mapped} = ${String(val)}`,
+              elementId: this.__el.id,
+              elementType: this.__el.type,
+              propName: mapped,
+              value: val,
+            })
             // Sync back to store for UI reactivity
             if (onUpdate) {
               onUpdate(this.__el.id, { [mapped]: val })
@@ -216,12 +262,28 @@ export function executeCode(
 
     open(): this {
       this.__el.props.open = true
+      pushEvent({
+        type: 'update',
+        message: `${this.__el.id}.open = true`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+        propName: 'open',
+        value: true,
+      })
       onUpdate?.(this.__el.id, { open: true })
       return this
     }
 
     close(): this {
       this.__el.props.open = false
+      pushEvent({
+        type: 'update',
+        message: `${this.__el.id}.open = false`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+        propName: 'open',
+        value: false,
+      })
       onUpdate?.(this.__el.id, { open: false })
       return this
     }
@@ -279,11 +341,23 @@ export function executeCode(
       for (const ancestor of collectContainerAncestors(el.__el)) {
         if (!pageElements.find(e => e.id === ancestor.id)) {
           pageElements.push(ancestor)
+          pushEvent({
+            type: 'add',
+            message: `Add ${ancestor.type} ${ancestor.id}`,
+            elementId: ancestor.id,
+            elementType: ancestor.type,
+          })
         }
       }
       if (!pageElements.find(e => e.id === el.__el.id)) {
         pageElements.push(el.__el)
         instances.push(el)
+        pushEvent({
+          type: 'add',
+          message: `Add ${el.__el.type} ${el.__el.id}`,
+          elementId: el.__el.id,
+          elementType: el.__el.type,
+        })
       }
       pushLog({ type: 'log', message: `Added ${el.__el.type}  ←  ${el.__el.id}` })
     },
@@ -291,6 +365,11 @@ export function executeCode(
       if (typeof pageRef !== 'string' || !pageRef.trim()) {
         throw new TypeError('page.goTo() expects a page id or page name string')
       }
+      pushEvent({
+        type: 'navigate',
+        message: `Navigate to ${pageRef}`,
+        pageRef,
+      })
       pushLog({ type: 'log', message: `Navigate → ${pageRef}` })
       onNavigate?.(pageRef)
     },
@@ -327,5 +406,5 @@ export function executeCode(
     pushLog({ type: 'error', message: err instanceof Error ? err.message : String(err) })
   }
 
-  return { pageElements, instances, logs }
+  return { pageElements, instances, logs, events }
 }

@@ -65,6 +65,29 @@
           </button>
         </div>
 
+        <div class="border-b border-neutral-800 bg-neutral-900/70 px-3 py-2">
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-git-commit-horizontal" class="size-3.5 text-neutral-500" />
+            <span class="text-[10px] text-neutral-500 font-bold uppercase tracking-widest">Execution Trace</span>
+          </div>
+        </div>
+
+        <div class="max-h-52 shrink-0 overflow-y-auto border-b border-neutral-800 bg-neutral-950/30 px-3 py-2 font-mono text-[11px] selection:bg-indigo-500/30">
+          <div v-if="executionEvents.length === 0" class="text-neutral-700 italic px-1 py-6 text-center">
+            Runtime steps will appear here...
+          </div>
+          <div
+            v-for="event in executionEvents"
+            :key="`${event.step}-${event.type}-${event.message}`"
+            class="flex gap-2 items-start py-1"
+          >
+            <span class="mt-0.5 inline-flex min-w-5 items-center justify-center rounded bg-neutral-800 px-1 text-[10px] text-neutral-400">
+              {{ event.step }}
+            </span>
+            <span class="break-words leading-relaxed text-neutral-300 select-text">{{ event.message }}</span>
+          </div>
+        </div>
+
         <div class="flex-1 overflow-y-auto p-3 space-y-1 font-mono text-[11px] selection:bg-indigo-500/30">
           <div v-if="logs.length === 0" class="text-neutral-700 italic px-1 py-10 text-center">
             Log messages will appear here...
@@ -126,7 +149,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
 import { executeCode, syncRuntimeElementProps } from '~/composables/useRuntime'
-import type { ConsoleEntry, ElementInstance } from '~/composables/useRuntime'
+import type { ConsoleEntry, ElementInstance, RuntimeExecutionEvent } from '~/composables/useRuntime'
 import type { AppElement } from '~/composables/useEditorStore'
 import { PREVIEW_DEVICES } from '~/composables/usePreviewDevices'
 import { usePreviewDeviceScale } from '~/composables/usePreviewDeviceScale'
@@ -135,6 +158,7 @@ const store = useEditorStore()
 
 // ── Runtime State ─────────────────────────────────────────────────────────
 const logs = ref<ConsoleEntry[]>([])
+const executionEvents = ref<RuntimeExecutionEvent[]>([])
 const pageElements = ref<AppElement[]>([])
 const instances = ref<ElementInstance[]>([])
 const hasRun = ref(false)
@@ -151,6 +175,8 @@ const { scale } = usePreviewDeviceScale(viewerRef, activeDevice, {
 function runCode() {
   const code = store.jsCode.value || ''
   const runtimeLogs: ConsoleEntry[] = []
+  const runtimeEvents: RuntimeExecutionEvent[] = []
+  executionEvents.value = []
   if (!code.trim()) {
     runtimeLogs.push({ type: 'warn', message: 'No code to run. Using default scaffold.' })
   }
@@ -167,10 +193,15 @@ function runCode() {
       },
       (entry) => {
         logs.value = [...logs.value, entry]
+      },
+      (event) => {
+        runtimeEvents.push(event)
+        executionEvents.value = [...runtimeEvents]
       }
     )
     
     logs.value = [...runtimeLogs, ...result.logs]
+    executionEvents.value = [...result.events]
     pageElements.value = result.pageElements
     instances.value = result.instances
     hasRun.value = true
@@ -205,6 +236,18 @@ function navigateToPage(pageRef: string) {
 
 function handleRunClick(id: string) {
   const instance = instances.value.find(inst => inst.__el.id === id)
+  if (instance) {
+    executionEvents.value = [
+      ...executionEvents.value,
+      {
+        step: executionEvents.value.length + 1,
+        type: 'log',
+        message: `Click ${instance.__el.type} ${id}`,
+        elementId: id,
+        elementType: instance.__el.type,
+      },
+    ]
+  }
   if (instance && instance.__onClick) {
     try {
       instance.__onClick()
@@ -232,6 +275,7 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
 onMounted(() => {
   // Clear selection when entering run mode to emphasize the preview
   store.selectElement(null)
+  executionEvents.value = []
   
   // Minimal delay to ensure everything is ready
   setTimeout(runCode, 300)
@@ -240,6 +284,7 @@ onMounted(() => {
 // Optional: clean up when leaving run mode
 onBeforeUnmount(() => {
   hasRun.value = false
+  executionEvents.value = []
 })
 </script>
 
