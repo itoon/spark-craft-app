@@ -56,6 +56,36 @@ describe("executeCode", () => {
     ]);
   });
 
+  it("auto-adds parent containers behind the scenes for added children", () => {
+    const container = makeElement("page1_container1", "Container");
+    container.children = ["page1_card1", "page1_list1"];
+
+    const elements: AppElement[] = [
+      container,
+      {
+        ...makeElement("page1_card1", "Card", { title: "Card" }),
+        parentId: "page1_container1",
+      },
+      {
+        ...makeElement("page1_list1", "List", { items: ["One", "Two"] }),
+        parentId: "page1_container1",
+      },
+    ];
+
+    const result = executeCode(
+      [
+        "const card1 = new Card('page1_card1')",
+        "page.add(card1)",
+      ].join("\n"),
+      elements,
+    );
+
+    expect(result.pageElements.map((element) => element.id)).toEqual([
+      "page1_container1",
+      "page1_card1",
+    ]);
+  });
+
   it("exposes live .value for Input and LabelledInput elements", () => {
     const updates = vi.fn();
     const elements: AppElement[] = [

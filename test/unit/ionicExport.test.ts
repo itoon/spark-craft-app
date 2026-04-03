@@ -40,7 +40,7 @@ describe("ionic export generator", () => {
     const code = buildDefaultPageCode(pageElements);
 
     expect(code).toContain("const toolbar1 = new Toolbar('page1_toolbar1')");
-    expect(code).toContain("const container1 = new Container('page1_container1')");
+    expect(code).not.toContain("const container1 = new Container('page1_container1')");
     expect(code).not.toContain("page1_button1");
   });
 
@@ -76,9 +76,10 @@ describe("ionic export generator", () => {
     expect(routerFile?.content).toContain("redirect: '/page1'");
     expect(routerFile?.content).toContain("path: '/page2'");
     expect(dataFile?.content).toContain("const toolbar1 = new Toolbar('page1_toolbar1')");
-    expect(dataFile?.content).toContain("const container1 = new Container('page2_container1')");
+    expect(dataFile?.content).not.toContain("const container1 = new Container('page2_container1')");
     expect(runtimeFile?.content).toContain("goTo(pageId: string)");
     expect(runtimeFile?.content).toContain("function collectTree(rootId: string)");
+    expect(runtimeFile?.content).toContain("function collectContainerAncestors(element: CodeCraftElement)");
   });
 
   it("creates a stable export folder name", () => {

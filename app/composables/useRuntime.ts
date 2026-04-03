@@ -76,7 +76,7 @@ export function buildScaffold(elements: AppElement[]): string {
   // Toolbar first
   const ordered = [
     ...elements.filter(e => e.type === 'Toolbar'),
-    ...elements.filter(e => e.type !== 'Toolbar'),
+    ...elements.filter(e => e.type !== 'Toolbar' && e.type !== 'Container'),
   ]
 
   for (const el of ordered) {
@@ -155,6 +155,22 @@ export function executeCode(
       )
     }
     return el
+  }
+
+  function collectContainerAncestors(element: AppElement): AppElement[] {
+    const ancestors: AppElement[] = []
+    let parentId = element.parentId
+
+    while (parentId) {
+      const parent = allElements.find(e => e.id === parentId)
+      if (!parent) break
+      if (parent.type === 'Container') {
+        ancestors.unshift(parent)
+      }
+      parentId = parent.parentId
+    }
+
+    return ancestors
   }
 
   // ── Base element class ────────────────────────────────────────────────
@@ -257,6 +273,11 @@ export function executeCode(
     add(el: BaseEl) {
       if (!(el instanceof BaseEl)) {
         throw new TypeError('page.add() expects an element created with new ClassName(id)')
+      }
+      for (const ancestor of collectContainerAncestors(el.__el)) {
+        if (!pageElements.find(e => e.id === ancestor.id)) {
+          pageElements.push(ancestor)
+        }
       }
       if (!pageElements.find(e => e.id === el.__el.id)) {
         pageElements.push(el.__el)

@@ -65,14 +65,26 @@
         @click="handleRun"
       />
 
-      <!-- Export button -->
+      <!-- PWA Link button -->
       <UButton
-        label="Export"
+        :loading="isCreatingShareLink"
+        label="PWA Link"
+        icon="i-lucide-link"
+        color="primary"
+        variant="subtle"
+        size="xs"
+        @click="handleCreateShareLink"
+      />
+
+      <!-- Export local button -->
+      <UButton
+        :loading="isExporting"
+        label="Export Local"
         icon="i-lucide-download"
         color="neutral"
         variant="ghost"
         size="xs"
-        @click="handleExport"
+        @click="handleLocalExport"
       />
 
       <!-- Keyboard shortcut hint -->
@@ -132,6 +144,7 @@ useHead({
 
 const store = useEditorStore();
 const isExporting = ref(false);
+const isCreatingShareLink = ref(false);
 
 interface ModeTab {
   key: EditorMode;
@@ -149,7 +162,7 @@ function handleRun() {
   store.setRunning(!store.isRunning.value);
 }
 
-async function handleExport() {
+async function handleLocalExport() {
   if (isExporting.value) return;
 
   isExporting.value = true;
@@ -188,6 +201,48 @@ async function handleExport() {
     window.alert(message);
   } finally {
     isExporting.value = false;
+  }
+}
+
+async function handleCreateShareLink() {
+  if (isCreatingShareLink.value) return;
+
+  isCreatingShareLink.value = true;
+
+  try {
+    const result = await $fetch<{
+      shareUrl: string;
+      filePath: string;
+    }>("/api/export/link", {
+      method: "POST",
+      body: {
+        appName: "CodeCraft Shared App",
+        pages: store.pages.value,
+        elements: store.elements.value,
+        jsCodeByPage: store.jsCodeByPage.value,
+        startPageId: store.currentPageId.value,
+        activeDeviceId: store.activeDeviceId.value,
+      },
+    });
+
+    await navigator.clipboard?.writeText(result.shareUrl).catch(() => undefined);
+
+    window.alert(
+      [
+        `Shared link created successfully.`,
+        ``,
+        `URL: ${result.shareUrl}`,
+        `Saved snapshot: ${result.filePath}`,
+        ``,
+        `The URL has been copied to your clipboard if the browser allowed it.`,
+      ].join("\n"),
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to create shared link.";
+    window.alert(message);
+  } finally {
+    isCreatingShareLink.value = false;
   }
 }
 </script>

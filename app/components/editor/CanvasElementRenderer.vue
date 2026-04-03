@@ -24,7 +24,7 @@
         :style="innerFlexStyle"
       >
         <div
-          v-for="childId in element.children"
+          v-for="childId in visibleChildIds"
           :key="childId"
           :draggable="!props.isRunMode"
           class="canvas-element relative transition-shadow duration-100"
@@ -50,6 +50,7 @@
             v-if="getElement(childId)"
             :element="getElement(childId)!"
             :is-run-mode="props.isRunMode"
+            :runtime-element-ids="props.runtimeElementIds"
             @run-click="emit('run-click', $event)"
             @run-input="(id, patch) => emit('run-input', id, patch)"
           />
@@ -552,11 +553,13 @@
 import { ref, computed } from 'vue'
 import type { AppElement } from '~/composables/useEditorStore'
 import { useEditorStore } from '~/composables/useEditorStore'
+import { getVisibleRuntimeChildIds } from '~/utils/runtimeVisibility'
 
 const props = defineProps<{ 
   element: AppElement,
   isRunMode?: boolean,
-  forcedHeight?: number
+  forcedHeight?: number,
+  runtimeElementIds?: string[]
 }>()
 const emit = defineEmits<{
   (e: 'run-click', id: string): void
@@ -566,6 +569,13 @@ const store = useEditorStore()
 
 const isSelected = computed(() => store.selectedElementId.value === props.element.id)
 const platform = computed(() => store.activePlatform.value)
+const visibleChildIds = computed(() =>
+  getVisibleRuntimeChildIds(
+    props.element.children,
+    props.runtimeElementIds,
+    props.isRunMode
+  )
+)
 
 // ── Run Mode Click Handling ──────────────────────────────────────────────
 

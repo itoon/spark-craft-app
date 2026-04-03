@@ -1,0 +1,42 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+import { getRequestHost, getRequestProtocol } from "h3";
+
+import { buildShareId, type SharedExportPayload, type SharedExportRecord } from "../../../app/utils/sharedExport";
+
+export default defineEventHandler(async (event) => {
+  const body = await readBody<SharedExportPayload>(event);
+
+  const payload: SharedExportPayload = {
+    appName: body.appName?.trim() || "CodeCraft App",
+    pages: Array.isArray(body.pages) ? body.pages : [],
+    elements: Array.isArray(body.elements) ? body.elements : [],
+    jsCodeByPage: body.jsCodeByPage ?? {},
+    startPageId: body.startPageId || body.pages?.[0]?.id || "page1",
+    activeDeviceId: body.activeDeviceId || "iphone15",
+  };
+
+  const id = buildShareId();
+  const record: SharedExportRecord = {
+    ...payload,
+    id,
+    createdAt: new Date().toISOString(),
+  };
+
+  const directory = join(process.cwd(), "exports", "shared-links");
+  const filePath = join(directory, `${id}.json`);
+  await mkdir(directory, { recursive: true });
+  await writeFile(filePath, JSON.stringify(record, null, 2), "utf8");
+
+  const protocol = getRequestProtocol(event, { xForwardedProto: true });
+  const host = getRequestHost(event, { xForwardedHost: true });
+  const shareUrl = `${protocol}://${host}/pwa/${id}`;
+
+  return {
+    ok: true,
+    id,
+    shareUrl,
+    filePath,
+  };
+});

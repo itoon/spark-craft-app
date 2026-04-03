@@ -133,6 +133,7 @@
                     <EditorCanvasElementRenderer
                       :element="toolbarElement"
                       is-run-mode
+                      :runtime-element-ids="Array.from(runModeElementIds)"
                       @run-click="handleRunClick"
                       @run-input="handleRunInput"
                     />
@@ -146,6 +147,7 @@
                           :element="el"
                           is-run-mode
                           :forced-height="bodyElementHeight(el)"
+                          :runtime-element-ids="Array.from(runModeElementIds)"
                           @run-click="handleRunClick"
                           @run-input="handleRunInput"
                         />
