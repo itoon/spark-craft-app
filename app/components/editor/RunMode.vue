@@ -72,7 +72,10 @@
           </div>
         </div>
 
-        <div class="max-h-52 shrink-0 overflow-y-auto border-b border-neutral-800 bg-neutral-950/30 px-3 py-2 font-mono text-[11px] selection:bg-indigo-500/30">
+        <div
+          ref="traceScrollerRef"
+          class="max-h-52 shrink-0 overflow-y-auto border-b border-neutral-800 bg-neutral-950/30 px-3 py-2 font-mono text-[11px] selection:bg-indigo-500/30"
+        >
           <div v-if="executionEvents.length === 0" class="text-neutral-700 italic px-1 py-6 text-center">
             Runtime steps will appear here...
           </div>
@@ -146,7 +149,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
 import { executeCode, syncRuntimeElementProps } from '~/composables/useRuntime'
 import type { ConsoleEntry, ElementInstance, RuntimeExecutionEvent } from '~/composables/useRuntime'
@@ -163,6 +166,7 @@ const pageElements = ref<AppElement[]>([])
 const instances = ref<ElementInstance[]>([])
 const hasRun = ref(false)
 const viewerRef = ref<HTMLElement | null>(null)
+const traceScrollerRef = ref<HTMLElement | null>(null)
 const activeDevice = computed(
   () => PREVIEW_DEVICES.find((device) => device.id === store.activeDeviceId.value) ?? PREVIEW_DEVICES[0]
 )
@@ -170,6 +174,14 @@ const { scale } = usePreviewDeviceScale(viewerRef, activeDevice, {
   widthPadding: 48,
   heightPadding: 120,
 })
+
+function scrollTraceToBottom() {
+  nextTick(() => {
+    const el = traceScrollerRef.value
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  })
+}
 
 // ── Run logic ─────────────────────────────────────────────────────────────
 function runCode() {
@@ -197,11 +209,13 @@ function runCode() {
       (event) => {
         runtimeEvents.push(event)
         executionEvents.value = [...runtimeEvents]
+        scrollTraceToBottom()
       }
     )
     
     logs.value = [...runtimeLogs, ...result.logs]
     executionEvents.value = [...result.events]
+    scrollTraceToBottom()
     pageElements.value = result.pageElements
     instances.value = result.instances
     hasRun.value = true
@@ -247,6 +261,7 @@ function handleRunClick(id: string) {
         elementType: instance.__el.type,
       },
     ]
+    scrollTraceToBottom()
   }
   if (instance && instance.__onClick) {
     try {
@@ -286,6 +301,15 @@ onBeforeUnmount(() => {
   hasRun.value = false
   executionEvents.value = []
 })
+
+watch(
+  () => executionEvents.value.length,
+  (nextLength, prevLength) => {
+    if (nextLength > prevLength) {
+      scrollTraceToBottom()
+    }
+  }
+)
 </script>
 
 <style scoped>
