@@ -555,7 +555,8 @@ import { useEditorStore } from '~/composables/useEditorStore'
 
 const props = defineProps<{ 
   element: AppElement,
-  isRunMode?: boolean
+  isRunMode?: boolean,
+  forcedHeight?: number
 }>()
 const emit = defineEmits<{
   (e: 'run-click', id: string): void
@@ -897,7 +898,7 @@ const containerStyle = computed(() => {
   return {
     position: 'relative',
     width: '100%',
-    height: `${props.element.height}px`,
+    height: `${props.forcedHeight ?? props.element.height}px`,
     padding: `${p.padding ?? 8}px`,
     backgroundColor: (p.backgroundColor as string) || 'transparent',
   }

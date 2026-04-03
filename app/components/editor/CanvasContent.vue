@@ -2,7 +2,7 @@
   <!-- Renders the flat list of root-level containers onto the canvas surface.
        Non-container elements cannot exist at root level; the store enforces this. -->
   <div
-    class="relative w-full min-h-full transition-shadow duration-150"
+    class="relative flex h-full min-h-full w-full flex-col transition-shadow duration-150"
     :class="{ 'ring-2 ring-indigo-400 ring-offset-2': isDragOver }"
     @click.self="store.selectElement(null)"
     @dragover.prevent="onDragOver"
@@ -35,24 +35,25 @@
     </div>
 
     <!-- Empty state (only when no elements at all) -->
-    <div
-      v-if="bodyContainers.length === 0"
-      class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
-    >
+    <!-- Body containers stacked vertically -->
+    <div class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[14px] pt-[14px] pb-[14px]">
       <div
-        class="border-2 border-dashed border-indigo-300 rounded-xl w-56 h-36 flex flex-col items-center justify-center gap-2 opacity-60"
+        v-if="bodyContainers.length === 0"
+        class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
       >
-        <UIcon name="i-lucide-plus-circle" class="size-7 text-indigo-400" />
-        <p
-          class="text-xs text-indigo-400 font-medium text-center leading-snug px-2"
+        <div
+          class="border-2 border-dashed border-indigo-300 rounded-xl w-56 h-36 flex flex-col items-center justify-center gap-2 opacity-60"
         >
-          Click a palette item or<br />drag it here to start
-        </p>
+          <UIcon name="i-lucide-plus-circle" class="size-7 text-indigo-400" />
+          <p
+            class="text-xs text-indigo-400 font-medium text-center leading-snug px-2"
+          >
+            Click a palette item or<br />drag it here to start
+          </p>
+        </div>
       </div>
-    </div>
 
-    <!-- Body containers stacked vertically — 14px base padding on sides/bottom -->
-    <div class="flex flex-col w-full" style="padding: 14px 14px 14px 14px">
+      <div class="flex flex-col w-full">
       <div
         v-for="container in bodyContainers"
         :key="container.id"
@@ -81,7 +82,11 @@
           />
         </template>
 
-        <EditorCanvasElementRenderer :element="container" />
+        <EditorCanvasElementRenderer
+          :element="container"
+          :forced-height="rootContainerHeight(container)"
+        />
+      </div>
       </div>
     </div>
   </div>
@@ -120,13 +125,22 @@ const bodyContainers = computed(() => {
   return roots.filter((el) => el.type !== "Toolbar");
 });
 
+const DEFAULT_TOOLBAR_HEIGHT = 56;
+const BODY_VERTICAL_PADDING = 28;
+
 // Root containers get their x/y position from the store, but in this document-flow
 // layout we only apply width. Height comes from the element's height prop.
 function rootContainerStyle(el: AppElement): Record<string, string> {
   return {
     width: "100%",
-    height: `${el.height}px`,
+    height: `${rootContainerHeight(el)}px`,
   };
+}
+
+function rootContainerHeight(el: AppElement): number {
+  if (el.parentId !== null) return el.height;
+  const detachedToolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT;
+  return Math.max(el.height - detachedToolbarHeight - BODY_VERTICAL_PADDING, 0);
 }
 
 // ── Drag-and-drop from palette ─────────────────────────────────────────────

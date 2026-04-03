@@ -107,7 +107,7 @@
               <div class="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-[120px] h-[36px] bg-black rounded-full" />
 
               <!-- Rendered page content -->
-              <div class="absolute inset-0 overflow-y-auto overflow-x-hidden">
+              <div class="absolute inset-0 flex flex-col overflow-hidden">
                 <!-- Empty state -->
                 <div
                   v-if="!hasRun || pageElements.length === 0"
@@ -139,12 +139,13 @@
                   </div>
 
                   <!-- Body elements -->
-                  <div class="flex-1 flex flex-col w-full" style="padding: 14px;">
+                  <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px] pt-[14px] pb-[14px]">
                     <template v-for="el in bodyElements" :key="el.id">
-                      <div class="w-full mb-2 shrink-0" :style="{ height: `${el.height}px` }">
+                      <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(el)}px` }">
                         <EditorCanvasElementRenderer
                           :element="el"
                           is-run-mode
+                          :forced-height="bodyElementHeight(el)"
                           @run-click="handleRunClick"
                           @run-input="handleRunInput"
                         />
@@ -285,6 +286,9 @@ const toolbarElement = computed(() =>
   pageElements.value.find(el => el.type === 'Toolbar') ?? null
 )
 
+const DEFAULT_TOOLBAR_HEIGHT = 56
+const BODY_VERTICAL_PADDING = 28
+
 const bodyElements = computed(() => {
   return pageElements.value.filter(el => {
     if (el.type === 'Toolbar') return false
@@ -299,6 +303,12 @@ const bodyElements = computed(() => {
     return !parentIsPresent
   })
 })
+
+function bodyElementHeight(el: AppElement) {
+  if (el.type !== 'Container' || el.parentId !== null) return el.height
+  const detachedToolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT
+  return Math.max(el.height - detachedToolbarHeight - BODY_VERTICAL_PADDING, 0)
+}
 </script>
 
 <style scoped>

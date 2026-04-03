@@ -1,12 +1,20 @@
 <template>
   <div class="js-editor flex-1 flex flex-col overflow-hidden bg-neutral-950">
     <!-- macOS-style toolbar bar -->
-    <div class="flex items-center justify-between px-3 py-1.5 bg-neutral-900 border-b border-neutral-700 shrink-0">
+    <div
+      class="flex items-center justify-between px-3 py-1.5 bg-neutral-900 border-b border-neutral-700 shrink-0"
+    >
       <div class="flex items-center gap-2">
         <div class="size-2.5 rounded-full bg-red-500" />
         <div class="size-2.5 rounded-full bg-yellow-500" />
         <div class="size-2.5 rounded-full bg-green-500" />
-        <span class="ml-3 text-xs text-neutral-500 font-mono">{{ store.pages.value.find(p => p.id === store.currentPageId.value)?.name ?? 'Page' }} · logic.js</span>
+        <span class="ml-3 text-xs text-neutral-500 font-mono"
+          >{{
+            store.pages.value.find((p) => p.id === store.currentPageId.value)
+              ?.name ?? "Page"
+          }}
+          · logic.js</span
+        >
       </div>
       <div class="flex items-center gap-2">
         <UBadge color="info" variant="subtle" size="xs" label="Auto-saving" />
@@ -14,20 +22,45 @@
     </div>
 
     <!-- Available IDs hint bar -->
-    <div class="px-4 py-2 bg-neutral-900/60 border-b border-neutral-700/50 shrink-0 overflow-x-auto whitespace-nowrap">
-      <p class="text-[10px] text-neutral-500 font-mono flex items-center gap-2">
-        <span class="text-indigo-400 font-semibold shrink-0">Available IDs: </span>
-        <span
-          v-for="(el, i) in currentElements"
-          :key="el.id"
-          class="text-amber-400 cursor-pointer hover:text-amber-300 shrink-0"
-          :title="`${el.type} — click to insert`"
-          @click="insertIdSnippet(el)"
-        >
-          {{ el.id }}<span v-if="i < currentElements.length - 1" class="text-neutral-600">, </span>
-        </span>
-        <span v-if="currentElements.length === 0" class="text-neutral-600 italic">No elements on current page</span>
-      </p>
+    <div
+      class="available-ids bg-neutral-900/60 border-b border-neutral-700/50 shrink-0"
+    >
+      <div class="flex min-h-[56px] overflow-hidden">
+        <div
+          class="shrink-0 min-w-[40px] bg-neutral-900/40 border-r border-neutral-700/50"
+          aria-hidden="true"
+        />
+        <div class="flex-1 pl-4 py-2">
+          <div class="max-h-[2.9rem] overflow-y-auto overflow-x-hidden pr-1">
+            <p
+              class="text-[10px] text-neutral-500 font-mono flex flex-wrap items-start gap-1.5 leading-5"
+            >
+              <span class="text-indigo-400 font-semibold shrink-0 mr-1"
+                >Available IDs:</span
+              >
+              <span
+                v-for="(el, i) in currentElements"
+                :key="el.id"
+                class="inline-flex max-w-full rounded-md border border-amber-400/20 bg-amber-400/8 px-1.5 text-amber-300 cursor-pointer hover:text-amber-200 hover:border-amber-300/30 hover:bg-amber-300/10 transition-colors"
+                :title="`${el.type} — click to insert`"
+                @click="insertIdSnippet(el)"
+              >
+                {{ el.id
+                }}<span
+                  v-if="i < currentElements.length - 1"
+                  class="text-neutral-600"
+                  >,</span
+                >
+              </span>
+              <span
+                v-if="currentElements.length === 0"
+                class="text-neutral-600 italic"
+                >No elements on current page</span
+              >
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Code textarea with line numbers -->
@@ -56,8 +89,12 @@
     </div>
 
     <!-- Footer / Status -->
-    <div class="flex items-center justify-between px-3 py-1 bg-neutral-900 border-t border-neutral-700 shrink-0">
-      <div class="flex items-center gap-3 text-[10px] text-neutral-500 font-mono">
+    <div
+      class="flex items-center justify-between px-3 py-1 bg-neutral-900 border-t border-neutral-700 shrink-0"
+    >
+      <div
+        class="flex items-center gap-3 text-[10px] text-neutral-500 font-mono"
+      >
         <span>Javascript</span>
         <span>UTF-8</span>
         <span>{{ lineCount }} lines</span>
@@ -67,72 +104,78 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
-import { useEditorStore } from '~/composables/useEditorStore'
-import { ELEMENT_CLASS_MAP, varNameFromId, buildScaffold } from '~/composables/useRuntime'
-import type { AppElement } from '~/composables/useEditorStore'
+import { ref, computed, watch, onMounted, nextTick } from "vue";
+import { useEditorStore } from "~/composables/useEditorStore";
+import {
+  ELEMENT_CLASS_MAP,
+  varNameFromId,
+  buildScaffold,
+} from "~/composables/useRuntime";
+import type { AppElement } from "~/composables/useEditorStore";
 
-const store = useEditorStore()
+const store = useEditorStore();
 
 // ── State ─────────────────────────────────────────────────────────────────
-const editorRef = ref<HTMLTextAreaElement | null>(null)
-const lineNumRef = ref<HTMLDivElement | null>(null)
+const editorRef = ref<HTMLTextAreaElement | null>(null);
+const lineNumRef = ref<HTMLDivElement | null>(null);
 
 // Only show elements for the current page
 const currentElements = computed(() =>
-  store.elements.value.filter((el: AppElement) => el.pageId === store.currentPageId.value)
-)
+  store.elements.value.filter(
+    (el: AppElement) => el.pageId === store.currentPageId.value,
+  ),
+);
 
 // Initialize code for a page if it has none yet
 function initPageCodeIfEmpty() {
-  if (!store.jsCode.value || store.jsCode.value.trim() === '') {
-    store.setJsCode(buildScaffold(currentElements.value))
+  if (!store.jsCode.value || store.jsCode.value.trim() === "") {
+    store.setJsCode(buildScaffold(currentElements.value));
   }
 }
 
 // Init on mount and whenever the active page changes
-onMounted(initPageCodeIfEmpty)
-watch(() => store.currentPageId.value, initPageCodeIfEmpty)
+onMounted(initPageCodeIfEmpty);
+watch(() => store.currentPageId.value, initPageCodeIfEmpty);
 
 // ── Line numbers ──────────────────────────────────────────────────────────
-const lineCount = computed(() => (store.jsCode.value || '').split('\n').length)
+const lineCount = computed(() => (store.jsCode.value || "").split("\n").length);
 
 function syncScroll() {
   if (editorRef.value && lineNumRef.value) {
-    lineNumRef.value.scrollTop = editorRef.value.scrollTop
+    lineNumRef.value.scrollTop = editorRef.value.scrollTop;
   }
 }
 
 // ── Tab key support ───────────────────────────────────────────────────────
 function insertTab() {
-  const ta = editorRef.value
-  if (!ta) return
-  const start = ta.selectionStart
-  const end = ta.selectionEnd
-  const code = store.jsCode.value
-  store.setJsCode(code.substring(0, start) + '  ' + code.substring(end))
+  const ta = editorRef.value;
+  if (!ta) return;
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const code = store.jsCode.value;
+  store.setJsCode(code.substring(0, start) + "  " + code.substring(end));
   nextTick(() => {
-    ta.selectionStart = ta.selectionEnd = start + 2
-  })
+    ta.selectionStart = ta.selectionEnd = start + 2;
+  });
 }
 
 // ── Insert snippet ────────────────────────────────────────────────────────
 function insertIdSnippet(el: AppElement) {
-  const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type
-  const varName = varNameFromId(el.id)
-  const snippet = `var ${varName} = new ${cls}('${el.id}');\npage.add(${varName});\n`
-  
-  const ta = editorRef.value
+  const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
+  const varName = varNameFromId(el.id);
+  const snippet = `var ${varName} = new ${cls}('${el.id}');\npage.add(${varName});\n`;
+
+  const ta = editorRef.value;
   if (ta) {
-    const pos = ta.selectionStart
-    const code = store.jsCode.value
-    store.setJsCode(code.substring(0, pos) + snippet + code.substring(pos))
+    const pos = ta.selectionStart;
+    const code = store.jsCode.value;
+    store.setJsCode(code.substring(0, pos) + snippet + code.substring(pos));
     nextTick(() => {
-      ta.selectionStart = ta.selectionEnd = pos + snippet.length
-      ta.focus()
-    })
+      ta.selectionStart = ta.selectionEnd = pos + snippet.length;
+      ta.focus();
+    });
   } else {
-    store.setJsCode((store.jsCode.value || '') + '\n' + snippet)
+    store.setJsCode((store.jsCode.value || "") + "\n" + snippet);
   }
 }
 </script>
@@ -150,5 +193,32 @@ textarea::-webkit-scrollbar-thumb {
 }
 textarea::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
+}
+
+.available-ids ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.available-ids ::-webkit-scrollbar-track {
+  background: rgba(17, 24, 39, 0.45);
+  border-radius: 9999px;
+}
+
+.available-ids ::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(99, 102, 241, 0.65),
+    rgba(245, 158, 11, 0.45)
+  );
+  border-radius: 9999px;
+  border: 1px solid rgba(17, 24, 39, 0.35);
+}
+
+.available-ids ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(129, 140, 248, 0.8),
+    rgba(251, 191, 36, 0.65)
+  );
 }
 </style>
