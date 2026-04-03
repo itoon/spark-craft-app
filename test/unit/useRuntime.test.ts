@@ -2,6 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { usePaletteItems } from "../../app/composables/usePaletteItems";
 import {
+  findComponentApiSchemaByClassName,
+  getComponentApiSchemas,
+} from "../../app/utils/componentApi";
+import {
   executeCode,
   syncRuntimeElementProps,
   type ElementInstance,
@@ -129,6 +133,40 @@ describe("executeCode", () => {
     expect(updates).toHaveBeenCalledWith("page1_input1", { value: "next input" });
     expect(updates).toHaveBeenCalledWith("page1_labelledinput1", {
       value: "next labelled",
+    });
+  });
+
+  it("supports dynamic prop access for component attrs suggested by the editor", () => {
+    const updates = vi.fn();
+    const elements: AppElement[] = [
+      makeElement("page1_button1", "Button", {
+        label: "Save",
+        fill: "solid",
+        backgroundColor: "#3880ff",
+      }),
+    ];
+
+    const result = executeCode(
+      [
+        "const button1 = new Button('page1_button1')",
+        "page.add(button1)",
+        "button1.fill = 'outline'",
+        "button1.backgroundColor = '#22c55e'",
+      ].join("\n"),
+      elements,
+      updates,
+    );
+
+    const buttonInstance = result.instances[0] as ElementInstance & {
+      fill: string;
+      backgroundColor: string;
+    };
+
+    expect(buttonInstance.fill).toBe("outline");
+    expect(buttonInstance.backgroundColor).toBe("#22c55e");
+    expect(updates).toHaveBeenCalledWith("page1_button1", { fill: "outline" });
+    expect(updates).toHaveBeenCalledWith("page1_button1", {
+      backgroundColor: "#22c55e",
     });
   });
 
@@ -307,5 +345,22 @@ describe("usePaletteItems", () => {
 
     expect(camera?.defaultProps.open).toBe(false);
     expect(camera?.defaultProps.title).toBe("Camera");
+  });
+});
+
+describe("componentApi", () => {
+  it("builds class, method, and attr metadata for editor suggestions", () => {
+    const schemas = getComponentApiSchemas();
+    const button = findComponentApiSchemaByClassName("Button");
+    const camera = findComponentApiSchemaByClassName("Camera");
+    const fab = findComponentApiSchemaByClassName("FAB");
+
+    expect(schemas.length).toBeGreaterThan(10);
+    expect(button?.props).toContain("backgroundColor");
+    expect(button?.props).toContain("fill");
+    expect(button?.methods).toContain("onClick(callback)");
+    expect(camera?.methods).toContain("open()");
+    expect(camera?.methods).toContain("close()");
+    expect(fab?.designType).toBe("FloatingActionButton");
   });
 });

@@ -1,4 +1,5 @@
 import type { AppElement } from './useEditorStore'
+import { getComponentClassMap } from '../utils/componentApi'
 
 export interface ConsoleEntry {
   type: 'log' | 'error' | 'warn' | 'success'
@@ -27,36 +28,7 @@ export interface RuntimeState {
 }
 
 // ── Class name map ─────────────────────────────────────────────────────────
-export const ELEMENT_CLASS_MAP: Record<string, string> = {
-  Toolbar:              'Toolbar',
-  Button:               'Button',
-  FloatingActionButton: 'FAB',
-  Input:                'Input',
-  LabelledInput:        'LabelledInput',
-  Searchbar:            'Searchbar',
-  RangeInput:           'Range',
-  DateTimePicker:       'DatePicker',
-  Checkbox:             'Checkbox',
-  RadioButton:          'Radio',
-  Toggle:               'Toggle',
-  Select:               'Select',
-  Heading:              'Heading',
-  Label:                'Label',
-  TextBox:              'Textarea',
-  Badge:                'Badge',
-  Chip:                 'Chip',
-  Spinner:              'Spinner',
-  Image:                'Image',
-  Camera:               'Camera',
-  Link:                 'Link',
-  Video:                'Video',
-  List:                 'List',
-  Card:                 'Card',
-  Segment:              'Segment',
-  Separator:            'Separator',
-  Spacer:               'Spacer',
-  Container:            'Container',
-}
+export const ELEMENT_CLASS_MAP: Record<string, string> = getComponentClassMap()
 
 /** camelCase variable from ID, e.g. page1_button1 → button1 */
 export function varNameFromId(id: string): string {
@@ -182,6 +154,19 @@ export function executeCode(
 
     constructor(id: string, className: string) {
       this.__el = getEl(id, className)
+
+      for (const propName of Object.keys(this.__el.props)) {
+        if (propName in this) continue
+        Object.defineProperty(this, propName, {
+          get: () => this.__el.props[propName],
+          set: (val) => {
+            this.__el.props[propName] = val
+            onUpdate?.(this.__el.id, { [propName]: val })
+          },
+          configurable: true,
+          enumerable: true,
+        })
+      }
 
       // Proxy-like property access for common props
       const commonProps = ['text', 'value', 'label', 'content', 'src', 'title', 'placeholder']
