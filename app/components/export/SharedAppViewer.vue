@@ -1,6 +1,6 @@
 <template>
-  <div class="min-h-screen bg-neutral-950 text-white flex flex-col">
-    <header class="h-12 shrink-0 border-b border-neutral-800 bg-neutral-900/90 backdrop-blur px-4 flex items-center gap-3">
+  <div class="min-h-screen bg-white text-neutral-900 lg:flex lg:flex-col lg:bg-neutral-950 lg:text-white">
+    <header class="hidden h-12 shrink-0 items-center gap-3 border-b border-neutral-800 bg-neutral-900/90 px-4 backdrop-blur lg:flex">
       <div class="size-6 rounded bg-emerald-600 flex items-center justify-center">
         <UIcon name="i-lucide-smartphone" class="size-3.5 text-white" />
       </div>
@@ -10,8 +10,8 @@
       </div>
     </header>
 
-    <main class="flex-1 flex items-center justify-center p-6 overflow-auto">
-      <div class="flex flex-col items-center gap-5">
+    <main class="min-h-screen bg-white lg:flex lg:flex-1 lg:items-center lg:justify-center lg:overflow-auto lg:bg-neutral-950/90 lg:p-6">
+      <div class="hidden flex-col items-center gap-5 lg:flex">
         <div
           class="relative bg-neutral-800 border-[12px] border-neutral-600 shadow-2xl shadow-black/50"
           style="width: 417px; height: 900px; border-radius: 52px;"
@@ -36,6 +36,7 @@
                   <EditorCanvasElementRenderer
                     :element="toolbarElement"
                     is-run-mode
+                    :platform-override="runtimePlatform"
                     :runtime-element-ids="Array.from(runModeElementIds)"
                     :runtime-elements="pageElements"
                     @run-click="handleRunClick"
@@ -55,6 +56,7 @@
                       <EditorCanvasElementRenderer
                         :element="element"
                         is-run-mode
+                        :platform-override="runtimePlatform"
                         :forced-height="bodyElementHeight(element)"
                         :runtime-element-ids="Array.from(runModeElementIds)"
                         :runtime-elements="pageElements"
@@ -75,12 +77,64 @@
           Preview · {{ deviceLabel }}
         </p>
       </div>
+
+      <div class="min-h-screen w-full bg-white lg:hidden">
+        <div class="relative min-h-screen w-full overflow-x-hidden bg-white">
+          <div
+            v-if="runtimeError"
+            class="absolute inset-0 z-20 flex items-center justify-center bg-white p-6 text-center text-red-500"
+          >
+            {{ runtimeError }}
+          </div>
+
+          <template v-else>
+            <div
+              v-if="toolbarElement"
+              class="sticky top-0 z-10 w-full shrink-0"
+              :style="{ height: `${toolbarElement.height}px` }"
+            >
+              <EditorCanvasElementRenderer
+                :element="toolbarElement"
+                is-run-mode
+                :platform-override="runtimePlatform"
+                :runtime-element-ids="Array.from(runModeElementIds)"
+                :runtime-elements="pageElements"
+                @run-click="handleRunClick"
+                @run-input="handleRunInput"
+              />
+            </div>
+
+            <div
+              class="min-h-screen overflow-y-auto overflow-x-hidden px-[14px]"
+              :style="{
+                paddingTop: `${bodyTopPadding}px`,
+                paddingBottom: `${BODY_BOTTOM_PADDING}px`,
+              }"
+            >
+              <template v-for="element in bodyElements" :key="`mobile-${element.id}`">
+                <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(element)}px` }">
+                  <EditorCanvasElementRenderer
+                    :element="element"
+                    is-run-mode
+                    :platform-override="runtimePlatform"
+                    :forced-height="bodyElementHeight(element)"
+                    :runtime-element-ids="Array.from(runModeElementIds)"
+                    :runtime-elements="pageElements"
+                    @run-click="handleRunClick"
+                    @run-input="handleRunInput"
+                  />
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 import { executeCode, syncRuntimeElementProps } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
@@ -100,6 +154,7 @@ const elementState = ref<AppElement[]>(cloneElements(props.payload.elements));
 const pageElements = ref<AppElement[]>([]);
 const instances = ref<ElementInstance[]>([]);
 const runtimeError = ref("");
+const detectedMobilePlatform = ref<"ios" | "android" | null>(null);
 
 const toolbarElement = computed(() =>
   pageElements.value.find((element) => element.type === "Toolbar") ?? null,
@@ -123,6 +178,10 @@ const bodyElements = computed(() =>
 
 const deviceLabel = computed(() =>
   props.payload.activeDeviceId === "android" ? "Android" : "iPhone 15",
+);
+const runtimePlatform = computed<"ios" | "android">(() =>
+  detectedMobilePlatform.value ??
+  (props.payload.activeDeviceId === "android" ? "android" : "ios"),
 );
 
 watch(
@@ -200,7 +259,23 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
   instances.value = nextRuntime.instances;
 }
 
+function detectMobilePlatformFromBrowser(): "ios" | "android" | null {
+  if (!import.meta.client) return null;
+
+  const userAgent = navigator.userAgent || "";
+
+  if (/Android/i.test(userAgent)) return "android";
+  if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
+
+  return null;
+}
+
+onMounted(() => {
+  detectedMobilePlatform.value = detectMobilePlatformFromBrowser();
+});
+
 function bodyElementHeight(element: AppElement) {
+  if (element.type === "Camera" && !element.props.open) return 0;
   if (element.type !== "Container" || element.parentId !== null) return element.height;
   const toolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT;
   return Math.max(

@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>codecraft-code-cheat-sheet</title>
+  <style>
+    html {
+      color: #1a1a1a;
+      background-color: #fdfdfd;
+    }
+    body {
+      margin: 0 auto;
+      max-width: 36em;
+      padding-left: 50px;
+      padding-right: 50px;
+      padding-top: 50px;
+      padding-bottom: 50px;
+      hyphens: auto;
+      overflow-wrap: break-word;
+      text-rendering: optimizeLegibility;
+      font-kerning: normal;
+    }
+    @media (max-width: 600px) {
+      body {
+        font-size: 0.9em;
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.8em;
+      }
+    }
+    @media print {
+      html {
+        background-color: white;
+      }
+      body {
+        background-color: transparent;
+        color: black;
+        font-size: 12pt;
+      }
+      p, h2, h3 {
+        orphans: 3;
+        widows: 3;
+      }
+      h2, h3, h4 {
+        page-break-after: avoid;
+      }
+    }
+    p {
+      margin: 1em 0;
+    }
+    a {
+      color: #1a1a1a;
+    }
+    a:visited {
+      color: #1a1a1a;
+    }
+    img {
+      max-width: 100%;
+    }
+    svg {
+      height: auto;
+      max-width: 100%;
+    }
+    h1, h2, h3, h4, h5, h6 {
+      margin-top: 1.4em;
+    }
+    h5, h6 {
+      font-size: 1em;
+      font-style: italic;
+    }
+    h6 {
+      font-weight: normal;
+    }
+    ol, ul {
+      padding-left: 1.7em;
+      margin-top: 1em;
+    }
+    li > ol, li > ul {
+      margin-top: 0;
+    }
+    blockquote {
+      margin: 1em 0 1em 1.7em;
+      padding-left: 1em;
+      border-left: 2px solid #e6e6e6;
+      color: #606060;
+    }
+    code {
+      font-family: Menlo, Monaco, Consolas, 'Lucida Console', monospace;
+      font-size: 85%;
+      margin: 0;
+      hyphens: manual;
+    }
+    pre {
+      margin: 1em 0;
+      overflow: auto;
+    }
+    pre code {
+      padding: 0;
+      overflow: visible;
+      overflow-wrap: normal;
+    }
+    .sourceCode {
+     background-color: transparent;
+     overflow: visible;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #1a1a1a;
+      height: 1px;
+      margin: 1em 0;
+    }
+    table {
+      margin: 1em 0;
+      border-collapse: collapse;
+      width: 100%;
+      overflow-x: auto;
+      display: block;
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    table caption {
+      margin-bottom: 0.75em;
+    }
+    tbody {
+      margin-top: 0.5em;
+      border-top: 1px solid #1a1a1a;
+      border-bottom: 1px solid #1a1a1a;
+    }
+    th {
+      border-top: 1px solid #1a1a1a;
+      padding: 0.25em 0.5em 0.25em 0.5em;
+    }
+    td {
+      padding: 0.125em 0.5em 0.25em 0.5em;
+    }
+    header {
+      margin-bottom: 4em;
+      text-align: center;
+    }
+    #TOC li {
+      list-style: none;
+    }
+    #TOC ul {
+      padding-left: 1.3em;
+    }
+    #TOC > ul {
+      padding-left: 0;
+    }
+    #TOC a:not(:hover) {
+      text-decoration: none;
+    }
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    div.columns{display: flex; gap: min(4vw, 1.5em);}
+    div.column{flex: auto; overflow-x: auto;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    /* The extra [class] is a hack that increases specificity enough to
+       override a similar rule in reveal.js */
+    ul.task-list[class]{list-style: none;}
+    ul.task-list li input[type="checkbox"] {
+      font-size: inherit;
+      width: 0.8em;
+      margin: 0 0.8em 0.2em -1.6em;
+      vertical-align: middle;
+    }
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+    /* CSS for syntax highlighting */
+    html { -webkit-text-size-adjust: 100%; }
+    pre > code.sourceCode { white-space: pre; position: relative; }
+    pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+    pre > code.sourceCode > span:empty { height: 1.2em; }
+    .sourceCode { overflow: visible; }
+    code.sourceCode > span { color: inherit; text-decoration: inherit; }
+    div.sourceCode { margin: 1em 0; }
+    pre.sourceCode { margin: 0; }
+    @media screen {
+    div.sourceCode { overflow: auto; }
+    }
+    @media print {
+    pre > code.sourceCode { white-space: pre-wrap; }
+    pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+    }
+    pre.numberSource code
+      { counter-reset: source-line 0; }
+    pre.numberSource code > span
+      { position: relative; left: -4em; counter-increment: source-line; }
+    pre.numberSource code > span > a:first-child::before
+      { content: counter(source-line);
+        position: relative; left: -1em; text-align: right; vertical-align: baseline;
+        border: none; display: inline-block;
+        -webkit-touch-callout: none; -webkit-user-select: none;
+        -khtml-user-select: none; -moz-user-select: none;
+        -ms-user-select: none; user-select: none;
+        padding: 0 4px; width: 4em;
+        color: #aaaaaa;
+      }
+    pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+    div.sourceCode
+      {   }
+    @media screen {
+    pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+    }
+    code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+    code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+    code span.at { color: #7d9029; } /* Attribute */
+    code span.bn { color: #40a070; } /* BaseN */
+    code span.bu { color: #008000; } /* BuiltIn */
+    code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+    code span.ch { color: #4070a0; } /* Char */
+    code span.cn { color: #880000; } /* Constant */
+    code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+    code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+    code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+    code span.dt { color: #902000; } /* DataType */
+    code span.dv { color: #40a070; } /* DecVal */
+    code span.er { color: #ff0000; font-weight: bold; } /* Error */
+    code span.ex { } /* Extension */
+    code span.fl { color: #40a070; } /* Float */
+    code span.fu { color: #06287e; } /* Function */
+    code span.im { color: #008000; font-weight: bold; } /* Import */
+    code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+    code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+    code span.op { color: #666666; } /* Operator */
+    code span.ot { color: #007020; } /* Other */
+    code span.pp { color: #bc7a00; } /* Preprocessor */
+    code span.sc { color: #4070a0; } /* SpecialChar */
+    code span.ss { color: #bb6688; } /* SpecialString */
+    code span.st { color: #4070a0; } /* String */
+    code span.va { color: #19177c; } /* Variable */
+    code span.vs { color: #4070a0; } /* VerbatimString */
+    code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+</head>
+<body>
+<h1 id="codecraft-code-cheat-sheet">CodeCraft Code Cheat Sheet</h1>
+<p>For students using Code mode in CodeCraft.</p>
+<h2 id="basic-pattern">1. Basic Pattern</h2>
+<div class="sourceCode" id="cb1"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> button1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Button</span>(<span class="st">&#39;page1_button1&#39;</span>)<span class="op">;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(button1)<span class="op">;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>button1<span class="op">.</span><span class="fu">onClick</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>  <span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="st">&#39;Button clicked&#39;</span>)<span class="op">;</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<h2 id="rules-to-remember">2. Rules To Remember</h2>
+<ul>
+<li>Every element starts with
+<code>new ClassName('element_id')</code></li>
+<li>Show an element on screen with <code>page.add(element)</code></li>
+<li>If an element is not added with <code>page.add(...)</code>, it will
+not show in Run mode</li>
+<li>Parent <code>Container</code> elements are auto-added behind the
+scenes when needed</li>
+<li>Add click logic with <code>.onClick(() =&gt; { ... })</code></li>
+<li>Use <code>page.goTo('page2')</code> to move to another page</li>
+</ul>
+<h2 id="page-object">3. Page Object</h2>
+<h3 id="page.addelement"><code>page.add(element)</code></h3>
+<p>Adds an element to the current page.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> heading1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Heading</span>(<span class="st">&#39;page1_heading1&#39;</span>)<span class="op">;</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(heading1)<span class="op">;</span></span></code></pre></div>
+<h3
+id="page.gotopageidorpagename"><code>page.goTo(pageIdOrPageName)</code></h3>
+<p>Moves to another page by page id or page name.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>button1<span class="op">.</span><span class="fu">onClick</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>  page<span class="op">.</span><span class="fu">goTo</span>(<span class="st">&#39;page2&#39;</span>)<span class="op">;</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<p>You can also use a page name:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">goTo</span>(<span class="st">&#39;Page 2&#39;</span>)<span class="op">;</span></span></code></pre></div>
+<h2 id="console">4. Console</h2>
+<p>Use the debug console while learning:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(<span class="st">&#39;hello&#39;</span>)<span class="op">;</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">warn</span>(<span class="st">&#39;check this&#39;</span>)<span class="op">;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">error</span>(<span class="st">&#39;something went wrong&#39;</span>)<span class="op">;</span></span></code></pre></div>
+<h2 id="common-element-properties">5. Common Element Properties</h2>
+<p>Many elements support these easy properties:</p>
+<ul>
+<li><code>.text</code></li>
+<li><code>.value</code></li>
+<li><code>.label</code></li>
+<li><code>.content</code></li>
+<li><code>.src</code></li>
+<li><code>.title</code></li>
+<li><code>.placeholder</code></li>
+</ul>
+<p>Example:</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> input1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Input</span>(<span class="st">&#39;page1_input1&#39;</span>)<span class="op">;</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(input1)<span class="op">;</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="bu">console</span><span class="op">.</span><span class="fu">log</span>(input1<span class="op">.</span><span class="at">value</span>)<span class="op">;</span></span></code></pre></div>
+<h2 id="input-and-output-example">6. Input And Output Example</h2>
+<div class="sourceCode" id="cb7"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> number1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Input</span>(<span class="st">&#39;page1_input1&#39;</span>)<span class="op">;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> number2 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Input</span>(<span class="st">&#39;page1_input2&#39;</span>)<span class="op">;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> result <span class="op">=</span> <span class="kw">new</span> <span class="fu">Label</span>(<span class="st">&#39;page1_label1&#39;</span>)<span class="op">;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> addButton <span class="op">=</span> <span class="kw">new</span> <span class="fu">Button</span>(<span class="st">&#39;page1_button1&#39;</span>)<span class="op">;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(number1)<span class="op">;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(number2)<span class="op">;</span></span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(result)<span class="op">;</span></span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(addButton)<span class="op">;</span></span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>addButton<span class="op">.</span><span class="fu">onClick</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  result<span class="op">.</span><span class="at">content</span> <span class="op">=</span> <span class="bu">String</span>(<span class="bu">Number</span>(number1<span class="op">.</span><span class="at">value</span>) <span class="op">+</span> <span class="bu">Number</span>(number2<span class="op">.</span><span class="at">value</span>))<span class="op">;</span></span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<h2 id="element-classes">7. Element Classes</h2>
+<h3 id="layout">Layout</h3>
+<h4 id="toolbar"><code>Toolbar</code></h4>
+<div class="sourceCode" id="cb8"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> toolbar1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Toolbar</span>(<span class="st">&#39;page1_toolbar1&#39;</span>)<span class="op">;</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(toolbar1)<span class="op">;</span></span></code></pre></div>
+<p>Used for app title bars.</p>
+<h4 id="card"><code>Card</code></h4>
+<div class="sourceCode" id="cb9"><pre class="sourceCode js"><code class="sourceCode javascript"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> card1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Card</span>(<span class="st">&#39;page1_card1&#39;</span>)<span class="op">;</span></span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(card1)<span class="op">;</span></span></code></pre></div>
+<p>Used for grouped content.</p>
+<h4 id="list"><code>List</code></h4>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> list1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">List</span>(<span class="st">&#39;page1_list1&#39;</span>)<span class="op">;</span></span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(list1)<span class="op">;</span></span></code></pre></div>
+<p>Used for item lists.</p>
+<h4 id="segment"><code>Segment</code></h4>
+<div class="sourceCode" id="cb11"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> segment1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Segment</span>(<span class="st">&#39;page1_segment1&#39;</span>)<span class="op">;</span></span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(segment1)<span class="op">;</span></span></code></pre></div>
+<p>Used for switching between options.</p>
+<h4 id="separator"><code>Separator</code></h4>
+<div class="sourceCode" id="cb12"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> separator1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Separator</span>(<span class="st">&#39;page1_separator1&#39;</span>)<span class="op">;</span></span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(separator1)<span class="op">;</span></span></code></pre></div>
+<p>Used for divider lines.</p>
+<h4 id="spacer"><code>Spacer</code></h4>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> spacer1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Spacer</span>(<span class="st">&#39;page1_spacer1&#39;</span>)<span class="op">;</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(spacer1)<span class="op">;</span></span></code></pre></div>
+<p>Used to add empty vertical space.</p>
+<h4 id="container"><code>Container</code></h4>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> container1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Container</span>(<span class="st">&#39;page1_container1&#39;</span>)<span class="op">;</span></span></code></pre></div>
+<p>Usually you do not need to add <code>Container</code> in student code
+because CodeCraft auto-adds parent containers for layout.</p>
+<h3 id="input">Input</h3>
+<h4 id="button"><code>Button</code></h4>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> button1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Button</span>(<span class="st">&#39;page1_button1&#39;</span>)<span class="op">;</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(button1)<span class="op">;</span></span></code></pre></div>
+<p>Use <code>.onClick(...)</code> for actions.</p>
+<h4 id="fab"><code>FAB</code></h4>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> fab1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">FAB</span>(<span class="st">&#39;page1_floatingactionbutton1&#39;</span>)<span class="op">;</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(fab1)<span class="op">;</span></span></code></pre></div>
+<p>Floating Action Button.</p>
+<h4 id="searchbar"><code>Searchbar</code></h4>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> searchbar1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Searchbar</span>(<span class="st">&#39;page1_searchbar1&#39;</span>)<span class="op">;</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(searchbar1)<span class="op">;</span></span></code></pre></div>
+<h4 id="labelledinput"><code>LabelledInput</code></h4>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> labelledInput1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">LabelledInput</span>(<span class="st">&#39;page1_labelledinput1&#39;</span>)<span class="op">;</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(labelledInput1)<span class="op">;</span></span></code></pre></div>
+<h4 id="input-1"><code>Input</code></h4>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> input1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Input</span>(<span class="st">&#39;page1_input1&#39;</span>)<span class="op">;</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(input1)<span class="op">;</span></span></code></pre></div>
+<h4 id="select"><code>Select</code></h4>
+<div class="sourceCode" id="cb20"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> select1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Select</span>(<span class="st">&#39;page1_select1&#39;</span>)<span class="op">;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(select1)<span class="op">;</span></span></code></pre></div>
+<h4 id="range"><code>Range</code></h4>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> range1 <span class="op">=</span> <span class="kw">new</span> <span class="bu">Range</span>(<span class="st">&#39;page1_rangeinput1&#39;</span>)<span class="op">;</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(range1)<span class="op">;</span></span></code></pre></div>
+<h4 id="datepicker"><code>DatePicker</code></h4>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> date1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">DatePicker</span>(<span class="st">&#39;page1_datetimepicker1&#39;</span>)<span class="op">;</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(date1)<span class="op">;</span></span></code></pre></div>
+<h4 id="checkbox"><code>Checkbox</code></h4>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> checkbox1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Checkbox</span>(<span class="st">&#39;page1_checkbox1&#39;</span>)<span class="op">;</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(checkbox1)<span class="op">;</span></span></code></pre></div>
+<h4 id="radio"><code>Radio</code></h4>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> radio1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Radio</span>(<span class="st">&#39;page1_radiobutton1&#39;</span>)<span class="op">;</span></span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(radio1)<span class="op">;</span></span></code></pre></div>
+<h4 id="toggle"><code>Toggle</code></h4>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> toggle1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Toggle</span>(<span class="st">&#39;page1_toggle1&#39;</span>)<span class="op">;</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(toggle1)<span class="op">;</span></span></code></pre></div>
+<h3 id="display">Display</h3>
+<h4 id="heading"><code>Heading</code></h4>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> heading1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Heading</span>(<span class="st">&#39;page1_heading1&#39;</span>)<span class="op">;</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(heading1)<span class="op">;</span></span></code></pre></div>
+<h4 id="label"><code>Label</code></h4>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> label1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Label</span>(<span class="st">&#39;page1_label1&#39;</span>)<span class="op">;</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(label1)<span class="op">;</span></span></code></pre></div>
+<p>Good for short text output.</p>
+<h4 id="textarea"><code>Textarea</code></h4>
+<div class="sourceCode" id="cb28"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> textarea1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Textarea</span>(<span class="st">&#39;page1_textbox1&#39;</span>)<span class="op">;</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(textarea1)<span class="op">;</span></span></code></pre></div>
+<p>Design name is <code>Textarea</code>, internal element type is based
+on the textbox component.</p>
+<h4 id="badge"><code>Badge</code></h4>
+<div class="sourceCode" id="cb29"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> badge1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Badge</span>(<span class="st">&#39;page1_badge1&#39;</span>)<span class="op">;</span></span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(badge1)<span class="op">;</span></span></code></pre></div>
+<h4 id="chip"><code>Chip</code></h4>
+<div class="sourceCode" id="cb30"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> chip1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Chip</span>(<span class="st">&#39;page1_chip1&#39;</span>)<span class="op">;</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(chip1)<span class="op">;</span></span></code></pre></div>
+<h4 id="spinner"><code>Spinner</code></h4>
+<div class="sourceCode" id="cb31"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> spinner1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Spinner</span>(<span class="st">&#39;page1_spinner1&#39;</span>)<span class="op">;</span></span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(spinner1)<span class="op">;</span></span></code></pre></div>
+<h4 id="image"><code>Image</code></h4>
+<div class="sourceCode" id="cb32"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> image1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Image</span>(<span class="st">&#39;page1_image1&#39;</span>)<span class="op">;</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(image1)<span class="op">;</span></span></code></pre></div>
+<h4 id="link"><code>Link</code></h4>
+<div class="sourceCode" id="cb33"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> link1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Link</span>(<span class="st">&#39;page1_link1&#39;</span>)<span class="op">;</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(link1)<span class="op">;</span></span></code></pre></div>
+<h4 id="video"><code>Video</code></h4>
+<div class="sourceCode" id="cb34"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> video1 <span class="op">=</span> <span class="kw">new</span> <span class="fu">Video</span>(<span class="st">&#39;page1_video1&#39;</span>)<span class="op">;</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(video1)<span class="op">;</span></span></code></pre></div>
+<h4 id="icon"><code>Icon</code></h4>
+<p>This element exists in Design mode, but is not available as a runtime
+class in Code mode right now.</p>
+<h2 id="simple-navigation-example">8. Simple Navigation Example</h2>
+<div class="sourceCode" id="cb35"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> nextButton <span class="op">=</span> <span class="kw">new</span> <span class="fu">Button</span>(<span class="st">&#39;page1_button1&#39;</span>)<span class="op">;</span></span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(nextButton)<span class="op">;</span></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>nextButton<span class="op">.</span><span class="fu">onClick</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  page<span class="op">.</span><span class="fu">goTo</span>(<span class="st">&#39;page2&#39;</span>)<span class="op">;</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<h2 id="simple-form-example">9. Simple Form Example</h2>
+<div class="sourceCode" id="cb36"><pre
+class="sourceCode js"><code class="sourceCode javascript"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> nameInput <span class="op">=</span> <span class="kw">new</span> <span class="fu">Input</span>(<span class="st">&#39;page1_input1&#39;</span>)<span class="op">;</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> submitButton <span class="op">=</span> <span class="kw">new</span> <span class="fu">Button</span>(<span class="st">&#39;page1_button1&#39;</span>)<span class="op">;</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="kw">var</span> resultLabel <span class="op">=</span> <span class="kw">new</span> <span class="fu">Label</span>(<span class="st">&#39;page1_label1&#39;</span>)<span class="op">;</span></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(nameInput)<span class="op">;</span></span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(submitButton)<span class="op">;</span></span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>page<span class="op">.</span><span class="fu">add</span>(resultLabel)<span class="op">;</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>submitButton<span class="op">.</span><span class="fu">onClick</span>(() <span class="kw">=&gt;</span> {</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  resultLabel<span class="op">.</span><span class="at">content</span> <span class="op">=</span> <span class="st">&#39;Hello &#39;</span> <span class="op">+</span> nameInput<span class="op">.</span><span class="at">value</span><span class="op">;</span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>})<span class="op">;</span></span></code></pre></div>
+<h2 id="quick-memory-tips">10. Quick Memory Tips</h2>
+<ul>
+<li><code>new ClassName('id')</code> creates the element</li>
+<li><code>page.add(...)</code> shows it</li>
+<li><code>.onClick(...)</code> gives it behavior</li>
+<li><code>.value</code> reads user input</li>
+<li><code>page.goTo(...)</code> changes page</li>
+<li><code>console.log(...)</code> helps debug</li>
+</ul>
+</body>
+</html>

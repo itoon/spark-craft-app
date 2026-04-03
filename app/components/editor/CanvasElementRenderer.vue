@@ -34,10 +34,10 @@
           class="canvas-element relative transition-shadow duration-100"
           :class="{
             'ring-2 ring-indigo-400 ring-offset-0':
-              store.selectedElementId.value === childId,
+              !props.isRunMode && store.selectedElementId.value === childId,
             'ring-2 ring-indigo-300':
-              dragOverChildId === childId && draggingChildId !== childId,
-            'opacity-40': draggingChildId === childId,
+              !props.isRunMode && dragOverChildId === childId && draggingChildId !== childId,
+            'opacity-40': !props.isRunMode && draggingChildId === childId,
             'cursor-pointer': !props.isRunMode,
           }"
           :style="childStyle(childId)"
@@ -63,6 +63,7 @@
             v-if="getElement(childId)"
             :element="getElement(childId)!"
             :is-run-mode="props.isRunMode"
+            :platform-override="props.platformOverride"
             :runtime-element-ids="props.runtimeElementIds"
             :runtime-elements="props.runtimeElements"
             @run-click="emit('run-click', $event)"
@@ -169,16 +170,19 @@
     <!-- ─── Button (ion-button) ───────────────────────────────────────────
          iOS  : rounded-full, ghost/solid, colored text or filled
          Android: rounded-md, contained Material button                    -->
-    <div
+    <component
       v-else-if="element.type === 'Button'"
-      class="w-full h-full flex items-center justify-center text-[13px] font-semibold select-none"
+      :is="props.isRunMode ? 'button' : 'div'"
+      class="w-full h-full flex items-center justify-center text-[13px] font-semibold select-none transition-all duration-150"
+      :class="props.isRunMode ? buttonRuntimeClass : undefined"
       :style="buttonStyle"
       @click.stop="handleElementClick"
+      :type="props.isRunMode ? 'button' : undefined"
       :role="props.isRunMode ? 'button' : undefined"
       :tabindex="props.isRunMode ? 0 : undefined"
     >
       {{ (element.props.label as string) || "Button" }}
-    </div>
+    </component>
 
     <!-- ─── FloatingActionButton (ion-fab) ───────────────────────────────
          iOS  : circle, primary color, soft shadow
@@ -639,6 +643,59 @@
       @click.stop="handleElementClick"
     />
 
+    <!-- ─── Camera Plugin ──────────────────────────────────────────────── -->
+    <div
+      v-else-if="element.type === 'Camera'"
+      class="w-full h-full overflow-hidden rounded-2xl border border-slate-200 select-none"
+      :class="props.isRunMode && !element.props.open ? 'hidden' : 'flex flex-col'"
+      @click.stop="handleElementClick"
+    >
+      <div
+        class="flex items-center justify-between px-3 py-2 text-white"
+        :style="{ backgroundColor: platform === 'ios' ? '#111827' : '#1f2937' }"
+      >
+        <div class="flex items-center gap-2">
+          <UIcon name="i-lucide-camera" class="size-4" />
+          <span class="text-xs font-semibold">
+            {{ (element.props.title as string) || 'Camera' }}
+          </span>
+        </div>
+        <span class="rounded-full px-2 py-0.5 text-[10px] font-medium" :style="cameraStatusStyle">
+          {{ element.props.open ? 'Open' : 'Closed' }}
+        </span>
+      </div>
+      <div
+        class="relative flex-1 bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500"
+      >
+        <video
+          v-if="shouldUseLiveCamera && !cameraError"
+          ref="cameraVideoRef"
+          class="h-full w-full object-cover"
+          autoplay
+          muted
+          playsinline
+        />
+        <div
+          v-if="!shouldUseLiveCamera || cameraError"
+          class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white/90"
+        >
+          <UIcon name="i-lucide-aperture" class="size-10" />
+          <span class="text-xs font-medium">
+            {{
+              cameraError
+                ? cameraError
+                : element.props.open
+                  ? 'Camera preview active'
+                  : 'Camera is closed'
+            }}
+          </span>
+          <span v-if="cameraError" class="text-[10px] text-white/70">
+            Camera access usually needs permission and often requires HTTPS or localhost.
+          </span>
+        </div>
+      </div>
+    </div>
+
     <!-- ─── Link ─────────────────────────────────────────────────────────── -->
     <div
       v-else-if="element.type === 'Link'"
@@ -725,7 +782,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
@@ -736,23 +793,30 @@ const props = defineProps<{
   forcedHeight?: number;
   runtimeElementIds?: string[];
   runtimeElements?: AppElement[];
+  platformOverride?: "ios" | "android";
 }>();
 const emit = defineEmits<{
   (e: "run-click", id: string): void;
   (e: "run-input", id: string, propsPatch: Record<string, unknown>): void;
 }>();
 const store = useEditorStore();
+const cameraVideoRef = ref<HTMLVideoElement | null>(null);
+const cameraError = ref("");
+let cameraStream: MediaStream | null = null;
 
 const isSelected = computed(
   () => store.selectedElementId.value === props.element.id,
 );
-const platform = computed(() => store.activePlatform.value);
+const platform = computed(() => props.platformOverride ?? store.activePlatform.value);
 const visibleChildIds = computed(() =>
   getVisibleRuntimeChildIds(
     props.element.children,
     props.runtimeElementIds,
     props.isRunMode,
   ),
+);
+const shouldUseLiveCamera = computed(
+  () => props.isRunMode && props.element.type === "Camera" && !!props.element.props.open,
 );
 
 // ── Run Mode Click Handling ──────────────────────────────────────────────
@@ -762,6 +826,49 @@ function handleElementClick() {
     emit("run-click", props.element.id);
   } else {
     store.selectElement(props.element.id);
+  }
+}
+
+async function startCameraPreview() {
+  if (!import.meta.client || !shouldUseLiveCamera.value) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraError.value = "This browser does not support live camera preview.";
+    return;
+  }
+
+  stopCameraPreview();
+  cameraError.value = "";
+
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false,
+    });
+
+    await nextTick();
+
+    if (!cameraVideoRef.value) return;
+
+    cameraVideoRef.value.srcObject = cameraStream;
+    await cameraVideoRef.value.play().catch(() => undefined);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to access the camera.";
+    cameraError.value = message;
+    stopCameraPreview();
+  }
+}
+
+function stopCameraPreview() {
+  if (cameraVideoRef.value) {
+    cameraVideoRef.value.pause();
+    cameraVideoRef.value.srcObject = null;
+  }
+
+  if (cameraStream) {
+    for (const track of cameraStream.getTracks()) {
+      track.stop();
+    }
+    cameraStream = null;
   }
 }
 
@@ -787,6 +894,23 @@ function toggleBooleanProp(propName: string) {
 function inputDisplayValue(value: string, placeholder: string) {
   return value.trim() ? value : placeholder;
 }
+
+watch(
+  shouldUseLiveCamera,
+  (enabled) => {
+    if (enabled) {
+      void startCameraPreview();
+      return;
+    }
+    stopCameraPreview();
+    cameraError.value = "";
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  stopCameraPreview();
+});
 
 // Ionic primary color
 const ionColor = computed(
@@ -930,6 +1054,14 @@ const buttonStyle = computed(() => {
     letterSpacing: "0.08em",
     boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
   };
+});
+
+const buttonRuntimeClass = computed(() => {
+  if (!props.isRunMode) return "";
+  if (platform.value === "ios") {
+    return "hover:brightness-95 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-400";
+  }
+  return "hover:brightness-110 active:translate-y-px active:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-emerald-400";
 });
 
 // ── FAB ───────────────────────────────────────────────────────────────────
@@ -1133,6 +1265,11 @@ const chipStyle = computed(() => {
   };
 });
 
+const cameraStatusStyle = computed(() => ({
+  backgroundColor: props.element.props.open ? "#22c55e" : "#475569",
+  color: "#ffffff",
+}));
+
 // ── List ──────────────────────────────────────────────────────────────────
 const listWrapStyle = computed(() => {
   if (platform.value === "ios") {
@@ -1198,6 +1335,9 @@ const innerFlexStyle = computed(() => {
 function childStyle(childId: string): Record<string, string> {
   const child = getElement(childId);
   if (!child) return {};
+  if (child.type === "Camera" && props.isRunMode && !child.props.open) {
+    return { width: "100%", height: "0px", overflow: "hidden" };
+  }
   if (child.type === "FloatingActionButton") {
     return fabPositionStyle(child);
   }

@@ -253,5 +253,24 @@ export function usePaletteItems(): PaletteGroup[] {
         },
       ],
     },
+
+    // ── Plugins ───────────────────────────────────────────────────────────
+    {
+      label: 'Plugins',
+      icon: 'i-lucide-plug-zap',
+      items: [
+        {
+          type: 'Camera',
+          label: 'Camera',
+          icon: 'i-lucide-camera',
+          defaultWidth: 220,
+          defaultHeight: 160,
+          defaultProps: {
+            open: false,
+            title: 'Camera',
+          },
+        },
+      ],
+    },
   ]
 }

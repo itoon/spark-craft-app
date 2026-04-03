@@ -47,6 +47,7 @@ export const ELEMENT_CLASS_MAP: Record<string, string> = {
   Chip:                 'Chip',
   Spinner:              'Spinner',
   Image:                'Image',
+  Camera:               'Camera',
   Link:                 'Link',
   Video:                'Video',
   List:                 'List',
@@ -228,6 +229,18 @@ export function executeCode(
       return this
     }
 
+    open(): this {
+      this.__el.props.open = true
+      onUpdate?.(this.__el.id, { open: true })
+      return this
+    }
+
+    close(): this {
+      this.__el.props.open = false
+      onUpdate?.(this.__el.id, { open: false })
+      return this
+    }
+
     /** Returns the element's most meaningful "value" for use in expressions */
     valueOf(): unknown {
       const p = this.__el.props
@@ -262,6 +275,7 @@ export function executeCode(
   const Chip          = make('Chip')
   const Spinner       = make('Spinner')
   const Image         = make('Image')
+  const Camera        = make('Camera')
   const Link          = make('Link')
   const Video         = make('Video')
   const List          = make('List')
@@ -311,7 +325,7 @@ export function executeCode(
       'Toolbar','Button','FAB','Input','LabelledInput','Searchbar',
       'Range','DatePicker','Checkbox','Radio','Toggle','Select',
       'Heading','Label','TextBox','Textarea','Badge','Chip','Spinner',
-      'Image','Link','Video','List','Card','Segment',
+      'Image','Camera','Link','Video','List','Card','Segment',
       'Separator','Spacer','Container',
       'page','console',
       `"use strict";\n${code}`
@@ -319,7 +333,7 @@ export function executeCode(
       Toolbar,Button,FAB,Input,LabelledInput,Searchbar,
       Range,DatePicker,Checkbox,Radio,Toggle,Select,
       Heading,Label,TextBox,Textarea,Badge,Chip,Spinner,
-      Image,Link,Video,List,Card,Segment,
+      Image,Camera,Link,Video,List,Card,Segment,
       Separator,Spacer,Container,
       page,console
     )

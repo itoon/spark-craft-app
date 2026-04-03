@@ -158,6 +158,39 @@ describe("executeCode", () => {
     expect(navigate).toHaveBeenCalledWith("page2");
   });
 
+  it("supports camera.open() and camera.close() from runtime code", () => {
+    const updates = vi.fn();
+    const elements: AppElement[] = [
+      makeElement("page1_camera1", "Camera", { title: "Camera", open: false }),
+      makeElement("page1_button1", "Button", { label: "Open Camera" }),
+    ];
+
+    const result = executeCode(
+      [
+        "const camera1 = new Camera('page1_camera1')",
+        "const button1 = new Button('page1_button1')",
+        "page.add(camera1)",
+        "page.add(button1)",
+        "button1.onClick(() => {",
+        "  camera1.open()",
+        "})",
+        "camera1.close()",
+      ].join("\n"),
+      elements,
+      updates,
+    );
+
+    const buttonInstance = result.instances.find(
+      (instance) => instance.__el.id === "page1_button1",
+    );
+
+    expect(updates).toHaveBeenCalledWith("page1_camera1", { open: false });
+
+    buttonInstance?.__onClick?.();
+
+    expect(updates).toHaveBeenCalledWith("page1_camera1", { open: true });
+  });
+
   it("streams console output through the live log callback", () => {
     const onLog = vi.fn();
 
@@ -265,5 +298,14 @@ describe("usePaletteItems", () => {
     expect(label?.defaultProps.fontSize).toBe(14);
     expect(link?.defaultProps.content).toBe("Click here");
     expect(link?.defaultProps.href).toBe("#");
+  });
+
+  it("includes Camera with a closed-by-default state", () => {
+    const groups = usePaletteItems();
+    const pluginGroup = groups.find((group) => group.label === "Plugins");
+    const camera = pluginGroup?.items.find((item) => item.type === "Camera");
+
+    expect(camera?.defaultProps.open).toBe(false);
+    expect(camera?.defaultProps.title).toBe("Camera");
   });
 });

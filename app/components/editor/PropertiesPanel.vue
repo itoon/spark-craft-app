@@ -521,6 +521,31 @@
             </div>
           </EditorPropField>
 
+          <EditorPropField v-if="selectedElement.type === 'Camera'" label="Title">
+            <UInput
+              :model-value="(selectedElement.props.title as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ title: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Camera'" label="Default open">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BOOLEAN_OPTIONS"
+                :key="String(option)"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.open as boolean) ?? false) === option
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ open: option })"
+              >
+                {{ String(option) }}
+              </button>
+            </div>
+          </EditorPropField>
+
           <!-- Image src -->
           <EditorPropField v-if="selectedElement.type === 'Image'" label="Src">
             <UInput
@@ -793,7 +818,7 @@ const CONTENT_TYPES = new Set([
   'Checkbox', 'RadioButton', 'Toggle', 'Image',
   'Toolbar', 'RangeInput', 'Card', 'List', 'Segment',
   'Select', 'Badge', 'Chip', 'Heading', 'TextBox',
-  'Label', 'Link', 'Separator', 'Spacer',
+  'Label', 'Link', 'Separator', 'Spacer', 'Camera',
 ])
 
 // Kid-friendly preset color palette for swatches

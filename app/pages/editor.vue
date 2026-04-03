@@ -158,6 +158,35 @@ const modeTabs: ModeTab[] = [
   { key: "code", label: "Code", icon: "i-lucide-code-2" },
 ];
 
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // Fall back to execCommand below.
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    textarea.setSelectionRange(0, textarea.value.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return copied;
+  } catch {
+    return false;
+  }
+}
+
 function handleRun() {
   store.setRunning(!store.isRunning.value);
 }
@@ -225,7 +254,7 @@ async function handleCreateShareLink() {
       },
     });
 
-    await navigator.clipboard?.writeText(result.shareUrl).catch(() => undefined);
+    const copied = await copyToClipboard(result.shareUrl);
 
     window.alert(
       [
@@ -234,7 +263,9 @@ async function handleCreateShareLink() {
         `URL: ${result.shareUrl}`,
         `Saved snapshot: ${result.filePath}`,
         ``,
-        `The URL has been copied to your clipboard if the browser allowed it.`,
+        copied
+          ? `The URL has been copied to your clipboard.`
+          : `Clipboard copy was blocked, so please copy the URL manually.`,
       ].join("\n"),
     );
   } catch (error) {

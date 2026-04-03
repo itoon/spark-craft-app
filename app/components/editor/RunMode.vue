@@ -217,7 +217,7 @@ function runCode() {
       }
     )
     
-    logs.value = runtimeLogs.length ? [...runtimeLogs, ...result.logs] : result.logs
+    logs.value = [...runtimeLogs, ...result.logs]
     pageElements.value = result.pageElements
     instances.value = result.instances
     hasRun.value = true
@@ -319,6 +319,7 @@ const bodyElements = computed(() => {
 })
 
 function bodyElementHeight(el: AppElement) {
+  if (el.type === 'Camera' && !el.props.open) return 0
   if (el.type !== 'Container' || el.parentId !== null) return el.height
   const detachedToolbarHeight = toolbarElement.value?.height ?? DEFAULT_TOOLBAR_HEIGHT
   return Math.max(
