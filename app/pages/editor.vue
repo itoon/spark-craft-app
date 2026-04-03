@@ -112,7 +112,8 @@
 
       <!-- Keyboard shortcut hint -->
       <div
-        class="hidden lg:flex items-center gap-1 text-[10px] text-neutral-600 ml-1"
+        class="hidden lg:flex items-center gap-1 text-[10px] text-neutral-600 ml-1 cursor-pointer"
+        @click="isCommandPaletteOpen = true"
       >
         <kbd
           class="px-1.5 py-0.5 bg-neutral-800 rounded text-[9px] font-mono border border-neutral-700"
@@ -149,11 +150,16 @@
         <EditorPropertiesPanel />
       </template>
     </div>
+
+    <EditorCommandPalette
+      :open="isCommandPaletteOpen"
+      @close="isCommandPaletteOpen = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 
 import { useEditorStore } from "~/composables/useEditorStore";
 import type { EditorMode } from "~/composables/useEditorStore";
@@ -165,6 +171,7 @@ useHead({
 const store = useEditorStore();
 const isExporting = ref(false);
 const isCreatingShareLink = ref(false);
+const isCommandPaletteOpen = ref(false);
 
 interface ModeTab {
   key: EditorMode;
@@ -177,6 +184,21 @@ const modeTabs: ModeTab[] = [
   { key: "block", label: "Block", icon: "i-lucide-blocks" },
   { key: "code", label: "Code", icon: "i-lucide-code-2" },
 ];
+
+function onWindowKeydown(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    isCommandPaletteOpen.value = true;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("keydown", onWindowKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onWindowKeydown);
+});
 
 async function copyToClipboard(text: string): Promise<boolean> {
   try {

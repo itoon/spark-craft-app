@@ -6,6 +6,7 @@ export interface ComponentApiSchema {
   label: string;
   props: string[];
   methods: string[];
+  codeExample: string;
 }
 
 const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
@@ -101,6 +102,10 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       label: fromPalette?.label ?? designType,
       props,
       methods,
+      codeExample: [
+        `var ${className.charAt(0).toLowerCase()}${className.slice(1)}1 = new ${className}('page1_${className.toLowerCase()}1');`,
+        `page.add(${className.charAt(0).toLowerCase()}${className.slice(1)}1);`,
+      ].join("\n"),
     });
   }
 
