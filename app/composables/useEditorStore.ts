@@ -394,6 +394,7 @@ export function useEditorStore() {
     activeDeviceId,
     activePlatform,
     jsCode,
+    jsCodeByPage,
     jsCodeInitialized,
     // Derived
     selectedElement,

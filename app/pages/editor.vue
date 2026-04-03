@@ -121,6 +121,8 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from "vue";
+
 import { useEditorStore } from "~/composables/useEditorStore";
 import type { EditorMode } from "~/composables/useEditorStore";
 
@@ -129,6 +131,7 @@ useHead({
 });
 
 const store = useEditorStore();
+const isExporting = ref(false);
 
 interface ModeTab {
   key: EditorMode;
@@ -146,9 +149,46 @@ function handleRun() {
   store.setRunning(!store.isRunning.value);
 }
 
-function handleExport() {
-  // Export stub — will generate Vue SFC from canvas elements
-  alert("Export to Vue SFC — coming soon!");
+async function handleExport() {
+  if (isExporting.value) return;
+
+  isExporting.value = true;
+
+  try {
+    const result = await $fetch<{
+      outputDir: string;
+      fileCount: number;
+    }>("/api/export/ionic", {
+      method: "POST",
+      body: {
+        appName: "CodeCraft Ionic App",
+        pages: store.pages.value,
+        elements: store.elements.value,
+        jsCodeByPage: store.jsCodeByPage.value,
+        startPageId: store.currentPageId.value,
+      },
+    });
+
+    window.alert(
+      [
+        `Ionic project created successfully.`,
+        ``,
+        `Path: ${result.outputDir}`,
+        `Files: ${result.fileCount}`,
+        ``,
+        `Next steps:`,
+        `1. cd ${result.outputDir}`,
+        `2. npm install`,
+        `3. npm run dev`,
+      ].join("\n"),
+    );
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to export Ionic project.";
+    window.alert(message);
+  } finally {
+    isExporting.value = false;
+  }
 }
 </script>
 
