@@ -186,8 +186,9 @@ const hasRun = ref(false)
 // ── Run logic ─────────────────────────────────────────────────────────────
 function runCode() {
   const code = store.jsCode.value || ''
+  const runtimeLogs: ConsoleEntry[] = []
   if (!code.trim()) {
-    logs.value = [{ type: 'warn', message: 'No code to run. Using default scaffold.' }]
+    runtimeLogs.push({ type: 'warn', message: 'No code to run. Using default scaffold.' })
   }
 
   try {
@@ -199,10 +200,13 @@ function runCode() {
       },
       (pageRef) => {
         navigateToPage(pageRef)
+      },
+      (entry) => {
+        logs.value = [...logs.value, entry]
       }
     )
     
-    logs.value = result.logs
+    logs.value = runtimeLogs.length ? [...runtimeLogs, ...result.logs] : result.logs
     pageElements.value = result.pageElements
     instances.value = result.instances
     hasRun.value = true

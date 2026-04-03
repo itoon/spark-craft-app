@@ -190,6 +190,50 @@
               </option>
             </select>
           </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'FloatingActionButton'"
+            label="Horizontal Alignment"
+          >
+            <select
+              class="w-full text-xs rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              :value="(selectedElement.props.horizontalAlignment as string) ?? 'end'"
+              @change="(e) => patchProps({ horizontalAlignment: (e.target as HTMLSelectElement).value })"
+            >
+              <option value="center">center</option>
+              <option value="start">start</option>
+              <option value="end">end</option>
+            </select>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'FloatingActionButton'"
+            label="Vertical Alignment"
+          >
+            <select
+              class="w-full text-xs rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              :value="(selectedElement.props.verticalAlignment as string) ?? 'bottom'"
+              @change="(e) => patchProps({ verticalAlignment: (e.target as HTMLSelectElement).value })"
+            >
+              <option value="bottom">bottom</option>
+              <option value="center">center</option>
+              <option value="top">top</option>
+            </select>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'FloatingActionButton'"
+            label="Edge"
+          >
+            <select
+              class="w-full text-xs rounded-lg border border-neutral-200 bg-neutral-50 text-neutral-700 px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              :value="String((selectedElement.props.edge as boolean) ?? false)"
+              @change="(e) => patchProps({ edge: (e.target as HTMLSelectElement).value === 'true' })"
+            >
+              <option value="true">true</option>
+              <option value="false">false</option>
+            </select>
+          </EditorPropField>
         </div>
       </EditorPropertiesSection>
 

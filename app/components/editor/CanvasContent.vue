@@ -125,6 +125,7 @@ const bodyContainers = computed(() => {
 function rootContainerStyle(el: AppElement): Record<string, string> {
   return {
     width: "100%",
+    height: `${el.height}px`,
   };
 }
 

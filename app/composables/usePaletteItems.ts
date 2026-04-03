@@ -67,7 +67,14 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: 'i-lucide-circle-plus',
           defaultWidth: 56,
           defaultHeight: 56,
-          defaultProps: { icon: 'i-lucide-plus', backgroundColor: '#3880ff', borderRadius: 28 },
+          defaultProps: {
+            icon: 'i-lucide-plus',
+            backgroundColor: '#3880ff',
+            borderRadius: 28,
+            horizontalAlignment: 'end',
+            verticalAlignment: 'bottom',
+            edge: false,
+          },
         },
         {
           type: 'LabelledInput',

@@ -127,6 +127,23 @@ describe("executeCode", () => {
 
     expect(navigate).toHaveBeenCalledWith("page2");
   });
+
+  it("streams console output through the live log callback", () => {
+    const onLog = vi.fn();
+
+    executeCode(
+      "console.log('hello runtime')",
+      [],
+      undefined,
+      undefined,
+      onLog,
+    );
+
+    expect(onLog).toHaveBeenCalledWith({
+      type: "log",
+      message: "hello runtime",
+    });
+  });
 });
 
 describe("syncRuntimeElementProps", () => {

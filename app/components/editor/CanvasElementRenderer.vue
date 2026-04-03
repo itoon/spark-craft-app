@@ -895,6 +895,9 @@ const headingFontSize = computed(() => {
 const containerStyle = computed(() => {
   const p = props.element.props
   return {
+    position: 'relative',
+    width: '100%',
+    height: `${props.element.height}px`,
     padding: `${p.padding ?? 8}px`,
     backgroundColor: (p.backgroundColor as string) || 'transparent',
   }
@@ -907,12 +910,53 @@ const innerFlexStyle = computed(() => {
 function childStyle(childId: string): Record<string, string> {
   const child = getElement(childId)
   if (!child) return {}
+  if (child.type === 'FloatingActionButton') {
+    return fabPositionStyle(child)
+  }
   const type = props.element.type
   const isCol = type === 'Container' || type === 'ColContainer'
   return {
     ...(isCol ? { width: '100%' } : { flex: '1', minWidth: '0' }),
     height: `${child.height}px`,
   }
+}
+
+function fabPositionStyle(child: AppElement): Record<string, string> {
+  const horizontal = (child.props.horizontalAlignment as string) ?? 'end'
+  const vertical = (child.props.verticalAlignment as string) ?? 'bottom'
+  const edge = (child.props.edge as boolean) ?? false
+  const offset = edge ? '-12px' : '16px'
+  const style: Record<string, string> = {
+    position: 'absolute',
+    width: `${child.width}px`,
+    height: `${child.height}px`,
+    zIndex: '5',
+  }
+
+  if (horizontal === 'start') {
+    style.left = offset
+  } else if (horizontal === 'center') {
+    style.left = '50%'
+  } else {
+    style.right = offset
+  }
+
+  if (vertical === 'top') {
+    style.top = offset
+  } else if (vertical === 'center') {
+    style.top = '50%'
+  } else {
+    style.bottom = offset
+  }
+
+  const transforms: string[] = []
+  if (horizontal === 'center') transforms.push('translateX(-50%)')
+  if (vertical === 'center') transforms.push('translateY(-50%)')
+  if (transforms.length) {
+    style.transform = transforms.join(' ')
+  }
+
+  return style
 }
 
 function getElement(id: string): AppElement | undefined {

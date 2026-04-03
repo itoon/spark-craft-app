@@ -133,11 +133,17 @@ export function executeCode(
   code: string,
   allElements: AppElement[],
   onUpdate?: (id: string, props: Record<string, any>) => void,
-  onNavigate?: (pageRef: string) => void
+  onNavigate?: (pageRef: string) => void,
+  onLog?: (entry: ConsoleEntry) => void
 ): RuntimeResult {
   const logs: ConsoleEntry[] = []
   const pageElements: AppElement[] = []
   const instances: ElementInstance[] = []
+
+  function pushLog(entry: ConsoleEntry) {
+    logs.push(entry)
+    onLog?.(entry)
+  }
 
   // Look up element by ID, throw descriptive error if missing
   function getEl(id: string, className: string): AppElement {
@@ -256,22 +262,22 @@ export function executeCode(
         pageElements.push(el.__el)
         instances.push(el)
       }
-      logs.push({ type: 'log', message: `Added ${el.__el.type}  ←  ${el.__el.id}` })
+      pushLog({ type: 'log', message: `Added ${el.__el.type}  ←  ${el.__el.id}` })
     },
     goTo(pageRef: string) {
       if (typeof pageRef !== 'string' || !pageRef.trim()) {
         throw new TypeError('page.goTo() expects a page id or page name string')
       }
-      logs.push({ type: 'log', message: `Navigate → ${pageRef}` })
+      pushLog({ type: 'log', message: `Navigate → ${pageRef}` })
       onNavigate?.(pageRef)
     },
   }
 
   // ── Sandboxed console ─────────────────────────────────────────────────
   const console = {
-    log:   (...a: unknown[]) => logs.push({ type: 'log',  message: a.map(String).join(' ') }),
-    warn:  (...a: unknown[]) => logs.push({ type: 'warn', message: a.map(String).join(' ') }),
-    error: (...a: unknown[]) => logs.push({ type: 'error',message: a.map(String).join(' ') }),
+    log:   (...a: unknown[]) => pushLog({ type: 'log',  message: a.map(String).join(' ') }),
+    warn:  (...a: unknown[]) => pushLog({ type: 'warn', message: a.map(String).join(' ') }),
+    error: (...a: unknown[]) => pushLog({ type: 'error',message: a.map(String).join(' ') }),
   }
 
   // ── Execute ───────────────────────────────────────────────────────────
@@ -293,9 +299,9 @@ export function executeCode(
       Separator,Spacer,Container,
       page,console
     )
-    logs.push({ type: 'success', message: `Done — ${pageElements.length} element(s) on page` })
+    pushLog({ type: 'success', message: `Done — ${pageElements.length} element(s) on page` })
   } catch (err: unknown) {
-    logs.push({ type: 'error', message: err instanceof Error ? err.message : String(err) })
+    pushLog({ type: 'error', message: err instanceof Error ? err.message : String(err) })
   }
 
   return { pageElements, instances, logs }
