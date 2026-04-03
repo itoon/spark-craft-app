@@ -102,7 +102,12 @@ import {
   type Completion,
   type CompletionContext,
 } from "@codemirror/autocomplete";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+} from "@codemirror/commands";
 import {
   bracketMatching,
   defaultHighlightStyle,
@@ -125,6 +130,12 @@ import {
   findComponentApiSchemaByClassName,
   getComponentApiSchemas,
 } from "~/utils/componentApi";
+
+interface EditorCompletion extends Completion {
+  metaKind?: "class" | "method" | "attr" | "global" | "variable";
+  metaDescription?: string;
+  metaBadge?: string;
+}
 
 const store = useEditorStore();
 const editorHostRef = ref<HTMLDivElement | null>(null);
@@ -184,24 +195,30 @@ function getDeclaredVariables(code: string) {
 function buildGlobalCompletions(
   code: string,
   word: string,
-): Completion[] {
+): EditorCompletion[] {
   const needle = word.toLowerCase();
-  const completions: Completion[] = [];
+  const completions: EditorCompletion[] = [];
 
   for (const schema of componentSchemas) {
     if (!needle || schema.className.toLowerCase().includes(needle)) {
       completions.push({
         label: schema.className,
         type: "class",
-        detail: `${schema.label} class`,
         info: `Attrs: ${schema.props.join(", ")}\nMethods: ${schema.methods.join(", ")}`,
+        metaKind: "class",
+        metaDescription: `${schema.label} class`,
+        metaBadge: "CLASS",
       });
     }
   }
 
   const globals = [
     { label: "page", detail: "Page API object", type: "constant" as const },
-    { label: "console", detail: "Debug console object", type: "constant" as const },
+    {
+      label: "console",
+      detail: "Debug console object",
+      type: "constant" as const,
+    },
   ];
 
   for (const entry of globals) {
@@ -209,7 +226,9 @@ function buildGlobalCompletions(
       completions.push({
         label: entry.label,
         type: entry.type,
-        detail: entry.detail,
+        metaKind: "global",
+        metaDescription: entry.detail,
+        metaBadge: "GLOBAL",
       });
     }
   }
@@ -219,7 +238,9 @@ function buildGlobalCompletions(
       completions.push({
         label: variableName,
         type: "variable",
-        detail: "Declared variable",
+        metaKind: "variable",
+        metaDescription: "Declared variable",
+        metaBadge: "VAR",
       });
     }
   }
@@ -231,7 +252,7 @@ function buildObjectCompletions(
   code: string,
   objectName: string,
   word: string,
-): Completion[] {
+): EditorCompletion[] {
   const needle = word.toLowerCase();
 
   if (objectName === "page") {
@@ -240,8 +261,10 @@ function buildObjectCompletions(
     ).map((method) => ({
       label: method,
       type: "method" as const,
-      detail: "Page method",
       apply: method,
+      metaKind: "method" as const,
+      metaDescription: "Page method",
+      metaBadge: "METHOD",
     }));
   }
 
@@ -251,13 +274,17 @@ function buildObjectCompletions(
     ).map((method) => ({
       label: method,
       type: "method" as const,
-      detail: "Console method",
       apply: method,
+      metaKind: "method" as const,
+      metaDescription: "Console method",
+      metaBadge: "METHOD",
     }));
   }
 
   const className = getVariableClassMap(code).get(objectName);
-  const schema = className ? findComponentApiSchemaByClassName(className) : undefined;
+  const schema = className
+    ? findComponentApiSchemaByClassName(className)
+    : undefined;
   if (!schema) return [];
 
   const methodCompletions = schema.methods
@@ -265,8 +292,10 @@ function buildObjectCompletions(
     .map((method) => ({
       label: method,
       type: "method" as const,
-      detail: `${schema.className} method`,
       apply: method,
+      metaKind: "method" as const,
+      metaDescription: `${schema.className} method`,
+      metaBadge: "METHOD",
     }));
 
   const propCompletions = schema.props
@@ -274,7 +303,9 @@ function buildObjectCompletions(
     .map((prop) => ({
       label: prop,
       type: "property" as const,
-      detail: `${schema.className} attr`,
+      metaKind: "attr" as const,
+      metaDescription: `${schema.className} attr`,
+      metaBadge: "ATTR",
     }));
 
   return [...methodCompletions, ...propCompletions];
@@ -326,7 +357,9 @@ function replaceEditorDoc(nextCode: string) {
       to: current.length,
       insert: nextCode,
     },
-    selection: EditorSelection.cursor(Math.min(nextCode.length, editorView.state.selection.main.head)),
+    selection: EditorSelection.cursor(
+      Math.min(nextCode.length, editorView.state.selection.main.head),
+    ),
   });
 }
 
@@ -369,6 +402,35 @@ function createEditorView() {
       autocompletion({
         override: [codecraftCompletionSource],
         activateOnTyping: true,
+        icons: false,
+        optionClass: (completion) => {
+          const kind = (completion as EditorCompletion).metaKind;
+          return kind ? `cc-completion-${kind}` : "";
+        },
+        addToOptions: [
+          {
+            position: 80,
+            render: (completion) => {
+              const meta = completion as EditorCompletion;
+              if (!meta.metaDescription) return null;
+              const description = document.createElement("span");
+              description.className = "cc-completion-description";
+              description.textContent = meta.metaDescription;
+              return description;
+            },
+          },
+          {
+            position: 100,
+            render: (completion) => {
+              const meta = completion as EditorCompletion;
+              if (!meta.metaBadge) return null;
+              const badge = document.createElement("span");
+              badge.className = `cc-completion-badge cc-completion-badge-${meta.metaKind ?? "global"}`;
+              badge.textContent = meta.metaBadge;
+              return badge;
+            },
+          },
+        ],
       }),
       keymap.of([
         indentWithTab,
@@ -400,6 +462,13 @@ function createEditorView() {
           padding: "16px",
           caretColor: "#ffffff",
         },
+        ".cm-cursor, .cm-dropCursor": {
+          borderLeftColor: "#ffffff",
+          borderLeftWidth: "2px",
+        },
+        ".cm-focused .cm-cursor": {
+          borderLeftColor: "#ffffff",
+        },
         ".cm-gutters": {
           backgroundColor: "rgba(10, 10, 10, 0.35)",
           color: "#6b7280",
@@ -418,34 +487,100 @@ function createEditorView() {
         },
         ".cm-tooltip.cm-tooltip-autocomplete": {
           border: "1px solid rgba(55, 65, 81, 1)",
-          backgroundColor: "rgba(10, 15, 30, 0.96)",
+          backgroundColor: "rgb(23, 23, 23)",
           color: "#e5e7eb",
-          borderRadius: "14px",
+          borderRadius: "10px",
           overflow: "hidden",
           backdropFilter: "blur(10px)",
-          boxShadow: "0 24px 60px rgba(0, 0, 0, 0.45)",
+          boxShadow: "0 18px 48px rgba(0, 0, 0, 0.42)",
+          padding: "6px",
         },
         ".cm-tooltip-autocomplete ul": {
           fontFamily: "inherit",
           maxHeight: "260px",
         },
         ".cm-tooltip-autocomplete li": {
-          padding: "8px 12px",
-          borderBottom: "1px solid rgba(31, 41, 55, 0.9)",
+          padding: "8px 16px !important",
+          margin: "0",
+          borderBottom: "1px solid rgba(30, 41, 59, 0.72)",
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) auto",
+          alignItems: "center",
+          columnGap: "12px",
+          rowGap: "4px",
+          borderRadius: "8px",
+          backgroundColor: "rgb(23, 23, 23)",
         },
         ".cm-tooltip-autocomplete li:last-child": {
           borderBottom: "none",
         },
+        ".cm-tooltip-autocomplete li:hover": {
+          backgroundColor: "rgba(38, 38, 38, 0.7)",
+        },
         ".cm-tooltip-autocomplete li[aria-selected]": {
-          backgroundColor: "rgba(99, 102, 241, 0.18)",
-          color: "#ffffff",
+          backgroundColor: "rgba(99, 102, 241, 0.15) !important",
+          borderLeftColor: "rgba(129, 140, 248, 0.95)",
+          color: "#f8fafc",
         },
         ".cm-completionLabel": {
+          color: "#f8fafc",
+          gridColumn: "1 / 2",
+          fontSize: "14px",
+          lineHeight: "1.35",
+          fontWeight: "500",
+        },
+        ".cm-completionMatchedText": {
+          textDecoration: "none",
           color: "#ffffff",
         },
-        ".cm-completionDetail": {
-          color: "#94a3b8",
-          fontStyle: "normal",
+        ".cc-completion-description": {
+          gridColumn: "1 / -1",
+          color: "#a3a3a3",
+          fontSize: "12px",
+          lineHeight: "1.4",
+        },
+        ".cc-completion-badge": {
+          gridColumn: "2 / 3",
+          gridRow: "1 / 2",
+          justifySelf: "end",
+          alignSelf: "center",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: "76px",
+          borderRadius: "999px",
+          padding: "3px 8px",
+          fontSize: "9px",
+          fontWeight: "500",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          lineHeight: "1",
+          border: "1px solid transparent",
+        },
+        ".cc-completion-badge-class": {
+          backgroundColor: "rgba(6, 182, 212, 0.15)",
+          color: "#67e8f9",
+          borderColor: "rgba(34, 211, 238, 0.12)",
+        },
+        ".cc-completion-badge-method": {
+          backgroundColor: "rgba(16, 185, 129, 0.14)",
+          color: "#a7f3d0",
+          borderColor: "rgba(16, 185, 129, 0.14)",
+        },
+        ".cc-completion-badge-attr": {
+          backgroundColor: "rgba(245, 158, 11, 0.14)",
+          color: "#fcd34d",
+          borderColor: "rgba(245, 158, 11, 0.14)",
+        },
+        ".cc-completion-badge-global": {
+          backgroundColor: "rgba(168, 85, 247, 0.18)",
+          color: "#f0abfc",
+          borderColor: "rgba(168, 85, 247, 0.14)",
+        },
+        ".cc-completion-badge-variable": {
+          backgroundColor: "rgba(99, 102, 241, 0.16)",
+          color: "#c7d2fe",
+          borderColor: "rgba(99, 102, 241, 0.14)",
         },
         ".cm-completionInfo": {
           borderLeft: "1px solid rgba(55, 65, 81, 1)",
