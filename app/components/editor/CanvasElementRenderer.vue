@@ -1,796 +1,660 @@
 <template>
   <div class="w-full h-full">
-    <!-- ─── Container ──────────────────────────────────── -->
-    <div
-      v-if="element.type === 'Container'"
-      class="relative w-full transition-colors duration-100 select-none"
-      :class="[
-        element.parentId && !props.isRunMode
-          ? 'border-2 border-dashed rounded-sm'
-          : '',
-        isSelected && !props.isRunMode
-          ? 'border-indigo-500 bg-indigo-500/5'
-          : element.parentId && !props.isRunMode
-            ? 'border-slate-400/30 hover:border-indigo-400/50'
-            : '',
-      ]"
-      :style="containerStyle"
-      @click.stop="handleElementClick"
-    >
+    <ion-app>
+      <!-- ─── Container ──────────────────────────────────── -->
       <div
-        v-if="isSelected && !props.isRunMode"
-        class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none"
+        v-if="element.type === 'Container'"
+        class="relative w-full transition-colors duration-100 select-none"
+        :class="[
+          element.parentId && !props.isRunMode
+            ? 'border-2 border-dashed rounded-sm'
+            : '',
+          isSelected && !props.isRunMode
+            ? 'border-indigo-500 bg-indigo-500/5'
+            : element.parentId && !props.isRunMode
+              ? 'border-slate-400/30 hover:border-indigo-400/50'
+              : '',
+        ]"
+        :style="containerStyle"
+        @click.stop="handleElementClick"
       >
-        <span
-          class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none"
-          >{{ element.type }}</span
-        >
-      </div>
-      <div class="flex w-full flex-col" :style="innerFlexStyle">
         <div
-          v-for="childId in visibleChildIds"
-          :key="childId"
-          :draggable="!props.isRunMode"
-          class="relative transition-shadow duration-100"
-          :class="{
-            'canvas-element': !props.isRunMode,
-            'ring-2 ring-indigo-400 ring-offset-0':
-              !props.isRunMode && store.selectedElementId.value === childId,
-            'ring-2 ring-indigo-300':
-              !props.isRunMode &&
-              dragOverChildId === childId &&
-              draggingChildId !== childId,
-            'opacity-40': !props.isRunMode && draggingChildId === childId,
-            'cursor-pointer': !props.isRunMode,
-          }"
-          :style="childStyle(childId)"
-          @click.stop="handleElementClick"
-          @dragstart="onChildDragStart($event, childId)"
-          @dragover.prevent="onChildDragOver($event, childId)"
-          @drop.prevent="onChildDrop($event, childId)"
-          @dragend="onChildDragEnd"
+          v-if="isSelected && !props.isRunMode"
+          class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none"
         >
-          <template
-            v-if="store.selectedElementId.value === childId && !props.isRunMode"
+          <span
+            class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none"
+            >{{ element.type }}</span
           >
-            <div
-              class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none"
+        </div>
+        <div class="flex w-full flex-col" :style="innerFlexStyle">
+          <div
+            v-for="childId in visibleChildIds"
+            :key="childId"
+            :draggable="!props.isRunMode"
+            class="relative transition-shadow duration-100"
+            :class="{
+              'canvas-element': !props.isRunMode,
+              'ring-2 ring-indigo-400 ring-offset-0':
+                !props.isRunMode && store.selectedElementId.value === childId,
+              'ring-2 ring-indigo-300':
+                !props.isRunMode &&
+                dragOverChildId === childId &&
+                draggingChildId !== childId,
+              'opacity-40': !props.isRunMode && draggingChildId === childId,
+              'cursor-pointer': !props.isRunMode,
+            }"
+            :style="childStyle(childId)"
+            @click.stop="handleElementClick"
+            @dragstart="onChildDragStart($event, childId)"
+            @dragover.prevent="onChildDragOver($event, childId)"
+            @drop.prevent="onChildDrop($event, childId)"
+            @dragend="onChildDragEnd"
+          >
+            <template
+              v-if="
+                store.selectedElementId.value === childId && !props.isRunMode
+              "
             >
-              <span
-                class="text-[9px] bg-indigo-400 text-white px-1.5 py-0.5 rounded font-mono leading-none"
-                >{{ getElement(childId)?.type }}</span
+              <div
+                class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none"
               >
-            </div>
-          </template>
-          <EditorCanvasElementRenderer
-            v-if="getElement(childId)"
-            :element="getElement(childId)!"
-            :is-run-mode="props.isRunMode"
-            :platform-override="props.platformOverride"
-            :runtime-element-ids="props.runtimeElementIds"
-            :runtime-elements="props.runtimeElements"
-            @run-click="emit('run-click', $event)"
-            @run-input="(id, patch) => emit('run-input', id, patch)"
-          />
-        </div>
-        <div
-          v-if="
-            !props.isRunMode &&
-            element.parentId &&
-            (element.children.length === 0 || isSelected)
-          "
-          class="flex items-center justify-center shrink-0 opacity-40 w-full h-6"
-        >
-          <UIcon name="i-lucide-plus" class="size-3 text-slate-400" />
-        </div>
-      </div>
-    </div>
-
-    <!-- ─── Toolbar (ion-header / ion-toolbar) ────────────────────────────
-         iOS  : white bg, bold centered title, thin 1px bottom border
-         Android: primary color bg, left title, bottom shadow              -->
-    <div
-      v-else-if="element.type === 'Toolbar'"
-      class="w-full h-full flex items-center px-4 gap-2 select-none"
-      :style="toolbarStyle"
-      @click.stop="handleElementClick"
-    >
-      <!-- iOS back chevron -->
-      <UIcon
-        v-if="element.props.showBack && platform === 'ios'"
-        name="i-lucide-chevron-left"
-        class="size-5 shrink-0"
-        :style="{ color: iosToolbarTint }"
-      />
-      <!-- Android hamburger / back arrow -->
-      <UIcon
-        v-if="element.props.showBack && platform === 'android'"
-        name="i-lucide-arrow-left"
-        class="size-5 text-white shrink-0"
-      />
-      <span class="truncate" :style="toolbarTitleStyle">
-        {{ (element.props.title as string) || "My App" }}
-      </span>
-    </div>
-
-    <!-- ─── Card (ion-card) ───────────────────────────────────────────────
-         iOS  : rounded-2xl, white, subtle shadow
-         Android: rounded-lg, white, md elevation shadow                   -->
-    <div
-      v-else-if="element.type === 'Card'"
-      class="w-full h-full flex flex-col overflow-hidden select-none"
-      :style="cardStyle"
-      @click.stop="handleElementClick"
-    >
-      <div class="px-4 pt-3 pb-1">
-        <p class="font-semibold text-[13px] text-gray-800 leading-tight">
-          {{ (element.props.title as string) || "Card Title" }}
-        </p>
-        <p class="text-[11px] text-gray-500 mt-0.5">
-          {{ (element.props.subtitle as string) || "Subtitle" }}
-        </p>
-      </div>
-      <div class="flex-1 bg-gray-50 mx-3 mb-3 rounded" />
-    </div>
-
-    <!-- ─── Segment (ion-segment) ─────────────────────────────────────────
-         iOS  : pill container, sliding white indicator
-         Android: flat tab underline indicator                              -->
-    <div
-      v-else-if="element.type === 'Segment'"
-      class="w-full h-full flex items-center select-none overflow-hidden"
-      :style="segmentWrapStyle"
-      @click.stop="handleElementClick"
-    >
-      <div class="flex w-full h-full" :style="segmentInnerStyle">
-        <div
-          v-for="(opt, idx) in segmentOptions"
-          :key="idx"
-          class="flex-1 flex items-center justify-center text-[11px] font-semibold relative transition-colors duration-150"
-          :style="segmentItemStyle(idx)"
-          @click.stop="
-            props.isRunMode
-              ? updateRunProps({ selected: idx })
-              : handleElementClick()
-          "
-        >
-          {{ opt }}
-          <!-- Android underline indicator -->
+                <span
+                  class="text-[9px] bg-indigo-400 text-white px-1.5 py-0.5 rounded font-mono leading-none"
+                  >{{ getElement(childId)?.type }}</span
+                >
+              </div>
+            </template>
+            <EditorCanvasElementRenderer
+              v-if="getElement(childId)"
+              :element="getElement(childId)!"
+              :is-run-mode="props.isRunMode"
+              :platform-override="props.platformOverride"
+              :runtime-element-ids="props.runtimeElementIds"
+              :runtime-elements="props.runtimeElements"
+              @run-click="emit('run-click', $event)"
+              @run-input="(id, patch) => emit('run-input', id, patch)"
+            />
+          </div>
           <div
             v-if="
-              platform === 'android' &&
-              idx === ((element.props.selected as number) ?? 0)
+              !props.isRunMode &&
+              element.parentId &&
+              (element.children.length === 0 || isSelected)
             "
-            class="absolute bottom-0 left-1 right-1 h-[2px] rounded-full"
-            :style="{
-              backgroundColor: (element.props.color as string) || '#3880ff',
-            }"
-          />
+            class="flex items-center justify-center shrink-0 opacity-40 w-full h-6"
+          >
+            <UIcon name="i-lucide-plus" class="size-3 text-slate-400" />
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- ─── Button (ion-button) ───────────────────────────────────────────
+      <!-- ─── Toolbar (ion-header / ion-toolbar) ────────────────────────────
+         iOS  : white bg, bold centered title, thin 1px bottom border
+         Android: primary color bg, left title, bottom shadow              -->
+      <IonToolbar
+        v-else-if="element.type === 'Toolbar'"
+        class="toolbar-canvas w-full h-full select-none"
+        :mode="ionicMode"
+        :style="toolbarStyle"
+        @click.stop="handleElementClick"
+      >
+        <div class="flex h-full items-center px-4 gap-2">
+          <UIcon
+            v-if="element.props.showBack && platform === 'ios'"
+            name="i-lucide-chevron-left"
+            class="size-5 shrink-0"
+            :style="{ color: iosToolbarTint }"
+          />
+          <UIcon
+            v-if="element.props.showBack && platform === 'android'"
+            name="i-lucide-arrow-left"
+            class="size-5 text-white shrink-0"
+          />
+          <IonTitle class="truncate" :style="toolbarTitleStyle">
+            {{ (element.props.title as string) || "My App" }}
+          </IonTitle>
+        </div>
+      </IonToolbar>
+
+      <!-- ─── Card (ion-card) ───────────────────────────────────────────────
+         iOS  : rounded-2xl, white, subtle shadow
+         Android: rounded-lg, white, md elevation shadow                   -->
+      <IonCard
+        v-else-if="element.type === 'Card'"
+        class="m-0 w-full h-full overflow-hidden select-none"
+        :mode="ionicMode"
+        :style="cardStyle"
+        @click.stop="handleElementClick"
+      >
+        <IonCardHeader class="pb-1">
+          <IonCardTitle class="text-[13px] font-semibold text-gray-800">
+            {{ (element.props.title as string) || "Card Title" }}
+          </IonCardTitle>
+          <IonCardSubtitle class="text-[11px] text-gray-500">
+            {{ (element.props.subtitle as string) || "Subtitle" }}
+          </IonCardSubtitle>
+        </IonCardHeader>
+        <IonCardContent>
+          <div class="h-14 rounded bg-gray-50" />
+        </IonCardContent>
+      </IonCard>
+
+      <!-- ─── Segment (ion-segment) ─────────────────────────────────────────
+         iOS  : pill container, sliding white indicator
+         Android: flat tab underline indicator                              -->
+      <IonSegment
+        v-else-if="element.type === 'Segment'"
+        class="w-full h-full select-none"
+        :mode="ionicMode"
+        :value="String((element.props.selected as number) ?? 0)"
+        :style="segmentWrapStyle"
+        @click.stop="handleElementClick"
+        @ionChange="handleSegmentChange"
+      >
+        <IonSegmentButton
+          v-for="(opt, idx) in segmentOptions"
+          :key="idx"
+          :value="String(idx)"
+          :style="segmentItemStyle(idx)"
+        >
+          <IonLabel class="text-[11px] font-semibold">{{ opt }}</IonLabel>
+        </IonSegmentButton>
+      </IonSegment>
+
+      <!-- ─── Button (ion-button) ───────────────────────────────────────────
          iOS  : rounded-full, ghost/solid, colored text or filled
          Android: rounded-md, contained Material button                    -->
-    <component
-      v-else-if="element.type === 'Button'"
-      :is="props.isRunMode ? 'button' : 'div'"
-      class="w-full h-full flex items-center justify-center text-[13px] font-semibold select-none transition-all duration-150"
-      :class="props.isRunMode ? buttonRuntimeClass : undefined"
-      :style="buttonStyle"
-      @click.stop="handleElementClick"
-      :type="props.isRunMode ? 'button' : undefined"
-      :role="props.isRunMode ? 'button' : undefined"
-      :tabindex="props.isRunMode ? 0 : undefined"
-    >
-      {{ (element.props.label as string) || "Button" }}
-    </component>
 
-    <!-- ─── FloatingActionButton (ion-fab) ───────────────────────────────
+      <IonButton
+        v-else-if="element.type === 'Button'"
+        class="m-0 w-full h-full select-none transition-all duration-150"
+        :class="props.isRunMode ? buttonRuntimeClass : undefined"
+        :mode="ionicMode"
+        :fill="buttonFill"
+        :disabled="Boolean(element.props.disabled)"
+        expand="block"
+        :style="buttonStyle"
+        @click.stop="handleElementClick"
+      >
+        {{ (element.props.label as string) || "Button" }}
+      </IonButton>
+
+      <!-- ─── FloatingActionButton (ion-fab) ───────────────────────────────
          iOS  : circle, primary color, soft shadow
          Android: circle, primary color, Material elevation                -->
-    <div
-      v-else-if="element.type === 'FloatingActionButton'"
-      class="w-full h-full flex items-center justify-center select-none"
-      :style="fabStyle"
-      @click.stop="handleElementClick"
-    >
-      <UIcon
-        :name="(element.props.icon as string) || 'i-lucide-plus'"
-        class="size-5 text-white"
-      />
-    </div>
+      <div
+        v-else-if="element.type === 'FloatingActionButton'"
+        class="w-full h-full flex items-center justify-center select-none"
+        :style="fabStyle"
+        @click.stop="handleElementClick"
+      >
+        <UIcon
+          :name="(element.props.icon as string) || 'i-lucide-plus'"
+          class="size-5 text-white"
+        />
+      </div>
 
-    <!-- ─── Searchbar (ion-searchbar) ────────────────────────────────────
+      <!-- ─── Searchbar (ion-searchbar) ────────────────────────────────────
          iOS  : rounded-xl bg, no border, magnifier inside
          Android: rounded-sm, subtle bg, magnifier + mic icon              -->
-    <div
-      v-else-if="element.type === 'Searchbar'"
-      class="w-full h-full flex items-center gap-2 px-3"
-      :style="searchbarStyle"
-      @click.stop="handleElementClick"
-    >
-      <UIcon name="i-lucide-search" class="size-3.5 text-gray-400 shrink-0" />
-      <input
-        v-if="props.isRunMode"
-        class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
-        type="search"
+      <IonSearchbar
+        v-else-if="element.type === 'Searchbar'"
+        class="w-full h-full"
+        :mode="ionicMode"
+        :animated="props.isRunMode"
         :value="(element.props.value as string) || ''"
         :placeholder="(element.props.placeholder as string) || 'Search'"
-        @click.stop
-        @input="handleTextInput($event)"
+        :style="searchbarStyle"
+        @click.stop="handleElementClick"
+        @ionInput="handleSearchbarInput"
       />
-      <span v-else class="text-[12px] text-gray-400 flex-1 truncate">
-        {{ (element.props.placeholder as string) || "Search" }}
-      </span>
-      <UIcon
-        v-if="platform === 'android'"
-        name="i-lucide-mic"
-        class="size-3.5 text-gray-400 shrink-0"
-      />
-    </div>
 
-    <!-- ─── LabelledInput ────────────────────────────────────────────────
+      <!-- ─── LabelledInput ────────────────────────────────────────────────
          iOS  : rounded outline border, floating label
          Android: underline + floating label (Material)                    -->
-    <div
-      v-else-if="element.type === 'LabelledInput'"
-      class="w-full h-full flex flex-col justify-center"
-      :style="labelledInputWrapStyle"
-      @click.stop="handleElementClick"
-    >
-      <span
-        class="text-[10px] font-medium leading-none mb-1"
-        :style="{ color: ionColor }"
-      >
-        {{ (element.props.label as string) || "Label" }}
-      </span>
+      <IonInput
+        v-else-if="element.type === 'LabelledInput'"
+        class="w-full h-full"
+        :mode="ionicMode"
+        label-placement="stacked"
+        fill="outline"
+        :label="(element.props.label as string) || 'Label'"
+        :value="(element.props.value as string) || ''"
+        :placeholder="(element.props.placeholder as string) || 'Enter value'"
+        :style="labelledInputWrapStyle"
+        @click.stop="handleElementClick"
+        @ionInput="handleIonInput"
+      />
+
+      <!-- ─── Input (ion-input) ─────────────────────────────────────────────
+         iOS  : rounded rect border
+         Android: bottom-border only (Material underline)                  -->
+      <IonInput
+        v-else-if="element.type === 'Input'"
+        class="w-full h-full"
+        :mode="ionicMode"
+        :value="(element.props.value as string) || ''"
+        :placeholder="(element.props.placeholder as string) || 'Enter text...'"
+        :style="inputStyle"
+        @click.stop="handleElementClick"
+        @ionInput="handleIonInput"
+      />
+
+      <!-- ─── RangeInput (ion-range) ────────────────────────────────────────
+         iOS  : rounded track, iOS pill thumb
+         Android: rectangular track ends, Material thumb                   -->
+      <IonRange
+        v-else-if="element.type === 'RangeInput'"
+        class="w-full h-full"
+        :mode="ionicMode"
+        :min="Number(element.props.min ?? 0)"
+        :max="Number(element.props.max ?? 100)"
+        :value="Number(element.props.value ?? 50)"
+        :style="rangeStyle"
+        @click.stop="handleElementClick"
+        @ionInput="handleIonRangeInput"
+      />
+
+      <!-- ─── DateTimePicker (ion-datetime) ────────────────────────────────
+         iOS  : wheel-style hint, rounded rect
+         Android: text field style                                         -->
       <div
-        class="flex-1 flex items-center px-2"
-        :style="labelledInputFieldStyle"
+        v-else-if="element.type === 'DateTimePicker'"
+        class="w-full h-full flex items-center px-3 gap-2"
+        :style="inputStyle"
+        @click.stop="handleElementClick"
       >
         <input
           v-if="props.isRunMode"
-          class="w-full bg-transparent text-[12px] text-gray-700 outline-none"
-          type="text"
+          class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
+          type="date"
           :value="(element.props.value as string) || ''"
-          :placeholder="(element.props.placeholder as string) || 'Enter value'"
           @click.stop
           @input="handleTextInput($event)"
         />
-        <span v-else class="text-[12px] text-gray-400 truncate">
-          {{
-            inputDisplayValue(
-              (element.props.value as string) || "",
-              (element.props.placeholder as string) || "Enter value",
-            )
-          }}
+        <span v-else class="text-[12px] text-gray-400 flex-1 truncate">
+          {{ (element.props.placeholder as string) || "Select date" }}
         </span>
-      </div>
-    </div>
-
-    <!-- ─── Input (ion-input) ─────────────────────────────────────────────
-         iOS  : rounded rect border
-         Android: bottom-border only (Material underline)                  -->
-    <div
-      v-else-if="element.type === 'Input'"
-      class="w-full h-full flex items-center px-3"
-      :style="inputStyle"
-      @click.stop="handleElementClick"
-    >
-      <input
-        v-if="props.isRunMode"
-        class="w-full bg-transparent text-[12px] text-gray-700 outline-none"
-        type="text"
-        :value="(element.props.value as string) || ''"
-        :placeholder="(element.props.placeholder as string) || 'Enter text...'"
-        @click.stop
-        @input="handleTextInput($event)"
-      />
-      <span v-else class="text-[12px] text-gray-400 truncate">
-        {{
-          inputDisplayValue(
-            (element.props.value as string) || "",
-            (element.props.placeholder as string) || "Enter text...",
-          )
-        }}
-      </span>
-    </div>
-
-    <!-- ─── RangeInput (ion-range) ────────────────────────────────────────
-         iOS  : rounded track, iOS pill thumb
-         Android: rectangular track ends, Material thumb                   -->
-    <div
-      v-else-if="element.type === 'RangeInput'"
-      class="w-full h-full flex flex-col justify-center gap-1 px-2"
-      @click.stop="handleElementClick"
-    >
-      <input
-        v-if="props.isRunMode"
-        class="w-full"
-        type="range"
-        :min="element.props.min ?? 0"
-        :max="element.props.max ?? 100"
-        :value="element.props.value ?? 50"
-        @click.stop
-        @input="handleRangeInput($event)"
-      />
-      <div
-        class="relative h-1.5 rounded-full"
-        :style="{ backgroundColor: '#e5e7eb' }"
-      >
-        <div
-          class="absolute left-0 top-0 h-full rounded-full"
-          :style="{ width: `${rangePercent}%`, backgroundColor: ionColor }"
-        />
-        <div
-          class="absolute top-1/2 -translate-y-1/2 shadow"
-          :style="rangeThumbStyle"
+        <UIcon
+          :name="
+            platform === 'ios'
+              ? 'i-lucide-chevrons-up-down'
+              : 'i-lucide-calendar'
+          "
+          class="size-3.5 text-gray-400 shrink-0"
         />
       </div>
-      <div
-        class="flex justify-between text-[9px] font-mono"
-        :style="{ color: ionColor }"
-      >
-        <span>{{ element.props.min ?? 0 }}</span>
-        <span>{{ element.props.max ?? 100 }}</span>
-      </div>
-    </div>
 
-    <!-- ─── DateTimePicker (ion-datetime) ────────────────────────────────
-         iOS  : wheel-style hint, rounded rect
-         Android: text field style                                         -->
-    <div
-      v-else-if="element.type === 'DateTimePicker'"
-      class="w-full h-full flex items-center px-3 gap-2"
-      :style="inputStyle"
-      @click.stop="handleElementClick"
-    >
-      <input
-        v-if="props.isRunMode"
-        class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
-        type="date"
-        :value="(element.props.value as string) || ''"
-        @click.stop
-        @input="handleTextInput($event)"
-      />
-      <span v-else class="text-[12px] text-gray-400 flex-1 truncate">
-        {{ (element.props.placeholder as string) || "Select date" }}
-      </span>
-      <UIcon
-        :name="
-          platform === 'ios' ? 'i-lucide-chevrons-up-down' : 'i-lucide-calendar'
-        "
-        class="size-3.5 text-gray-400 shrink-0"
-      />
-    </div>
-
-    <!-- ─── Checkbox (ion-checkbox) ───────────────────────────────────────
+      <!-- ─── Checkbox (ion-checkbox) ───────────────────────────────────────
          iOS  : rounded-sm with checkmark, indigo fill
          Android: rounded-sm, Material style                               -->
-    <div
-      v-else-if="element.type === 'Checkbox'"
-      class="w-full h-full flex items-center gap-2"
-      @click.stop="
-        props.isRunMode ? toggleBooleanProp('checked') : handleElementClick()
-      "
-    >
       <div
-        class="shrink-0 flex items-center justify-center"
-        :style="checkboxBoxStyle"
+        v-else-if="element.type === 'Checkbox'"
+        class="w-full h-full flex items-center gap-2"
+        @click.stop="handleElementClick"
       >
-        <UIcon
-          v-if="element.props.checked"
-          name="i-lucide-check"
-          class="size-3 text-white"
+        <IonCheckbox
+          :mode="ionicMode"
+          :checked="Boolean(element.props.checked)"
+          :style="checkboxStyle"
+          @ionChange="handleCheckboxChange"
         />
+        <IonLabel class="text-[12px] text-gray-700 truncate">
+          {{ (element.props.label as string) || "Checkbox" }}
+        </IonLabel>
       </div>
-      <span class="text-[12px] text-gray-700 truncate">{{
-        (element.props.label as string) || "Checkbox"
-      }}</span>
-    </div>
 
-    <!-- ─── RadioButton (ion-radio) ───────────────────────────────────────
+      <!-- ─── RadioButton (ion-radio) ───────────────────────────────────────
          iOS  : checkmark style (filled circle with inner check)
          Android: outer ring + filled inner circle                         -->
-    <div
-      v-else-if="element.type === 'RadioButton'"
-      class="w-full h-full flex items-center gap-2"
-      @click.stop="
-        props.isRunMode
-          ? updateRunProps({ selected: true })
-          : handleElementClick()
-      "
-    >
-      <!-- iOS: checkmark inside circle -->
       <div
-        v-if="platform === 'ios'"
-        class="size-4 rounded-full border-2 flex items-center justify-center shrink-0"
-        :style="radioIosStyle"
+        v-else-if="element.type === 'RadioButton'"
+        class="w-full h-full flex items-center gap-2"
+        @click.stop="handleElementClick"
       >
-        <UIcon
-          v-if="element.props.selected"
-          name="i-lucide-check"
-          class="size-2.5"
-          :style="{ color: ionColor }"
-        />
+        <IonRadioGroup
+          :mode="ionicMode"
+          :value="Boolean(element.props.selected)"
+          @ionChange="handleRadioChange"
+        >
+          <div class="flex items-center gap-2">
+            <IonRadio :value="true" />
+            <IonLabel class="text-[12px] text-gray-700 truncate">
+              {{ (element.props.label as string) || "Option" }}
+            </IonLabel>
+          </div>
+        </IonRadioGroup>
       </div>
-      <!-- Android: outer ring + inner dot -->
-      <div
-        v-else
-        class="size-4 rounded-full border-2 flex items-center justify-center shrink-0"
-        :style="radioAndroidOuterStyle"
-      >
-        <div
-          v-if="element.props.selected"
-          class="size-2 rounded-full"
-          :style="{ backgroundColor: ionColor }"
-        />
-      </div>
-      <span class="text-[12px] text-gray-700 truncate">{{
-        (element.props.label as string) || "Option"
-      }}</span>
-    </div>
 
-    <!-- ─── Toggle (ion-toggle) ───────────────────────────────────────────
+      <!-- ─── Toggle (ion-toggle) ───────────────────────────────────────────
          iOS  : wide pill, green when on
          Android: narrower track, colored when on                          -->
-    <div
-      v-else-if="element.type === 'Toggle'"
-      class="w-full h-full flex items-center justify-between gap-4 border-b border-slate-200 px-3"
-      @click.stop="
-        props.isRunMode ? toggleBooleanProp('on') : handleElementClick()
-      "
-    >
-      <span
-        class="text-gray-700 truncate"
-        :style="{ fontSize: `${element.props.fontSize ?? 16}px` }"
-      >
-        {{
-          (element.props.content as string) ||
-          (element.props.label as string) ||
-          "Label"
-        }}
-      </span>
       <div
-        class="relative shrink-0 rounded-full transition-colors duration-150"
-        :style="toggleTrackStyle"
+        v-else-if="element.type === 'Toggle'"
+        class="w-full h-full flex items-center justify-between gap-4 border-b border-slate-200 px-3"
+        @click.stop="handleElementClick"
       >
-        <div
-          class="absolute top-1/2 -translate-y-1/2 bg-white rounded-full shadow transition-transform duration-150"
-          :style="toggleThumbStyle"
+        <IonLabel
+          class="text-gray-700 truncate"
+          :style="{ fontSize: `${element.props.fontSize ?? 16}px` }"
+        >
+          {{
+            (element.props.content as string) ||
+            (element.props.label as string) ||
+            "Label"
+          }}
+        </IonLabel>
+        <IonToggle
+          :mode="ionicMode"
+          :checked="Boolean(element.props.on)"
+          :style="toggleStyle"
+          @ionChange="handleToggleChange"
         />
       </div>
-    </div>
 
-    <!-- ─── Select (ion-select) ───────────────────────────────────────────
+      <!-- ─── Select (ion-select) ───────────────────────────────────────────
          iOS  : right-aligned value + chevrons
          Android: underline field + dropdown arrow                         -->
-    <div
-      v-else-if="element.type === 'Select'"
-      class="w-full h-full flex items-center px-3 gap-1"
-      :style="inputStyle"
-      @click.stop="handleElementClick"
-    >
-      <select
-        v-if="props.isRunMode"
-        class="flex-1 bg-transparent text-[12px] text-gray-700 outline-none"
+      <IonSelect
+        v-else-if="element.type === 'Select'"
+        class="w-full h-full"
+        :mode="ionicMode"
         :value="(element.props.value as string) || ''"
-        @click.stop
-        @change="handleTextInput($event)"
+        :placeholder="(element.props.placeholder as string) || 'Select...'"
+        :interface="(element.props.interface as string) || 'popover'"
+        :style="selectStyle"
+        @click.stop="handleElementClick"
+        @ionChange="handleSelectChange"
       >
-        <option value="" disabled>
-          {{ (element.props.placeholder as string) || "Select..." }}
-        </option>
-        <option
-          v-for="(opt, idx) in (element.props.options as string[]) || [
-            'Option 1',
-            'Option 2',
-          ]"
+        <IonSelectOption
+          v-for="(opt, idx) in selectOptions"
           :key="idx"
           :value="opt"
         >
           {{ opt }}
-        </option>
-      </select>
-      <span v-else class="text-[12px] text-gray-400 flex-1 truncate">{{
-        (element.props.placeholder as string) || "Select..."
-      }}</span>
-      <UIcon
-        :name="
-          platform === 'ios'
-            ? 'i-lucide-chevrons-up-down'
-            : 'i-lucide-chevron-down'
-        "
-        class="size-3.5 text-gray-400 shrink-0"
-      />
-    </div>
+        </IonSelectOption>
+      </IonSelect>
 
-    <!-- ─── Badge (ion-badge) ─────────────────────────────────────────────
+      <!-- ─── Badge (ion-badge) ─────────────────────────────────────────────
          iOS  : pill shape, bold text
          Android: pill, slightly smaller padding                           -->
-    <div
-      v-else-if="element.type === 'Badge'"
-      class="w-full h-full flex items-center justify-center select-none"
-      @click.stop="handleElementClick"
-    >
-      <span
-        class="text-white text-[10px] font-bold px-2 py-0.5"
-        :style="badgeStyle"
+      <div
+        v-else-if="element.type === 'Badge'"
+        class="w-full h-full flex items-center justify-center select-none"
+        @click.stop="handleElementClick"
       >
-        {{ (element.props.text as string) || "New" }}
-      </span>
-    </div>
+        <IonBadge :style="badgeStyle">
+          {{ (element.props.text as string) || "New" }}
+        </IonBadge>
+      </div>
 
-    <!-- ─── Chip (ion-chip) ───────────────────────────────────────────────
+      <!-- ─── Chip (ion-chip) ───────────────────────────────────────────────
          iOS  : rounded-full pill, colored border/fill
          Android: rounded-lg, outlined or filled                           -->
-    <div
-      v-else-if="element.type === 'Chip'"
-      class="w-full h-full flex items-center justify-center select-none"
-      @click.stop="handleElementClick"
-    >
-      <span class="text-[11px] font-medium px-3 py-1" :style="chipStyle">
-        {{ (element.props.label as string) || "Chip" }}
-      </span>
-    </div>
+      <div
+        v-else-if="element.type === 'Chip'"
+        class="w-full h-full flex items-center justify-center select-none"
+        @click.stop="handleElementClick"
+      >
+        <IonChip :outline="Boolean(element.props.outline)" :style="chipStyle">
+          <IonLabel>{{ (element.props.label as string) || "Chip" }}</IonLabel>
+        </IonChip>
+      </div>
 
-    <!-- ─── Spinner (ion-spinner) ─────────────────────────────────────────
+      <!-- ─── Spinner (ion-spinner) ─────────────────────────────────────────
          iOS  : iOS activity spinner (lines)
          Android: Material circular progress                                -->
-    <div
-      v-else-if="element.type === 'Spinner'"
-      class="w-full h-full flex items-center justify-center select-none"
-      @click.stop="handleElementClick"
-    >
-      <UIcon
-        :name="platform === 'ios' ? 'i-lucide-loader' : 'i-lucide-refresh-cw'"
-        class="size-6 animate-spin"
-        :style="{ color: ionColor }"
-      />
-    </div>
-
-    <!-- ─── Heading ──────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Heading'"
-      class="w-full h-full flex items-center overflow-hidden select-none"
-      @click.stop="handleElementClick"
-      :style="{
-        color: (element.props.color as string) || '#0f172a',
-        fontSize: headingFontSize,
-        fontWeight: '700',
-        lineHeight: '1.1',
-      }"
-    >
-      {{ (element.props.text as string) || "Heading" }}
-    </div>
-
-    <!-- ─── Label ────────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Label'"
-      class="w-full h-full flex items-center overflow-hidden select-none"
-      @click.stop="handleElementClick"
-      :style="{
-        color: (element.props.color as string) || '#334155',
-        fontSize: `${element.props.fontSize ?? 14}px`,
-        lineHeight: '1.3',
-      }"
-    >
-      {{ (element.props.content as string) || "Label" }}
-    </div>
-
-    <!-- ─── TextBox ──────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'TextBox'"
-      class="w-full h-full overflow-hidden select-none"
-      @click.stop="handleElementClick"
-      :style="{
-        fontSize: `${element.props.fontSize ?? 14}px`,
-        color: (element.props.color as string) || '#334155',
-        lineHeight: '1.4',
-        textAlign: (element.props.textAlign as string) || 'left',
-        whiteSpace:
-          (element.props.wrap as string) === 'unwrap' ? 'nowrap' : 'normal',
-        wordBreak:
-          (element.props.wrap as string) === 'unwrap' ? 'normal' : 'break-word',
-      }"
-    >
-      <div class="w-full h-full">
-        {{ textBoxDisplayValue }}
+      <div
+        v-else-if="element.type === 'Spinner'"
+        class="w-full h-full flex items-center justify-center select-none"
+        @click.stop="handleElementClick"
+      >
+        <IonSpinner
+          :name="platform === 'ios' ? 'lines' : 'crescent'"
+          :style="{ color: ionColor }"
+        />
       </div>
-    </div>
 
-    <!-- ─── List (ion-list / ion-item) ───────────────────────────────────
+      <!-- ─── Heading ──────────────────────────────────────────────────────── -->
+      <IonLabel
+        v-else-if="element.type === 'Heading'"
+        class="w-full h-full flex items-center overflow-hidden select-none"
+        @click.stop="handleElementClick"
+        :style="{
+          color: (element.props.color as string) || '#0f172a',
+          fontSize: headingFontSize,
+          fontWeight: '700',
+          lineHeight: '1.1',
+        }"
+      >
+        {{ (element.props.text as string) || "Heading" }}
+      </IonLabel>
+
+      <!-- ─── Label ────────────────────────────────────────────────────────── -->
+      <IonLabel
+        v-else-if="element.type === 'Label'"
+        class="w-full h-full flex items-center overflow-hidden select-none"
+        @click.stop="handleElementClick"
+        :style="{
+          color: (element.props.color as string) || '#334155',
+          fontSize: `${element.props.fontSize ?? 14}px`,
+          lineHeight: '1.3',
+        }"
+      >
+        {{ (element.props.content as string) || "Label" }}
+      </IonLabel>
+
+      <!-- ─── TextBox ──────────────────────────────────────────────────────── -->
+      <IonTextarea
+        v-else-if="element.type === 'TextBox'"
+        class="w-full h-full overflow-hidden select-none"
+        :mode="ionicMode"
+        :auto-grow="false"
+        :value="(element.props.content as string) || ''"
+        :placeholder="(element.props.placeholder as string) || 'Write something...'"
+        @click.stop="handleElementClick"
+        @ionInput="handleTextareaInput"
+        :style="{
+          '--color': (element.props.color as string) || '#334155',
+          fontSize: `${element.props.fontSize ?? 14}px`,
+          lineHeight: '1.4',
+          textAlign: (element.props.textAlign as string) || 'left',
+          whiteSpace:
+            (element.props.wrap as string) === 'unwrap' ? 'nowrap' : 'normal',
+          wordBreak:
+            (element.props.wrap as string) === 'unwrap'
+              ? 'normal'
+              : 'break-word',
+        }"
+      />
+
+      <!-- ─── List (ion-list / ion-item) ───────────────────────────────────
          iOS  : inset rounded card, inner separators
          Android: flat full-width list, dividers                           -->
-    <div
-      v-else-if="element.type === 'List'"
-      class="w-full h-full overflow-hidden select-none"
-      :style="listWrapStyle"
-      @click.stop="handleElementClick"
-    >
+      <IonList
+        v-else-if="element.type === 'List'"
+        class="w-full h-full overflow-hidden select-none"
+        :mode="ionicMode"
+        :style="listWrapStyle"
+        @click.stop="handleElementClick"
+      >
+        <IonItem
+          v-for="(item, i) in (element.props.items as string[]) || [
+            'Item 1',
+            'Item 2',
+            'Item 3',
+          ]"
+          :key="i"
+          lines="full"
+          :style="listItemStyle(i)"
+          @click.stop="handleElementClick"
+        >
+          <IonLabel class="text-[12px] text-gray-700">{{ item }}</IonLabel>
+          <UIcon
+            name="i-lucide-chevron-right"
+            class="size-3 text-gray-400 shrink-0"
+          />
+        </IonItem>
+      </IonList>
+
+      <!-- ─── Image ────────────────────────────────────────────────────────── -->
+      <IonImg
+        v-else-if="element.type === 'Image'"
+        :src="(element.props.src as string) || 'https://picsum.photos/160/120'"
+        class="w-full h-full object-cover select-none cursor-pointer"
+        :style="{ borderRadius: `${element.props.borderRadius ?? 4}px` }"
+        @click.stop="handleElementClick"
+      />
+
+      <!-- ─── Camera Plugin ──────────────────────────────────────────────── -->
       <div
-        v-for="(item, i) in (element.props.items as string[]) || [
-          'Item 1',
-          'Item 2',
-          'Item 3',
-        ]"
-        :key="i"
-        class="flex items-center gap-2 px-4"
-        :style="listItemStyle(i)"
+        v-else-if="element.type === 'Camera'"
+        class="w-full h-full overflow-hidden rounded-2xl border border-slate-200 select-none"
+        :class="
+          props.isRunMode && !element.props.open ? 'hidden' : 'flex flex-col'
+        "
         @click.stop="handleElementClick"
       >
         <div
-          class="size-1.5 rounded-full shrink-0"
-          :style="{ backgroundColor: ionColor }"
-        />
-        <span class="text-[12px] text-gray-700 flex-1 truncate">{{
-          item
-        }}</span>
-        <UIcon
-          name="i-lucide-chevron-right"
-          class="size-3 text-gray-400 shrink-0"
-        />
-      </div>
-    </div>
-
-    <!-- ─── Image ────────────────────────────────────────────────────────── -->
-    <img
-      v-else-if="element.type === 'Image'"
-      :src="(element.props.src as string) || 'https://picsum.photos/160/120'"
-      alt="image"
-      class="w-full h-full object-cover select-none cursor-pointer"
-      :style="{ borderRadius: `${element.props.borderRadius ?? 4}px` }"
-      loading="lazy"
-      @click.stop="handleElementClick"
-    />
-
-    <!-- ─── Camera Plugin ──────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Camera'"
-      class="w-full h-full overflow-hidden rounded-2xl border border-slate-200 select-none"
-      :class="
-        props.isRunMode && !element.props.open ? 'hidden' : 'flex flex-col'
-      "
-      @click.stop="handleElementClick"
-    >
-      <div
-        class="flex items-center justify-between px-3 py-2 text-white"
-        :style="{ backgroundColor: platform === 'ios' ? '#111827' : '#1f2937' }"
-      >
-        <div class="flex items-center gap-2">
-          <UIcon name="i-lucide-camera" class="size-4" />
-          <span class="text-xs font-semibold">
-            {{ (element.props.title as string) || "Camera" }}
+          class="flex items-center justify-between px-3 py-2 text-white"
+          :style="{
+            backgroundColor: platform === 'ios' ? '#111827' : '#1f2937',
+          }"
+        >
+          <div class="flex items-center gap-2">
+            <UIcon name="i-lucide-camera" class="size-4" />
+            <span class="text-xs font-semibold">
+              {{ (element.props.title as string) || "Camera" }}
+            </span>
+          </div>
+          <span
+            class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            :style="cameraStatusStyle"
+          >
+            {{ element.props.open ? "Open" : "Closed" }}
           </span>
         </div>
-        <span
-          class="rounded-full px-2 py-0.5 text-[10px] font-medium"
-          :style="cameraStatusStyle"
+        <div
+          class="relative flex-1 bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500"
         >
-          {{ element.props.open ? "Open" : "Closed" }}
+          <video
+            v-if="shouldUseLiveCamera && !cameraError"
+            ref="cameraVideoRef"
+            class="h-full w-full object-cover"
+            autoplay
+            muted
+            playsinline
+          />
+          <div
+            v-if="!shouldUseLiveCamera || cameraError"
+            class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white/90"
+          >
+            <UIcon name="i-lucide-aperture" class="size-10" />
+            <span class="text-xs font-medium">
+              {{
+                cameraError
+                  ? cameraError
+                  : element.props.open
+                    ? "Camera preview active"
+                    : "Camera is closed"
+              }}
+            </span>
+            <span v-if="cameraError" class="text-[10px] text-white/70">
+              Camera access usually needs permission and often requires HTTPS or
+              localhost.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── Link ─────────────────────────────────────────────────────────── -->
+      <div
+        v-else-if="element.type === 'Link'"
+        class="w-full h-full flex items-center overflow-hidden select-none"
+        @click.stop="handleElementClick"
+      >
+        <span
+          class="text-[12px] underline truncate"
+          :style="{ color: (element.props.color as string) || ionColor }"
+        >
+          {{
+            (element.props.content as string) ||
+            (element.props.text as string) ||
+            "Click here"
+          }}
         </span>
       </div>
+
+      <!-- ─── Video ────────────────────────────────────────────────────────── -->
       <div
-        class="relative flex-1 bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500"
+        v-else-if="element.type === 'Video'"
+        class="w-full h-full flex items-center justify-center bg-gray-900 select-none"
+        :style="{ borderRadius: `${element.props.borderRadius ?? 4}px` }"
+        @click.stop="handleElementClick"
       >
-        <video
-          v-if="shouldUseLiveCamera && !cameraError"
-          ref="cameraVideoRef"
-          class="h-full w-full object-cover"
-          autoplay
-          muted
-          playsinline
+        <div class="flex flex-col items-center gap-1.5">
+          <div
+            class="size-8 rounded-full bg-white/20 flex items-center justify-center"
+          >
+            <UIcon name="i-lucide-play" class="size-4 text-white ml-0.5" />
+          </div>
+          <span class="text-[9px] text-white/40 font-mono">video</span>
+        </div>
+      </div>
+
+      <!-- ─── Separator ────────────────────────────────────────────────────── -->
+      <div
+        v-else-if="element.type === 'Separator'"
+        class="w-full h-full flex items-center select-none box-border"
+        @click.stop="handleElementClick"
+        :style="{
+          paddingTop: `${element.props.paddingTop ?? 8}px`,
+          paddingBottom: `${element.props.paddingBottom ?? 8}px`,
+        }"
+      >
+        <div
+          class="w-full"
+          :style="{
+            height: `${element.props.thickness ?? 1}px`,
+            backgroundColor: (element.props.color as string) || '#e2e8f0',
+          }"
         />
-        <div
-          v-if="!shouldUseLiveCamera || cameraError"
-          class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white/90"
-        >
-          <UIcon name="i-lucide-aperture" class="size-10" />
-          <span class="text-xs font-medium">
-            {{
-              cameraError
-                ? cameraError
-                : element.props.open
-                  ? "Camera preview active"
-                  : "Camera is closed"
-            }}
-          </span>
-          <span v-if="cameraError" class="text-[10px] text-white/70">
-            Camera access usually needs permission and often requires HTTPS or
-            localhost.
-          </span>
-        </div>
       </div>
-    </div>
 
-    <!-- ─── Link ─────────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Link'"
-      class="w-full h-full flex items-center overflow-hidden select-none"
-      @click.stop="handleElementClick"
-    >
-      <span
-        class="text-[12px] underline truncate"
-        :style="{ color: (element.props.color as string) || ionColor }"
-      >
-        {{
-          (element.props.content as string) ||
-          (element.props.text as string) ||
-          "Click here"
-        }}
-      </span>
-    </div>
-
-    <!-- ─── Video ────────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Video'"
-      class="w-full h-full flex items-center justify-center bg-gray-900 select-none"
-      :style="{ borderRadius: `${element.props.borderRadius ?? 4}px` }"
-      @click.stop="handleElementClick"
-    >
-      <div class="flex flex-col items-center gap-1.5">
-        <div
-          class="size-8 rounded-full bg-white/20 flex items-center justify-center"
-        >
-          <UIcon name="i-lucide-play" class="size-4 text-white ml-0.5" />
-        </div>
-        <span class="text-[9px] text-white/40 font-mono">video</span>
-      </div>
-    </div>
-
-    <!-- ─── Separator ────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Separator'"
-      class="w-full h-full flex items-center select-none box-border"
-      @click.stop="handleElementClick"
-      :style="{
-        paddingTop: `${element.props.paddingTop ?? 8}px`,
-        paddingBottom: `${element.props.paddingBottom ?? 8}px`,
-      }"
-    >
+      <!-- ─── Spacer ───────────────────────────────────────────────────────── -->
       <div
-        class="w-full"
-        :style="{
-          height: `${element.props.thickness ?? 1}px`,
-          backgroundColor: (element.props.color as string) || '#e2e8f0',
-        }"
-      />
-    </div>
+        v-else-if="element.type === 'Spacer'"
+        class="w-full h-full border border-dashed border-gray-300 flex items-center justify-center select-none"
+      >
+        <UIcon name="i-lucide-move-vertical" class="size-3 text-gray-300" />
+      </div>
 
-    <!-- ─── Spacer ───────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Spacer'"
-      class="w-full h-full border border-dashed border-gray-300 flex items-center justify-center select-none"
-    >
-      <UIcon name="i-lucide-move-vertical" class="size-3 text-gray-300" />
-    </div>
+      <!-- ─── Icon ─────────────────────────────────────────────────────────── -->
+      <div
+        v-else-if="element.type === 'Icon'"
+        class="w-full h-full flex items-center justify-center select-none"
+      >
+        <UIcon
+          :name="(element.props.name as string) || 'i-lucide-star'"
+          :style="{
+            color: (element.props.color as string) || ionColor,
+            fontSize: `${element.props.size ?? 24}px`,
+          }"
+          class="size-6"
+        />
+      </div>
 
-    <!-- ─── Icon ─────────────────────────────────────────────────────────── -->
-    <div
-      v-else-if="element.type === 'Icon'"
-      class="w-full h-full flex items-center justify-center select-none"
-    >
-      <UIcon
-        :name="(element.props.name as string) || 'i-lucide-star'"
-        :style="{
-          color: (element.props.color as string) || ionColor,
-          fontSize: `${element.props.size ?? 24}px`,
-        }"
-        class="size-6"
-      />
-    </div>
-
-    <!-- ─── Fallback ─────────────────────────────────────────────────────── -->
-    <div
-      v-else
-      class="w-full h-full bg-neutral-200 border border-neutral-300 rounded flex items-center justify-center"
-    >
-      <span class="text-[10px] text-neutral-500 font-mono">{{
-        element.type
-      }}</span>
-    </div>
+      <!-- ─── Fallback ─────────────────────────────────────────────────────── -->
+      <div
+        v-else
+        class="w-full h-full bg-neutral-200 border border-neutral-300 rounded flex items-center justify-center"
+      >
+        <span class="text-[10px] text-neutral-500 font-mono">{{
+          element.type
+        }}</span>
+      </div>
+    </ion-app>
   </div>
 </template>
 
@@ -799,6 +663,60 @@ import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
+import {
+  IonApp,
+  IonButton,
+  IonLabel,
+  IonList,
+  IonItem,
+  IonInput,
+  IonToggle,
+  IonRadioGroup,
+  IonRadio,
+  IonSelect,
+  IonSelectOption,
+  IonRange,
+  IonSegment,
+  IonSegmentButton,
+  IonCheckbox,
+  IonTextarea,
+  IonCard,
+  IonCardContent,
+  IonCardHeader,
+  IonCardTitle,
+  IonCardSubtitle,
+  IonAvatar,
+  IonBadge,
+  IonChip,
+  IonContent,
+  IonFooter,
+  IonHeader,
+  IonIcon,
+  IonImg,
+  IonInfiniteScroll,
+  IonInfiniteScrollContent,
+  IonItemDivider,
+  IonItemGroup,
+  IonItemOptions,
+  IonItemSliding,
+  IonListHeader,
+  IonMenu,
+  IonMenuButton,
+  IonMenuToggle,
+  IonModal,
+  IonNav,
+  IonPage,
+  IonPopover,
+  IonReorder,
+  IonReorderGroup,
+  IonRouterOutlet,
+  IonRow,
+  IonSearchbar,
+  IonSkeletonText,
+  IonSpinner,
+  IonTitle,
+  IonToolbar,
+} from "@ionic/vue";
 
 const props = defineProps<{
   element: AppElement;
@@ -823,6 +741,7 @@ const isSelected = computed(
 const platform = computed(
   () => props.platformOverride ?? store.activePlatform.value,
 );
+const ionicMode = computed(() => (platform.value === "android" ? "md" : "ios"));
 const visibleChildIds = computed(() =>
   getVisibleRuntimeChildIds(
     props.element.children,
@@ -901,9 +820,45 @@ function handleTextInput(event: Event) {
   updateRunProps({ value: target.value });
 }
 
+function handleIonInput(event: CustomEvent) {
+  updateRunProps({ value: String(event.detail.value ?? "") });
+}
+
+function handleSearchbarInput(event: CustomEvent) {
+  updateRunProps({ value: String(event.detail.value ?? "") });
+}
+
+function handleTextareaInput(event: CustomEvent) {
+  updateRunProps({ content: String(event.detail.value ?? "") });
+}
+
 function handleRangeInput(event: Event) {
   const target = event.target as HTMLInputElement;
   updateRunProps({ value: Number(target.value) });
+}
+
+function handleIonRangeInput(event: CustomEvent) {
+  updateRunProps({ value: Number(event.detail.value ?? 0) });
+}
+
+function handleCheckboxChange(event: CustomEvent) {
+  updateRunProps({ checked: Boolean(event.detail.checked) });
+}
+
+function handleToggleChange(event: CustomEvent) {
+  updateRunProps({ on: Boolean(event.detail.checked) });
+}
+
+function handleRadioChange(event: CustomEvent) {
+  updateRunProps({ selected: Boolean(event.detail.value) });
+}
+
+function handleSelectChange(event: CustomEvent) {
+  updateRunProps({ value: String(event.detail.value ?? "") });
+}
+
+function handleSegmentChange(event: CustomEvent) {
+  updateRunProps({ selected: Number(event.detail.value ?? 0) });
 }
 
 function toggleBooleanProp(propName: string) {
@@ -935,6 +890,15 @@ onBeforeUnmount(() => {
 const ionColor = computed(
   () => (props.element.props.color as string) || "#3880ff",
 );
+const selectOptions = computed(
+  () => (props.element.props.options as string[]) || ["Option 1", "Option 2"],
+);
+const buttonFill = computed(
+  () => ((props.element.props.fill as string) || "solid") as
+    | "solid"
+    | "outline"
+    | "clear",
+);
 
 // ── Toolbar ───────────────────────────────────────────────────────────────
 const iosToolbarTint = "#3880ff";
@@ -943,13 +907,13 @@ const toolbarStyle = computed(() => {
   const bg = (props.element.props.backgroundColor as string) || "#3880ff";
   if (platform.value === "ios") {
     return {
-      backgroundColor: "#ffffff",
+      "--background": "#ffffff",
       borderBottom: "1px solid #e0e0e0",
       justifyContent: "center",
     };
   }
   return {
-    backgroundColor: bg,
+    "--background": bg,
     boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
   };
 });
@@ -978,13 +942,13 @@ const cardStyle = computed(() => {
   const bg = (props.element.props.backgroundColor as string) || "#ffffff";
   if (platform.value === "ios") {
     return {
-      backgroundColor: bg,
+      "--background": bg,
       borderRadius: "16px",
       boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
     };
   }
   return {
-    backgroundColor: bg,
+    "--background": bg,
     borderRadius: "8px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
   };
@@ -1052,10 +1016,11 @@ const buttonStyle = computed(() => {
   if (fill === "clear") {
     return {
       ...sharedStyle,
-      backgroundColor: "transparent",
-      border: "none",
-      borderRadius: radius,
-      color: bg,
+      "--background": "transparent",
+      "--background-hover": "transparent",
+      "--background-activated": "transparent",
+      "--border-radius": radius,
+      "--color": bg,
       textTransform:
         platform.value === "android" ? ("uppercase" as const) : "none",
       letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
@@ -1065,10 +1030,14 @@ const buttonStyle = computed(() => {
   if (fill === "outline") {
     return {
       ...sharedStyle,
-      backgroundColor: "transparent",
-      border: `1px solid ${bg}`,
-      borderRadius: radius,
-      color: bg,
+      "--background": "transparent",
+      "--background-hover": "transparent",
+      "--background-activated": "transparent",
+      "--border-color": bg,
+      "--border-style": "solid",
+      "--border-width": "1px",
+      "--border-radius": radius,
+      "--color": bg,
       textTransform:
         platform.value === "android" ? ("uppercase" as const) : "none",
       letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
@@ -1078,10 +1047,11 @@ const buttonStyle = computed(() => {
   if (platform.value === "ios") {
     return {
       ...sharedStyle,
-      backgroundColor: bg,
-      borderRadius: radius,
-      border: "none",
-      color: "#ffffff",
+      "--background": bg,
+      "--background-hover": bg,
+      "--background-activated": bg,
+      "--border-radius": radius,
+      "--color": "#ffffff",
       letterSpacing: "-0.01em",
       boxShadow: "none",
     };
@@ -1089,10 +1059,11 @@ const buttonStyle = computed(() => {
   // Android: Material contained
   return {
     ...sharedStyle,
-    backgroundColor: bg,
-    borderRadius: radius,
-    border: "none",
-    color: "#ffffff",
+    "--background": bg,
+    "--background-hover": bg,
+    "--background-activated": bg,
+    "--border-radius": radius,
+    "--color": "#ffffff",
     textTransform: "uppercase" as const,
     letterSpacing: "0.06em",
     boxShadow: isDisabled
@@ -1129,45 +1100,41 @@ const fabStyle = computed(() => {
 const searchbarStyle = computed(() => {
   const bg = (props.element.props.backgroundColor as string) || "#f4f5f8";
   if (platform.value === "ios") {
-    return { backgroundColor: bg, borderRadius: "12px" };
+    return { "--background": bg, "--border-radius": "12px" };
   }
-  return { backgroundColor: bg, borderRadius: "4px" };
+  return { "--background": bg, "--border-radius": "4px" };
 });
 
 // ── Input / LabelledInput ─────────────────────────────────────────────────
 const inputStyle = computed(() => {
   if (platform.value === "ios") {
     return {
-      backgroundColor: "#ffffff",
-      border: "1px solid #d1d5db",
-      borderRadius: "10px",
+      "--background": "#ffffff",
+      "--border-color": "#d1d5db",
+      "--border-radius": "10px",
+      "--highlight-color-focused": ionColor.value,
     };
   }
-  // Android: only bottom border
   return {
-    backgroundColor: "transparent",
-    borderBottom: `2px solid #9ca3af`,
+    "--background": "transparent",
+    "--highlight-color-focused": ionColor.value,
+    "--border-color": "#9ca3af",
   };
 });
 
 const labelledInputWrapStyle = computed(() => {
   if (platform.value === "ios") {
-    return { padding: "0 8px" };
-  }
-  return { padding: "0 8px" };
-});
-
-const labelledInputFieldStyle = computed(() => {
-  if (platform.value === "ios") {
     return {
-      border: "1px solid #d1d5db",
-      borderRadius: "10px",
-      backgroundColor: "#ffffff",
+      "--background": "#ffffff",
+      "--border-color": "#d1d5db",
+      "--border-radius": "10px",
+      "--highlight-color-focused": ionColor.value,
     };
   }
   return {
-    borderBottom: `2px solid ${ionColor.value}`,
-    backgroundColor: "transparent",
+    "--background": "transparent",
+    "--highlight-color-focused": ionColor.value,
+    "--border-color": ionColor.value,
   };
 });
 
@@ -1206,23 +1173,13 @@ const rangeThumbStyle = computed(() => {
 });
 
 // ── Checkbox ──────────────────────────────────────────────────────────────
-const checkboxBoxStyle = computed(() => {
+const checkboxStyle = computed(() => {
   const color = ionColor.value;
-  if (platform.value === "ios") {
-    return {
-      width: "20px",
-      height: "20px",
-      borderRadius: "6px",
-      border: `2px solid ${props.element.props.checked ? color : "#9ca3af"}`,
-      backgroundColor: props.element.props.checked ? color : "#ffffff",
-    };
-  }
   return {
-    width: "18px",
-    height: "18px",
-    borderRadius: "3px",
-    border: `2px solid ${props.element.props.checked ? color : "#9ca3af"}`,
-    backgroundColor: props.element.props.checked ? color : "#ffffff",
+    "--checkbox-background-checked": color,
+    "--checkbox-border-color-checked": color,
+    "--checkmark-color": "#ffffff",
+    "--border-color": props.element.props.checked ? color : "#9ca3af",
   };
 });
 
@@ -1241,46 +1198,19 @@ const radioAndroidOuterStyle = computed(() => {
 });
 
 // ── Toggle ────────────────────────────────────────────────────────────────
-const toggleTrackStyle = computed(() => {
+const toggleStyle = computed(() => {
   const color = ionColor.value;
   if (platform.value === "ios") {
     return {
-      width: "51px",
-      height: "31px",
-      backgroundColor: props.element.props.on ? "#34c759" : "#e5e7eb",
-      transition: "background-color 0.2s",
+      "--track-background": props.element.props.on ? "#34c759" : "#e5e7eb",
+      "--track-background-checked": "#34c759",
+      "--handle-background": "#ffffff",
     };
   }
   return {
-    width: "44px",
-    height: "24px",
-    backgroundColor: props.element.props.on ? color + "80" : "#9ca3af",
-    transition: "background-color 0.2s",
-  };
-});
-
-const toggleThumbStyle = computed(() => {
-  if (platform.value === "ios") {
-    return {
-      width: "27px",
-      height: "27px",
-      left: "2px",
-      transform: props.element.props.on
-        ? "translateX(20px) "
-        : "translateX(0) ",
-      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-      transition: "transform 0.2s",
-    };
-  }
-  const color = ionColor.value;
-  return {
-    width: "22px",
-    height: "22px",
-    left: "1px",
-    backgroundColor: props.element.props.on ? color : "#f3f4f6",
-    transform: props.element.props.on ? "translateX(20px) " : "translateX(0) ",
-    boxShadow: "0 1px 4px rgba(0,0,0,0.3)",
-    transition: "transform 0.2s, background-color 0.2s",
+    "--track-background": "#9ca3af",
+    "--track-background-checked": `${color}80`,
+    "--handle-background": props.element.props.on ? color : "#f3f4f6",
   };
 });
 
@@ -1288,7 +1218,8 @@ const toggleThumbStyle = computed(() => {
 const badgeStyle = computed(() => {
   const color = (props.element.props.color as string) || "#3880ff";
   return {
-    backgroundColor: color,
+    "--background": color,
+    "--color": "#ffffff",
     borderRadius: platform.value === "ios" ? "20px" : "12px",
   };
 });
@@ -1300,18 +1231,32 @@ const chipStyle = computed(() => {
   if (platform.value === "ios") {
     return {
       borderRadius: "16px",
-      backgroundColor: outline ? "transparent" : color + "20",
+      "--background": outline ? "transparent" : `${color}20`,
       border: `1.5px solid ${color}`,
-      color: color,
+      "--color": color,
     };
   }
   return {
     borderRadius: "8px",
-    backgroundColor: outline ? "transparent" : color + "15",
+    "--background": outline ? "transparent" : `${color}15`,
     border: `1.5px solid ${color}`,
-    color: color,
+    "--color": color,
   };
 });
+
+const rangeStyle = computed(() => ({
+  "--bar-background": "#e5e7eb",
+  "--bar-background-active": ionColor.value,
+  "--knob-background": "#ffffff",
+  "--pin-background": ionColor.value,
+  "--pin-color": "#ffffff",
+}));
+
+const selectStyle = computed(() => ({
+  ...inputStyle.value,
+  "--placeholder-color": "#9ca3af",
+  "--highlight-color-focused": ionColor.value,
+}));
 
 const cameraStatusStyle = computed(() => ({
   backgroundColor: props.element.props.open ? "#22c55e" : "#475569",
