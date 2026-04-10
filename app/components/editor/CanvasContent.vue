@@ -12,6 +12,7 @@
     <!-- ── Toolbar — pinned sticky at the top of the canvas ──────────────── -->
     <div
       v-if="toolbarElement"
+      :key="`toolbar-${toolbarElement.id}-${store.activePlatform.value}`"
       class="sticky top-0 z-20 w-full cursor-pointer shrink-0"
       :class="{
         'ring-2 ring-inset ring-indigo-500':
@@ -62,7 +63,7 @@
       <div class="flex min-h-full flex-col w-full">
       <div
         v-for="container in bodyElements"
-        :key="container.id"
+        :key="`${container.id}-${store.activePlatform.value}`"
         class="relative cursor-pointer shrink-0"
         :class="{
           'ring-2 ring-indigo-500 ring-offset-0':
