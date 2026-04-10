@@ -18,6 +18,9 @@ export default defineEventHandler(async (event) => {
     const raw = await readFile(filePath, "utf8");
     return JSON.parse(raw) as SharedExportRecord;
   } catch {
-    throw createError({ statusCode: 404, statusMessage: "Shared export not found" });
+    throw createError({
+      statusCode: 404,
+      statusMessage: "Shared export not found",
+    });
   }
 });

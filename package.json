@@ -19,6 +19,7 @@
     "@codemirror/view": "^6.41.0",
     "@ionic/vue": "^8.8.3",
     "@nuxt/ui": "^4.6.0",
+    "@nuxtjs/ionic": "^1.0.2",
     "nuxt": "^4.4.2",
     "tailwindcss": "^4.2.2",
     "vue": "^3.5.31",

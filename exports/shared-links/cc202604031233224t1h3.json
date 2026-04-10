@@ -1,0 +1,164 @@
+{
+  "appName": "Untitled Project",
+  "pages": [
+    {
+      "id": "page1",
+      "name": "Page 1"
+    }
+  ],
+  "elements": [
+    {
+      "id": "page1_container1",
+      "pageId": "page1",
+      "type": "Container",
+      "x": 0,
+      "y": 0,
+      "width": 393,
+      "height": 852,
+      "props": {
+        "direction": "col",
+        "gap": 16,
+        "padding": 16,
+        "backgroundColor": "transparent"
+      },
+      "parentId": null,
+      "children": [
+        "page1_input1",
+        "page1_labelledinput2",
+        "page1_labelledinput1",
+        "page1_button1",
+        "page1_button2",
+        "page1_floatingactionbutton1"
+      ],
+      "direction": "col"
+    },
+    {
+      "id": "page1_toolbar2",
+      "pageId": "page1",
+      "type": "Toolbar",
+      "x": 0,
+      "y": 0,
+      "width": 340,
+      "height": 56,
+      "props": {
+        "title": "My App",
+        "showBack": false,
+        "backgroundColor": "#3880ff"
+      },
+      "parentId": null,
+      "children": []
+    },
+    {
+      "id": "page1_button1",
+      "pageId": "page1",
+      "type": "Button",
+      "x": 0,
+      "y": 0,
+      "width": 112,
+      "height": 42,
+      "props": {
+        "label": "Button",
+        "fill": "solid",
+        "backgroundColor": "#3880ff",
+        "borderRadius": 8
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_button2",
+      "pageId": "page1",
+      "type": "Button",
+      "x": 0,
+      "y": 0,
+      "width": 112,
+      "height": 42,
+      "props": {
+        "label": "Button",
+        "fill": "solid",
+        "backgroundColor": "#3880ff",
+        "borderRadius": 8
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_labelledinput1",
+      "pageId": "page1",
+      "type": "LabelledInput",
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 56,
+      "props": {
+        "label": "Label",
+        "placeholder": "Enter value",
+        "type": "text",
+        "value": ""
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_labelledinput2",
+      "pageId": "page1",
+      "type": "LabelledInput",
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 56,
+      "props": {
+        "label": "Label",
+        "placeholder": "Enter value",
+        "type": "text",
+        "value": ""
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_input1",
+      "pageId": "page1",
+      "type": "Input",
+      "x": 0,
+      "y": 0,
+      "width": 196,
+      "height": 42,
+      "props": {
+        "placeholder": "eeee",
+        "type": "text",
+        "borderRadius": 9999,
+        "value": "pppeee"
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_floatingactionbutton1",
+      "pageId": "page1",
+      "type": "FloatingActionButton",
+      "x": 0,
+      "y": 0,
+      "width": 56,
+      "height": 56,
+      "props": {
+        "icon": "i-lucide-plus",
+        "backgroundColor": "#3880ff",
+        "borderRadius": 28,
+        "horizontalAlignment": "end",
+        "verticalAlignment": "bottom",
+        "edge": false
+      },
+      "parentId": "page1_container1",
+      "children": []
+    }
+  ],
+  "jsCodeByPage": {
+    "page1": "var toolbar2 = new Toolbar('page1_toolbar2');\npage.add(toolbar2);\nvar button1 = new Button('page1_button1');\npage.add(button1);\nvar button2 = new Button('page1_button2');\npage.add(button2);\nvar labelledinput1 = new LabelledInput('page1_labelledinput1');\npage.add(labelledinput1);\nvar labelledinput2 = new LabelledInput('page1_labelledinput2');\npage.add(labelledinput2);\nvar input1 = new Input('page1_input1');\npage.add(input1);\nvar floatingactionbutton1 = new FAB('page1_floatingactionbutton1');\npage.add(floatingactionbutton1);\n\n"
+  },
+  "startPageId": "page1",
+  "activeDeviceId": "iphone15",
+  "shareId": "cc202604031233224t1h3",
+  "id": "cc202604031233224t1h3",
+  "createdAt": "2026-04-03T17:18:49.230Z"
+}

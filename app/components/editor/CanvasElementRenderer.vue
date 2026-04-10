@@ -168,13 +168,6 @@
 
       <IonButton
         v-else-if="element.type === 'Button'"
-        class="m-0 w-full h-full select-none transition-all duration-150"
-        :class="props.isRunMode ? buttonRuntimeClass : undefined"
-        :mode="ionicMode"
-        :fill="buttonFill"
-        :disabled="Boolean(element.props.disabled)"
-        expand="block"
-        :style="buttonStyle"
         @click.stop="handleElementClick"
       >
         {{ (element.props.label as string) || "Button" }}
@@ -452,7 +445,9 @@
         :mode="ionicMode"
         :auto-grow="false"
         :value="(element.props.content as string) || ''"
-        :placeholder="(element.props.placeholder as string) || 'Write something...'"
+        :placeholder="
+          (element.props.placeholder as string) || 'Write something...'
+        "
         @click.stop="handleElementClick"
         @ionInput="handleTextareaInput"
         :style="{
@@ -663,60 +658,6 @@ import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
-import {
-  IonApp,
-  IonButton,
-  IonLabel,
-  IonList,
-  IonItem,
-  IonInput,
-  IonToggle,
-  IonRadioGroup,
-  IonRadio,
-  IonSelect,
-  IonSelectOption,
-  IonRange,
-  IonSegment,
-  IonSegmentButton,
-  IonCheckbox,
-  IonTextarea,
-  IonCard,
-  IonCardContent,
-  IonCardHeader,
-  IonCardTitle,
-  IonCardSubtitle,
-  IonAvatar,
-  IonBadge,
-  IonChip,
-  IonContent,
-  IonFooter,
-  IonHeader,
-  IonIcon,
-  IonImg,
-  IonInfiniteScroll,
-  IonInfiniteScrollContent,
-  IonItemDivider,
-  IonItemGroup,
-  IonItemOptions,
-  IonItemSliding,
-  IonListHeader,
-  IonMenu,
-  IonMenuButton,
-  IonMenuToggle,
-  IonModal,
-  IonNav,
-  IonPage,
-  IonPopover,
-  IonReorder,
-  IonReorderGroup,
-  IonRouterOutlet,
-  IonRow,
-  IonSearchbar,
-  IonSkeletonText,
-  IonSpinner,
-  IonTitle,
-  IonToolbar,
-} from "@ionic/vue";
 
 const props = defineProps<{
   element: AppElement;
@@ -894,10 +835,11 @@ const selectOptions = computed(
   () => (props.element.props.options as string[]) || ["Option 1", "Option 2"],
 );
 const buttonFill = computed(
-  () => ((props.element.props.fill as string) || "solid") as
-    | "solid"
-    | "outline"
-    | "clear",
+  () =>
+    ((props.element.props.fill as string) || "solid") as
+      | "solid"
+      | "outline"
+      | "clear",
 );
 
 // ── Toolbar ───────────────────────────────────────────────────────────────
