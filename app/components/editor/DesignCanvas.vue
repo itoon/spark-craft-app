@@ -130,18 +130,20 @@
         marginBottom: `${activeDevice.totalH * scale - activeDevice.totalH}px`,
       }"
     >
-      <PreviewDeviceFrame
-        :device="activeDevice"
-        :scale="1"
-        @screen-click="store.selectElement(null)"
-      >
-        <div
-          class="absolute inset-0 overflow-y-auto overflow-x-hidden"
-          @click.self="store.selectElement(null)"
+      <IonApp>
+        <PreviewDeviceFrame
+          :device="activeDevice"
+          :scale="1"
+          @screen-click="store.selectElement(null)"
         >
-          <EditorCanvasContent />
-        </div>
-      </PreviewDeviceFrame>
+          <div
+            class="absolute inset-0 overflow-y-auto overflow-x-hidden"
+            @click.self="store.selectElement(null)"
+          >
+            <EditorCanvasContent />
+          </div>
+        </PreviewDeviceFrame>
+      </IonApp>
     </div>
     <div
       v-else
