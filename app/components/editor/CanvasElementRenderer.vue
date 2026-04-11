@@ -43,7 +43,7 @@
           'cursor-pointer': !props.isRunMode,
         }"
         :style="childStyle(childId)"
-        @click.stop="handleElementClick"
+        @click.stop="onChildWrapperClick(childId)"
         @dragstart="onChildDragStart($event, childId)"
         @dragover.prevent="onChildDragOver($event, childId)"
         @drop.prevent="onChildDrop($event, childId)"
@@ -141,9 +141,9 @@
        Android: flat tab underline indicator -->
   <IonSegment
     v-else-if="element.type === 'Segment'"
-    class="w-full h-full select-none"
     :mode="ionicMode"
     :value="String((element.props.selected as number) ?? 0)"
+    :class="['w-full h-full select-none', designInteractiveClass]"
     :style="segmentWrapStyle"
     @click.stop="handleElementClick"
     @ionChange="handleSegmentChange"
@@ -163,13 +163,16 @@
        Android: rounded-md, contained Material button -->
   <IonButton
     v-else-if="element.type === 'Button'"
-    class="canvas-button w-full h-full select-none"
     :mode="ionicMode"
     expand="block"
     :fill="buttonFill"
     :disabled="Boolean(element.props.disabled)"
     :style="buttonStyle"
-    :class="buttonRuntimeClass"
+    :class="[
+      'canvas-button w-full h-full select-none',
+      buttonRuntimeClass,
+      designInteractiveClass,
+    ]"
     @click.stop="handleButtonClick"
   >
     {{ (element.props.label as string) || "Button" }}
@@ -180,8 +183,8 @@
        Android: circle, primary color, Material elevation -->
   <IonFabButton
     v-else-if="element.type === 'FloatingActionButton'"
-    class="w-full h-full select-none"
     :mode="ionicMode"
+    :class="['w-full h-full select-none canvas-fab', designInteractiveClass]"
     :style="fabStyle"
     @click.stop="handleElementClick"
   >
@@ -196,11 +199,11 @@
        Android: rounded-sm, subtle bg, magnifier + mic icon -->
   <IonSearchbar
     v-else-if="element.type === 'Searchbar'"
-    class="w-full h-full"
     :mode="ionicMode"
     :animated="props.isRunMode"
     :value="(element.props.value as string) || ''"
     :placeholder="(element.props.placeholder as string) || 'Search'"
+    :class="['w-full h-full', designInteractiveClass]"
     :style="searchbarStyle"
     @click.stop="handleElementClick"
     @ionInput="handleSearchbarInput"
@@ -211,13 +214,13 @@
        Android: underline + floating label (Material) -->
   <IonInput
     v-else-if="element.type === 'LabelledInput'"
-    class="w-full h-full"
     :mode="ionicMode"
     label-placement="stacked"
     fill="outline"
     :label="(element.props.label as string) || 'Label'"
     :value="(element.props.value as string) || ''"
     :placeholder="(element.props.placeholder as string) || 'Enter value'"
+    :class="['canvas-input w-full h-full', designInteractiveClass]"
     :style="labelledInputWrapStyle"
     @click.stop="handleElementClick"
     @ionInput="handleIonInput"
@@ -228,10 +231,11 @@
        Android: bottom-border only (Material underline) -->
   <IonInput
     v-else-if="element.type === 'Input'"
-    class="w-full h-full"
     :mode="ionicMode"
+    fill="outline"
     :value="(element.props.value as string) || ''"
     :placeholder="(element.props.placeholder as string) || 'Enter text...'"
+    :class="['canvas-input w-full h-full', designInteractiveClass]"
     :style="inputStyle"
     @click.stop="handleElementClick"
     @ionInput="handleIonInput"
@@ -242,11 +246,11 @@
        Android: rectangular track ends, Material thumb -->
   <IonRange
     v-else-if="element.type === 'RangeInput'"
-    class="w-full h-full"
     :mode="ionicMode"
     :min="Number(element.props.min ?? 0)"
     :max="Number(element.props.max ?? 100)"
     :value="Number(element.props.value ?? 50)"
+    :class="['w-full h-full', designInteractiveClass]"
     :style="rangeStyle"
     @click.stop="handleElementClick"
     @ionInput="handleIonRangeInput"
@@ -293,6 +297,7 @@
     <IonCheckbox
       :mode="ionicMode"
       :checked="Boolean(element.props.checked)"
+      :class="designInteractiveClass"
       :style="checkboxStyle"
       @ionChange="handleCheckboxChange"
     />
@@ -312,6 +317,7 @@
     <IonRadioGroup
       :mode="ionicMode"
       :value="Boolean(element.props.selected)"
+      :class="designInteractiveClass"
       @ionChange="handleRadioChange"
     >
       <div class="flex items-center gap-2">
@@ -344,6 +350,7 @@
     <IonToggle
       :mode="ionicMode"
       :checked="Boolean(element.props.on)"
+      :class="designInteractiveClass"
       :style="toggleStyle"
       @ionChange="handleToggleChange"
     />
@@ -354,11 +361,12 @@
        Android: underline field + dropdown arrow -->
   <IonSelect
     v-else-if="element.type === 'Select'"
-    class="w-full h-full"
     :mode="ionicMode"
+    fill="outline"
     :value="(element.props.value as string) || ''"
     :placeholder="(element.props.placeholder as string) || 'Select...'"
     :interface="(element.props.interface as string) || 'popover'"
+    :class="['canvas-select w-full h-full', designInteractiveClass]"
     :style="selectStyle"
     @click.stop="handleElementClick"
     @ionChange="handleSelectChange"
@@ -448,8 +456,12 @@
   <!-- ─── TextBox (ion-textarea) ─────────────────────── -->
   <IonTextarea
     v-else-if="element.type === 'TextBox'"
-    class="w-full h-full overflow-hidden select-none"
+    :class="[
+      'canvas-textarea w-full h-full overflow-hidden select-none',
+      designInteractiveClass,
+    ]"
     :mode="ionicMode"
+    fill="outline"
     :auto-grow="false"
     :value="(element.props.content as string) || ''"
     :placeholder="
@@ -716,6 +728,24 @@ function handleButtonClick() {
   if (props.isRunMode && props.element.props.disabled) return;
   handleElementClick();
 }
+
+// Clicks that reach the container's child wrapper in design mode — fired
+// because the inner interactive element has `pointer-events: none` and lets
+// the click fall through. Use it to select the child instead of the parent.
+function onChildWrapperClick(childId: string) {
+  if (props.isRunMode) {
+    emit("run-click", childId);
+  } else {
+    store.selectElement(childId);
+  }
+}
+
+// Applied to every interactive Ionic element so that, in design mode, the
+// element cannot receive clicks, focus, typing, or ripple effects. The click
+// falls through to the surrounding wrapper which handles selection.
+const designInteractiveClass = computed(() =>
+  props.isRunMode ? "" : "pointer-events-none",
+);
 
 // ── Camera lifecycle ─────────────────────────────────────────────────────
 async function startCameraPreview() {
@@ -1040,9 +1070,20 @@ const searchbarStyle = computed(() => {
 });
 
 // ── Input / LabelledInput ─────────────────────────────────────────────────
+// Text/placeholder defaults to dark so that inputs remain legible on the
+// white canvas surface (otherwise they inherit the dark-theme body color).
+const INPUT_TEXT = "#0f172a"; // slate-900
+const INPUT_PLACEHOLDER = "#94a3b8"; // slate-400
+
 const inputStyle = computed(() => {
+  const shared = {
+    "--color": INPUT_TEXT,
+    "--placeholder-color": INPUT_PLACEHOLDER,
+    "--placeholder-opacity": "1",
+  };
   if (platform.value === "ios") {
     return {
+      ...shared,
       "--background": "#ffffff",
       "--border-color": "#d1d5db",
       "--border-radius": "10px",
@@ -1050,15 +1091,22 @@ const inputStyle = computed(() => {
     };
   }
   return {
-    "--background": "transparent",
+    ...shared,
+    "--background": "#ffffff",
     "--highlight-color-focused": ionColor.value,
     "--border-color": "#9ca3af",
   };
 });
 
 const labelledInputWrapStyle = computed(() => {
+  const shared = {
+    "--color": INPUT_TEXT,
+    "--placeholder-color": INPUT_PLACEHOLDER,
+    "--placeholder-opacity": "1",
+  };
   if (platform.value === "ios") {
     return {
+      ...shared,
       "--background": "#ffffff",
       "--border-color": "#d1d5db",
       "--border-radius": "10px",
@@ -1066,7 +1114,8 @@ const labelledInputWrapStyle = computed(() => {
     };
   }
   return {
-    "--background": "transparent",
+    ...shared,
+    "--background": "#ffffff",
     "--highlight-color-focused": ionColor.value,
     "--border-color": ionColor.value,
   };
@@ -1110,10 +1159,21 @@ const toggleStyle = computed(() => {
 });
 
 // ── Select ────────────────────────────────────────────────────────────────
+// IonSelect's host defaults to `display: block` when used without a label,
+// which causes the placeholder text and chevron icon to clump at the left.
+// Forcing flex makes the native-wrapper grow and keeps the chevron pinned to
+// the right edge, matching the full-width layout we use on canvas.
 const selectStyle = computed(() => ({
   ...inputStyle.value,
-  "--placeholder-color": "#9ca3af",
+  "--color": INPUT_TEXT,
+  "--placeholder-color": INPUT_PLACEHOLDER,
+  "--placeholder-opacity": "1",
   "--highlight-color-focused": ionColor.value,
+  "--padding-start": "12px",
+  "--padding-end": "12px",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
 }));
 
 // ── Badge ─────────────────────────────────────────────────────────────────
@@ -1309,10 +1369,19 @@ function onChildDragEnd() {
 </script>
 
 <style scoped>
+/* Force Ionic controls to respect their wrapper's pixel dimensions.
+ * Ionic's defaults (min-height: 2.8em on buttons, large paddings on inputs)
+ * otherwise overflow the canvas wrapper and the selection ring no longer
+ * matches the visual element. `--min-height: 0` + part overrides clamp the
+ * native shadow-DOM box to the host's size. */
 .canvas-button {
   width: 100%;
   height: 100%;
+  min-height: 0 !important;
   margin: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --min-height: 0;
 }
 
 .canvas-button::part(native) {
@@ -1321,5 +1390,50 @@ function onChildDragEnd() {
   min-height: 100%;
   margin: 0;
   overflow: hidden;
+}
+
+.canvas-fab {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-fab::part(native) {
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+.canvas-input {
+  --min-height: 0;
+  --padding-top: 6px;
+  --padding-bottom: 6px;
+}
+
+.canvas-select {
+  min-height: 0 !important;
+  color: #0f172a;
+  --min-height: 0;
+  --padding-top: 0;
+  --padding-bottom: 0;
+}
+
+/* Pin the select chevron to the right edge regardless of content width.
+ * IonSelect's shadow structure is label.select-wrapper → div.select-wrapper-inner → (native-wrapper, icon).
+ * The inner wrapper is the flex parent of the placeholder and icon, but it only sizes to content.
+ * We stretch it to fill the wrapper and push the icon to the far right via auto margin. */
+.canvas-select::part(inner) {
+  flex: 1 1 auto;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+}
+.canvas-select::part(icon) {
+  margin-inline-start: auto;
+}
+
+
+.canvas-textarea {
+  --min-height: 0;
 }
 </style>
