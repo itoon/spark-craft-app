@@ -1278,9 +1278,10 @@ function childStyle(childId: string): Record<string, string> {
   }
   const type = props.element.type;
   const isCol = type === "Container" || type === "ColContainer";
+  const childHeight = child.type === "Input" ? 45 : child.height;
   return {
     ...(isCol ? { width: "100%" } : { flex: "1", minWidth: "0" }),
-    height: `${child.height}px`,
+    height: `${childHeight}px`,
   };
 }
 
