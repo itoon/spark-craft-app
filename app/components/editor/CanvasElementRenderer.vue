@@ -92,18 +92,30 @@
       @click.stop="handleElementClick"
     >
       <div class="flex h-full items-center px-3 gap-1.5">
-        <UIcon
+        <button
           v-if="element.props.showBack && platform === 'ios'"
-          name="i-lucide-chevron-left"
-          class="size-5 shrink-0"
-          :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
-        />
-        <UIcon
+          type="button"
+          class="inline-flex shrink-0 items-center justify-center relative z-10"
+          @click="handleToolbarBackClick"
+        >
+          <UIcon
+            name="i-lucide-chevron-left"
+            class="size-5 shrink-0"
+            :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
+          />
+        </button>
+        <button
           v-if="element.props.showBack && platform === 'android'"
-          name="i-lucide-arrow-left"
-          class="size-5 shrink-0"
-          :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
-        />
+          type="button"
+          class="inline-flex shrink-0 items-center justify-center relative z-10"
+          @click="handleToolbarBackClick"
+        >
+          <UIcon
+            name="i-lucide-arrow-left"
+            class="size-5 shrink-0"
+            :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
+          />
+        </button>
         <IonTitle class="truncate" :style="toolbarTitleStyle">
           {{ (element.props.title as string) || "My App" }}
         </IonTitle>
@@ -204,6 +216,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
+import { buildToolbarBackButtonClickId } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { getListItemLabel, resolveListContent } from "~/utils/listContent";
@@ -260,6 +273,15 @@ function handleElementClick() {
 function handleButtonClick() {
   if (props.isRunMode && props.element.props.disabled) return;
   handleElementClick();
+}
+
+function handleToolbarBackClick() {
+  console.log("TESTR");
+  if (props.isRunMode) {
+    emit("run-click", buildToolbarBackButtonClickId(props.element.id));
+  } else {
+    store.selectElement(props.element.id);
+  }
 }
 
 // Clicks that reach the container's child wrapper in design mode — fired

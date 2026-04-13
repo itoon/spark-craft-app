@@ -206,6 +206,10 @@ function buildRuntimeFile(): string {
 export interface RuntimeInstance {
   __el: CodeCraftElement;
   __onClick: (() => void) | null;
+  __onBackClick?: (() => void) | null;
+  backButton?: {
+    onClick(cb: () => unknown): unknown;
+  };
   onClick(cb: () => void): RuntimeInstance;
 }
 
@@ -249,6 +253,7 @@ export function executeCode(
   class BaseElement implements RuntimeInstance {
     __el: CodeCraftElement;
     __onClick: (() => void) | null = null;
+    __onBackClick: (() => void) | null = null;
 
     constructor(id: string, className: string) {
       this.__el = getElement(id, className);
@@ -262,6 +267,20 @@ export function executeCode(
             this.__el.props[propName] = nextValue;
             onUpdate(this.__el.id, { [propName]: nextValue });
           },
+          configurable: true,
+          enumerable: true,
+        });
+      }
+
+      if (className === 'Toolbar') {
+        const backButton = {
+          onClick: (cb: () => void) => {
+            this.__onBackClick = cb;
+            return backButton;
+          },
+        };
+        Object.defineProperty(this, 'backButton', {
+          value: backButton,
           configurable: true,
           enumerable: true,
         });
@@ -739,7 +758,7 @@ function buildPageViewFile(): string {
     <ion-header v-if="toolbarElement">
       <ion-toolbar :style="toolbarStyle">
         <ion-buttons slot="start" v-if="toolbarElement.props.showBack">
-          <ion-back-button default-href="/" />
+          <ion-back-button default-href="/" @click.prevent="handleToolbarBackClick(toolbarElement.id)" />
         </ion-buttons>
         <ion-title>{{ toolbarElement.props.title || currentPage?.name || 'CodeCraft App' }}</ion-title>
       </ion-toolbar>
@@ -815,6 +834,7 @@ const router = useRouter();
 const runtimeElements = ref<CodeCraftElement[]>([]);
 const clickHandlers = ref<Record<string, () => void>>({});
 const runtimeError = ref('');
+const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton';
 
 const currentPage = computed(() => pages.find((page) => page.id === props.pageId));
 const pageElements = computed(() => elements.filter((element) => element.pageId === props.pageId));
@@ -823,6 +843,10 @@ const elementsMap = computed(() => new Map(runtimeElements.value.map((element) =
 const toolbarElement = computed(
   () => runtimeElements.value.find((element) => element.type === 'Toolbar' && element.parentId === null) || null,
 );
+
+function buildToolbarBackButtonClickId(id: string) {
+  return \`\${id}\${TOOLBAR_BACK_BUTTON_CLICK_SUFFIX}\`;
+}
 
 const fabElements = computed(() =>
   runtimeElements.value.filter(
@@ -913,9 +937,19 @@ function runPage() {
 
     runtimeElements.value = result.pageElements;
     clickHandlers.value = Object.fromEntries(
-      result.instances
-        .filter((instance) => Boolean(instance.__onClick))
-        .map((instance) => [instance.__el.id, instance.__onClick as () => void]),
+      result.instances.flatMap((instance) => {
+        const handlers: [string, () => void][] = [];
+        if (instance.__onClick) {
+          handlers.push([instance.__el.id, instance.__onClick as () => void]);
+        }
+        if (instance.__onBackClick) {
+          handlers.push([
+            buildToolbarBackButtonClickId(instance.__el.id),
+            instance.__onBackClick as () => void,
+          ]);
+        }
+        return handlers;
+      }),
     );
   } catch (error) {
     runtimeElements.value = baseElements;
@@ -926,6 +960,15 @@ function runPage() {
 
 function handleClick(id: string) {
   clickHandlers.value[id]?.();
+}
+
+function handleToolbarBackClick(id: string) {
+  const handler = clickHandlers.value[buildToolbarBackButtonClickId(id)];
+  if (handler) {
+    handler();
+    return;
+  }
+  router.back();
 }
 
 function handleInput(id: string, patch: Record<string, unknown>) {

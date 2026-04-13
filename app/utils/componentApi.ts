@@ -50,6 +50,7 @@ const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
 
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
 const TOGGLE_OPEN_METHODS = ["open()", "close()"];
+const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
 
 function unique(items: string[]) {
   return Array.from(new Set(items));
@@ -94,6 +95,7 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
     const methods = unique([
       ...COMMON_ELEMENT_METHODS,
       ...(designType === "Camera" ? TOGGLE_OPEN_METHODS : []),
+      ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
     ]);
 
     schemas.push({
@@ -105,6 +107,13 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       codeExample: [
         `var ${className.charAt(0).toLowerCase()}${className.slice(1)}1 = new ${className}('page1_${className.toLowerCase()}1');`,
         `page.add(${className.charAt(0).toLowerCase()}${className.slice(1)}1);`,
+        ...(designType === "Toolbar"
+          ? [
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.backButton.onClick(() => {`,
+              `  page.goTo('page1');`,
+              `});`,
+            ]
+          : []),
       ].join("\n"),
     });
   }

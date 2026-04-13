@@ -22,6 +22,10 @@ export interface RuntimeExecutionEvent {
 export interface ElementInstance {
   __el: AppElement
   __onClick: (() => void) | null
+  __onBackClick?: (() => void) | null
+  backButton?: {
+    onClick(cb: () => void): unknown
+  }
   onClick(cb: () => void): ElementInstance
   toString(): string
   valueOf(): unknown
@@ -38,6 +42,22 @@ export interface RuntimeResult {
 export interface RuntimeState {
   pageElements: AppElement[]
   instances: ElementInstance[]
+}
+
+export const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton'
+
+export function buildToolbarBackButtonClickId(id: string) {
+  return `${id}${TOOLBAR_BACK_BUTTON_CLICK_SUFFIX}`
+}
+
+export function isToolbarBackButtonClickId(id: string) {
+  return id.endsWith(TOOLBAR_BACK_BUTTON_CLICK_SUFFIX)
+}
+
+export function getToolbarIdFromBackButtonClickId(id: string) {
+  return isToolbarBackButtonClickId(id)
+    ? id.slice(0, -TOOLBAR_BACK_BUTTON_CLICK_SUFFIX.length)
+    : id
 }
 
 // ── Class name map ─────────────────────────────────────────────────────────
@@ -181,6 +201,7 @@ export function executeCode(
   class BaseEl implements ElementInstance {
     __el: AppElement
     __onClick: (() => void) | null = null
+    __onBackClick: (() => void) | null = null
 
     constructor(id: string, className: string) {
       this.__el = getEl(id, className)
@@ -231,6 +252,20 @@ export function executeCode(
               onUpdate(this.__el.id, { [mapped]: val })
             }
           },
+          configurable: true,
+          enumerable: true,
+        })
+      }
+
+      if (className === 'Toolbar') {
+        const backButton = {
+          onClick: (cb: () => void) => {
+            this.__onBackClick = cb
+            return backButton
+          },
+        }
+        Object.defineProperty(this, 'backButton', {
+          value: backButton,
           configurable: true,
           enumerable: true,
         })

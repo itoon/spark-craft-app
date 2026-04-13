@@ -61,7 +61,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 
-import { executeCode, syncRuntimeElementProps } from "~/composables/useRuntime";
+import {
+  executeCode,
+  getToolbarIdFromBackButtonClickId,
+  isToolbarBackButtonClickId,
+  syncRuntimeElementProps,
+} from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
 import type { ElementInstance } from "~/composables/useRuntime";
 import type { SharedExportPayload } from "~/utils/sharedExport";
@@ -146,8 +151,13 @@ function navigateToPage(pageRef: string) {
 }
 
 function handleRunClick(id: string) {
-  const instance = instances.value.find((candidate) => candidate.__el.id === id);
+  const targetId = getToolbarIdFromBackButtonClickId(id);
+  const instance = instances.value.find((candidate) => candidate.__el.id === targetId);
   try {
+    if (isToolbarBackButtonClickId(id)) {
+      instance?.__onBackClick?.();
+      return;
+    }
     instance?.__onClick?.();
   } catch (error) {
     runtimeError.value = error instanceof Error ? error.message : "Event handler error";

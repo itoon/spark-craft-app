@@ -152,7 +152,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
-import { executeCode, syncRuntimeElementProps } from '~/composables/useRuntime'
+import {
+  executeCode,
+  getToolbarIdFromBackButtonClickId,
+  isToolbarBackButtonClickId,
+  syncRuntimeElementProps,
+} from '~/composables/useRuntime'
 import type { ConsoleEntry, ElementInstance, RuntimeExecutionEvent } from '~/composables/useRuntime'
 import type { AppElement } from '~/composables/useEditorStore'
 import { PREVIEW_DEVICES } from '~/composables/usePreviewDevices'
@@ -250,19 +255,30 @@ function navigateToPage(pageRef: string) {
 }
 
 function handleRunClick(id: string) {
-  const instance = instances.value.find(inst => inst.__el.id === id)
+  const targetId = getToolbarIdFromBackButtonClickId(id)
+  const instance = instances.value.find(inst => inst.__el.id === targetId)
   if (instance) {
     executionEvents.value = [
       ...executionEvents.value,
       {
         step: executionEvents.value.length + 1,
         type: 'log',
-        message: `Click ${instance.__el.type} ${id}`,
-        elementId: id,
+        message: isToolbarBackButtonClickId(id)
+          ? `Click Toolbar back button ${targetId}`
+          : `Click ${instance.__el.type} ${targetId}`,
+        elementId: targetId,
         elementType: instance.__el.type,
       },
     ]
     scrollTraceToBottom()
+  }
+  if (instance && isToolbarBackButtonClickId(id) && instance.__onBackClick) {
+    try {
+      instance.__onBackClick()
+    } catch (err: any) {
+      logs.value.push({ type: 'error', message: `Event handler error: ${err.message}` })
+    }
+    return
   }
   if (instance && instance.__onClick) {
     try {
