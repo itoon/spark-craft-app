@@ -15,6 +15,9 @@ export default defineEventHandler(async (event) => {
     jsCodeByPage: body.jsCodeByPage ?? {},
     startPageId: body.startPageId || body.pages?.[0]?.id || "page1",
     activeDeviceId: body.activeDeviceId || "iphone15",
+    iosDeviceId: body.iosDeviceId || "iphone15",
+    androidDeviceId: body.androidDeviceId || "android",
+    fallbackDeviceId: body.activeDeviceId || body.fallbackDeviceId || "iphone15",
     shareId: body.shareId || null,
   };
 
