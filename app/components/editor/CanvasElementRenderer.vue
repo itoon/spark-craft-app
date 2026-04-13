@@ -362,29 +362,19 @@
       :mode="ionicMode"
       :value="radioGroupValue"
       @ionChange="handleRadioChange"
-      class="flex flex-col gap-2"
     >
-      <div
-        v-if="isRunMode"
-        v-for="(item, idx) in radioContent"
-        :key="idx"
-        class="flex items-center gap-2"
-      >
-        <IonRadio :value="getListItemValue(item)" />
-        <IonLabel class="text-[12px] text-gray-700 truncate">
-          {{ getListItemLabel(item) }}
-        </IonLabel>
-      </div>
-      <div
+      <IonItem v-if="isRunMode" v-for="(item, idx) in radioContent" :key="idx">
+        <IonRadio :value="getListItemValue(item)">{{
+          getListItemLabel(item)
+        }}</IonRadio>
+      </IonItem>
+      <IonItem
         v-else
         v-for="item in ['Item 1', 'Item 2', 'Item 3']"
         class="flex items-center gap-2"
       >
-        <IonRadio :value="item" />
-        <IonLabel class="text-[12px] text-gray-700 truncate">
-          {{ item }}
-        </IonLabel>
-      </div>
+        <IonRadio :value="item"> {{ item }}</IonRadio>
+      </IonItem>
     </IonRadioGroup>
   </div>
 </template>
