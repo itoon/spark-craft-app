@@ -377,6 +377,32 @@
       </IonItem>
     </IonRadioGroup>
   </div>
+
+  <!-- ─── Toggle (ion-toggle) ───────────────────────────────────────────
+           iOS  : wide pill, green when on
+           Android: narrower track, colored when on                          -->
+  <div
+    v-else-if="element.type === 'Toggle'"
+    class="w-full h-full flex items-center justify-between gap-4 border-b border-slate-200 px-3"
+    @click.stop="handleElementClick"
+  >
+    <IonLabel
+      class="text-gray-700 truncate"
+      :style="{ fontSize: `${element.props.fontSize ?? 16}px` }"
+    >
+      {{
+        (element.props.content as string) ||
+        (element.props.label as string) ||
+        "Label"
+      }}
+    </IonLabel>
+    <IonToggle
+      :mode="ionicMode"
+      :checked="Boolean(element.props.on)"
+      :style="toggleStyle"
+      @ionChange="handleToggleChange"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">

@@ -131,6 +131,7 @@
           selectedElement.type !== 'RangeInput' &&
           selectedElement.type !== 'Checkbox' &&
           selectedElement.type !== 'RadioButton' &&
+          selectedElement.type !== 'Toggle' &&
           selectedElement.type !== 'Select'
         "
         title="Style"
