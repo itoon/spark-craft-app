@@ -436,7 +436,11 @@
     }"
     @click.stop="handleElementClick"
   >
-    {{ (element.props.text as string) || "Heading" }}
+    {{
+      (element.props.content as string) ||
+      (element.props.text as string) ||
+      "Heading"
+    }}
   </IonLabel>
 
   <!-- ─── Label ────────────────────────────────────────── -->

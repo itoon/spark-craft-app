@@ -190,7 +190,7 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: "i-lucide-heading",
           defaultWidth: 220,
           defaultHeight: 48,
-          defaultProps: { text: "Heading", level: 2, color: "#0f172a" },
+          defaultProps: { content: "Heading", level: 2, color: "#0f172a" },
         },
         {
           type: "TextBox",

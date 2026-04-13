@@ -262,7 +262,11 @@
     }"
     @click.stop="handleElementClick"
   >
-    {{ (element.props.text as string) || "Heading" }}
+    {{
+      (element.props.content as string) ||
+      (element.props.text as string) ||
+      "Heading"
+    }}
   </IonLabel>
 </template>
 
@@ -895,12 +899,10 @@ function childStyle(childId: string): Record<string, string> {
   }
   const type = props.element.type;
   const isCol = type === "Container" || type === "ColContainer";
-  const usesAutoHeight = child.type === "Button";
   return {
     ...(isCol
       ? { width: `w-full` }
       : { flex: "0 0 auto", minWidth: "0", width: `${child.width}px` }),
-    ...(usesAutoHeight ? {} : { height: `${child.height}px` }),
   };
 }
 

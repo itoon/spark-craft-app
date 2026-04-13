@@ -575,16 +575,20 @@
             />
           </EditorPropField>
 
-          <!-- Heading text -->
+          <!-- Heading content -->
           <EditorPropField
             v-if="selectedElement.type === 'Heading'"
-            label="Text"
+            label="Content"
           >
             <UInput
-              :model-value="(selectedElement.props.text as string) || ''"
+              :model-value="
+                (selectedElement.props.content as string) ||
+                (selectedElement.props.text as string) ||
+                ''
+              "
               size="xs"
               class="prop-input"
-              @update:model-value="(v) => patchProps({ text: String(v) })"
+              @update:model-value="(v) => patchProps({ content: String(v) })"
             />
           </EditorPropField>
 
