@@ -18,15 +18,6 @@
         :style="screenStyle"
         @click.self="emit('screen-click')"
       >
-        <div
-          v-if="device.id === 'iphone15'"
-          class="absolute top-3 left-1/2 -translate-x-1/2 z-20 w-[120px] h-[36px] bg-black rounded-full"
-        />
-        <div
-          v-else-if="device.id === 'android'"
-          class="absolute top-3 left-1/2 -translate-x-1/2 z-20 size-3 bg-neutral-900 rounded-full"
-        />
-
         <slot />
 
         <div
@@ -43,29 +34,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
-import type { PreviewDeviceDef } from '~/composables/usePreviewDevices'
+import type { PreviewDeviceDef } from "~/composables/usePreviewDevices";
 
 const props = defineProps<{
-  device: PreviewDeviceDef
-  scale?: number
-}>()
+  device: PreviewDeviceDef;
+  scale?: number;
+}>();
 
 const emit = defineEmits<{
-  (e: 'screen-click'): void
-}>()
+  (e: "screen-click"): void;
+}>();
 
-const scale = computed(() => props.scale ?? 1)
+const scale = computed(() => props.scale ?? 1);
 
 const frameStyle = computed(() => ({
   width: `${props.device.totalW}px`,
   height: `${props.device.totalH}px`,
   borderRadius: `${props.device.cornerRadius}px`,
   borderWidth: `${props.device.borderWidth}px`,
-}))
+}));
 
 const screenStyle = computed(() => ({
   borderRadius: `${props.device.screenRadius}px`,
-}))
+}));
 </script>
