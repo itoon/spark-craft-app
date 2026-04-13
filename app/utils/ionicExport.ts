@@ -769,7 +769,7 @@ function buildPageViewFile(): string {
           :edge="Boolean(element.props.edge)"
         >
           <ion-fab-button
-            :style="{ '--background': String(element.props.backgroundColor || '#3880ff') }"
+            :style="fabButtonStyle(element)"
             @click="handleClick(element.id)"
           >
             <ion-icon :icon="add" />
@@ -829,6 +829,41 @@ const fabElements = computed(() =>
     (element) => element.type === 'FloatingActionButton' && element.parentId === null,
   ),
 );
+
+function isLightFabBackground(color: string) {
+  const normalized = color.trim().toLowerCase();
+  if (
+    normalized === '#fff' ||
+    normalized === '#ffffff' ||
+    normalized === 'white' ||
+    normalized === '#f0f0f0' ||
+    normalized === '#f1f5f9' ||
+    normalized === '#e5e7eb' ||
+    normalized === '#d1d5db' ||
+    normalized === 'gray' ||
+    normalized === 'grey'
+  ) {
+    return true;
+  }
+
+  const hex = normalized.match(/^#([0-9a-f]{6})$/i);
+  if (!hex) return false;
+
+  const value = hex[1];
+  const r = Number.parseInt(value.slice(0, 2), 16);
+  const g = Number.parseInt(value.slice(2, 4), 16);
+  const b = Number.parseInt(value.slice(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness >= 180;
+}
+
+function fabButtonStyle(element: CodeCraftElement) {
+  const bg = String(element.props.backgroundColor || '#3880ff');
+  return {
+    '--background': bg,
+    '--color': isLightFabBackground(bg) ? '#111827' : '#ffffff',
+  };
+}
 
 const bodyElements = computed(() =>
   runtimeElements.value.filter(

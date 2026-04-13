@@ -184,6 +184,22 @@
       />
     </IonItem>
   </IonList>
+  <!-- ─── FloatingActionButton (ion-fab-button) ──────────
+       iOS  : circle, primary color, soft shadow
+       Android: circle, primary color, Material elevation -->
+  <IonFabButton
+    v-else-if="element.type === 'FloatingActionButton'"
+    :mode="ionicMode"
+    :class="['w-full h-full select-none canvas-fab', designInteractiveClass]"
+    :style="fabStyle"
+    @click.stop="handleElementClick"
+  >
+    <UIcon
+      :name="(element.props.icon as string) || 'i-lucide-plus'"
+      class="size-5"
+      :style="{ color: fabIconColor }"
+    />
+  </IonFabButton>
 </template>
 
 <script setup lang="ts">
@@ -515,13 +531,45 @@ const buttonRuntimeClass = computed(() => {
 });
 
 // ── FAB ───────────────────────────────────────────────────────────────────
+function isLightFabBackground(color: string) {
+  const normalized = color.trim().toLowerCase();
+  if (
+    normalized === "#fff" ||
+    normalized === "#ffffff" ||
+    normalized === "white" ||
+    normalized === "#f0f0f0" ||
+    normalized === "#f1f5f9" ||
+    normalized === "#e5e7eb" ||
+    normalized === "#d1d5db" ||
+    normalized === "gray" ||
+    normalized === "grey"
+  ) {
+    return true;
+  }
+
+  const hex = normalized.match(/^#([0-9a-f]{6})$/i);
+  if (!hex) return false;
+
+  const value = hex[1];
+  const r = Number.parseInt(value.slice(0, 2), 16);
+  const g = Number.parseInt(value.slice(2, 4), 16);
+  const b = Number.parseInt(value.slice(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness >= 180;
+}
+
+const fabIconColor = computed(() => {
+  const bg = String(props.element.props.backgroundColor || "#3880ff");
+  return isLightFabBackground(bg) ? "#111827" : "#ffffff";
+});
+
 const fabStyle = computed(() => {
   const bg = (props.element.props.backgroundColor as string) || "#3880ff";
   return {
     "--background": bg,
     "--background-activated": bg,
     "--background-hover": bg,
-    "--color": "#ffffff",
+    "--color": fabIconColor.value,
     "--box-shadow":
       platform.value === "ios"
         ? "0 4px 14px rgba(0,0,0,0.15)"
