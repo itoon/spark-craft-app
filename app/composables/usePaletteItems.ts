@@ -22,7 +22,7 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultProps: {
             title: "My App",
             showBack: false,
-            backgroundColor: "#3880ff",
+            ionicColor: "primary",
           },
         },
         {
@@ -72,7 +72,7 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultWidth: 112,
           defaultHeight: 36,
           defaultProps: {
-            label: "Button",
+            content: "Button",
             fill: "solid",
             size: "default",
             ionicColor: "primary",

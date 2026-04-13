@@ -105,9 +105,9 @@
         icon="i-lucide-palette"
       >
         <div class="space-y-3">
-          <!-- Ionic color picker for Button -->
+          <!-- Ionic color picker for Button / Toolbar -->
           <EditorPropField
-            v-if="selectedElement.type === 'Button'"
+            v-if="selectedElement.type === 'Button' || selectedElement.type === 'Toolbar'"
             label="Color"
           >
             <div class="flex flex-wrap gap-1 mt-1">
@@ -131,7 +131,7 @@
 
           <!-- Background color swatches -->
           <EditorPropField
-            v-if="hasProp('backgroundColor') && selectedElement.type !== 'Button'"
+            v-if="hasProp('backgroundColor') && selectedElement.type !== 'Button' && selectedElement.type !== 'Toolbar'"
             label="Background"
           >
             <div class="grid grid-cols-7 gap-1 mt-1">
@@ -376,13 +376,13 @@
         icon="i-lucide-file-text"
       >
         <div class="space-y-2">
-          <!-- Button label -->
-          <EditorPropField v-if="selectedElement.type === 'Button'" label="Label">
+          <!-- Button content -->
+          <EditorPropField v-if="selectedElement.type === 'Button'" label="Content">
             <UInput
-              :model-value="(selectedElement.props.label as string) || ''"
+              :model-value="(selectedElement.props.content as string) || ''"
               size="xs"
               class="prop-input"
-              @update:model-value="(v) => patchProps({ label: String(v) })"
+              @update:model-value="(v) => patchProps({ content: String(v) })"
             />
           </EditorPropField>
 

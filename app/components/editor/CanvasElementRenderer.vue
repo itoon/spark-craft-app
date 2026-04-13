@@ -87,6 +87,7 @@
     <IonToolbar
       class="toolbar-canvas w-full h-full select-none flex"
       :mode="ionicMode"
+      :color="toolbarIonicColor"
       :style="toolbarStyle"
       @click.stop="handleElementClick"
     >
@@ -95,12 +96,13 @@
           v-if="element.props.showBack && platform === 'ios'"
           name="i-lucide-chevron-left"
           class="size-5 shrink-0"
-          :style="{ color: iosToolbarTint }"
+          :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
         />
         <UIcon
           v-if="element.props.showBack && platform === 'android'"
           name="i-lucide-arrow-left"
-          class="size-5 text-white shrink-0"
+          class="size-5 shrink-0"
+          :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
         />
         <IonTitle class="truncate" :style="toolbarTitleStyle">
           {{ (element.props.title as string) || "My App" }}
@@ -124,7 +126,7 @@
     ]"
     @click.stop="handleButtonClick"
   >
-    {{ (element.props.label as string) || "Button" }}
+    {{ (element.props.content as string) || "Button" }}
   </IonButton>
 </template>
 
@@ -341,28 +343,17 @@ const buttonIonicColor = computed(
 );
 
 // ── Toolbar ───────────────────────────────────────────────────────────────
-const iosToolbarTint = "#3880ff";
+const toolbarIonicColor = computed(
+  () => (props.element.props.ionicColor as string) || "primary",
+);
 
-const toolbarStyle = computed(() => {
-  const bg = (props.element.props.backgroundColor as string) || "#3880ff";
-  if (platform.value === "ios") {
-    return {
-      // borderBottom: "1px solid #e0e0e0",
-      // justifyContent: "center",
-    };
-  }
-  return {
-    "--background": bg,
-    // boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-  };
-});
+const toolbarStyle = computed(() => ({}));
 
 const toolbarTitleStyle = computed(() => {
   if (platform.value === "ios") {
     return {
       fontWeight: "700",
       fontSize: "17px",
-      color: "#000000",
       flex: "1",
       textAlign: "center" as const,
     };
@@ -370,7 +361,6 @@ const toolbarTitleStyle = computed(() => {
   return {
     fontWeight: "500",
     fontSize: "20px",
-    color: "#ffffff",
     flex: "1",
     textAlign: "left" as const,
   };
