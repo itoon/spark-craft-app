@@ -113,10 +113,12 @@
     :mode="ionicMode"
     expand="full"
     :fill="buttonFill"
+    :size="buttonSize"
+    :color="buttonIonicColor"
     :disabled="Boolean(element.props.disabled)"
     :style="buttonStyle"
     :class="[
-      'canvas-button  h-full select-none',
+      'canvas-button select-none',
       buttonRuntimeClass,
       designInteractiveClass,
     ]"
@@ -326,6 +328,18 @@ const buttonFill = computed(
       | "clear",
 );
 
+const buttonSize = computed(
+  () =>
+    ((props.element.props.size as string) || "default") as
+      | "small"
+      | "default"
+      | "large",
+);
+
+const buttonIonicColor = computed(
+  () => (props.element.props.ionicColor as string) || "primary",
+);
+
 // ── Toolbar ───────────────────────────────────────────────────────────────
 const iosToolbarTint = "#3880ff";
 
@@ -413,49 +427,16 @@ function segmentItemStyle(idx: number) {
 
 // ── Button ────────────────────────────────────────────────────────────────
 const buttonStyle = computed(() => {
-  const bg = (props.element.props.backgroundColor as string) || "#3880ff";
   const fill = (props.element.props.fill as string) || "solid";
   const isDisabled = Boolean(props.element.props.disabled);
-  const radius =
-    typeof props.element.props.borderRadius === "number"
-      ? `${props.element.props.borderRadius}px`
-      : platform.value === "ios"
-        ? "14px"
-        : "4px";
-
   const sharedStyle = {
     opacity: isDisabled ? "0.58" : "1",
     cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
-    fontWeight: "500",
-    fontSize: platform.value === "ios" ? "17px" : "14px",
-    lineHeight: platform.value === "ios" ? "1.2" : "1",
   };
 
-  if (fill === "clear") {
+  if (fill === "clear" || fill === "outline") {
     return {
       ...sharedStyle,
-      "--background": "transparent",
-      "--background-hover": "transparent",
-      "--background-activated": "transparent",
-      "--border-radius": radius,
-      "--color": bg,
-      textTransform:
-        platform.value === "android" ? ("uppercase" as const) : "none",
-      letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
-      boxShadow: "none",
-    };
-  }
-  if (fill === "outline") {
-    return {
-      ...sharedStyle,
-      "--background": "transparent",
-      "--background-hover": "transparent",
-      "--background-activated": "transparent",
-      "--border-color": bg,
-      "--border-style": "solid",
-      "--border-width": "1px",
-      "--border-radius": radius,
-      "--color": bg,
       textTransform:
         platform.value === "android" ? ("uppercase" as const) : "none",
       letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
@@ -463,24 +444,10 @@ const buttonStyle = computed(() => {
     };
   }
   if (platform.value === "ios") {
-    return {
-      ...sharedStyle,
-      "--background": bg,
-      "--background-hover": bg,
-      "--background-activated": bg,
-      "--border-radius": radius,
-      "--color": "#ffffff",
-      letterSpacing: "-0.01em",
-      boxShadow: "none",
-    };
+    return { ...sharedStyle };
   }
   return {
     ...sharedStyle,
-    "--background": bg,
-    "--background-hover": bg,
-    "--background-activated": bg,
-    "--border-radius": radius,
-    "--color": "#ffffff",
     textTransform: "uppercase" as const,
     letterSpacing: "0.06em",
     boxShadow: isDisabled
@@ -735,11 +702,12 @@ function childStyle(childId: string): Record<string, string> {
   }
   const type = props.element.type;
   const isCol = type === "Container" || type === "ColContainer";
+  const usesAutoHeight = child.type === "Button";
   return {
     ...(isCol
       ? { width: `w-full` }
       : { flex: "0 0 auto", minWidth: "0", width: `${child.width}px` }),
-    height: `${child.height}px`,
+    ...(usesAutoHeight ? {} : { height: `${child.height}px` }),
   };
 }
 
@@ -835,20 +803,7 @@ function onChildDragEnd() {
  * native shadow-DOM box to the host's size. */
 .canvas-button {
   width: 100%;
-  height: 100%;
-  min-height: 0 !important;
   margin: 0;
-  --padding-top: 0;
-  --padding-bottom: 0;
-  --min-height: 0;
-}
-
-.canvas-button::part(native) {
-  width: 100%;
-  height: 100%;
-  min-height: 100%;
-  margin: 0;
-  overflow: hidden;
 }
 
 .canvas-fab {

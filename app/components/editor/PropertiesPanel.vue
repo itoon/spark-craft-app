@@ -105,9 +105,33 @@
         icon="i-lucide-palette"
       >
         <div class="space-y-3">
+          <!-- Ionic color picker for Button -->
+          <EditorPropField
+            v-if="selectedElement.type === 'Button'"
+            label="Color"
+          >
+            <div class="flex flex-wrap gap-1 mt-1">
+              <button
+                v-for="c in IONIC_COLORS"
+                :key="c.name"
+                class="size-7 rounded-lg border-2 transition-all duration-100 shrink-0 relative group"
+                :class="((selectedElement.props.ionicColor as string) ?? 'primary') === c.name
+                  ? 'ring-2 ring-indigo-500 ring-offset-1 border-indigo-300'
+                  : 'border-neutral-200 hover:border-indigo-300'"
+                :style="{ backgroundColor: `var(--ion-color-${c.name})` }"
+                :title="c.label"
+                @click="patchProps({ ionicColor: c.name })"
+              >
+                <span class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 rounded text-[10px] bg-neutral-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-opacity">
+                  {{ c.label }}
+                </span>
+              </button>
+            </div>
+          </EditorPropField>
+
           <!-- Background color swatches -->
           <EditorPropField
-            v-if="hasProp('backgroundColor')"
+            v-if="hasProp('backgroundColor') && selectedElement.type !== 'Button'"
             label="Background"
           >
             <div class="grid grid-cols-7 gap-1 mt-1">
@@ -132,7 +156,7 @@
 
           <!-- Border Radius button group -->
           <EditorPropField
-            v-if="hasProp('borderRadius') && selectedElement.type !== 'FloatingActionButton'"
+            v-if="hasProp('borderRadius') && selectedElement.type !== 'FloatingActionButton' && selectedElement.type !== 'Button'"
             label="Radius"
           >
             <div class="flex gap-1 flex-wrap">
@@ -204,6 +228,25 @@
                   ? 'bg-indigo-500 text-white'
                   : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
                 @click="patchProps({ fill: option })"
+              >
+                {{ option }}
+              </button>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'Button'"
+            label="Size"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BUTTON_SIZE_OPTIONS"
+                :key="option"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.size as string) ?? 'default') === option
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="changeButtonSize(option)"
               >
                 {{ option }}
               </button>
@@ -882,6 +925,19 @@ const FAB_HORIZONTAL_OPTIONS = ['start', 'center', 'end'] as const
 const FAB_VERTICAL_OPTIONS = ['top', 'center', 'bottom'] as const
 const FAB_EDGE_OPTIONS = [true, false] as const
 const BUTTON_FILL_OPTIONS = ['solid', 'outline', 'clear'] as const
+const BUTTON_SIZE_OPTIONS = ['small', 'default', 'large'] as const
+const BUTTON_SIZE_HEIGHT: Record<string, number> = { small: 28, default: 36, large: 48 }
+const IONIC_COLORS = [
+  { name: 'primary',   label: 'Primary'   },
+  { name: 'secondary', label: 'Secondary' },
+  { name: 'tertiary',  label: 'Tertiary'  },
+  { name: 'success',   label: 'Success'   },
+  { name: 'warning',   label: 'Warning'   },
+  { name: 'danger',    label: 'Danger'    },
+  { name: 'light',     label: 'Light'     },
+  { name: 'medium',    label: 'Medium'    },
+  { name: 'dark',      label: 'Dark'      },
+]
 const BOOLEAN_OPTIONS = [true, false] as const
 
 const isContainerType = computed(() =>
@@ -906,6 +962,11 @@ function patchProps(patch: Record<string, unknown>) {
   if (selectedElement.value) {
     store.updateElementProps(selectedElement.value.id, patch)
   }
+}
+
+function changeButtonSize(size: string) {
+  patchProps({ size })
+  patchElement({ height: BUTTON_SIZE_HEIGHT[size] ?? 36 })
 }
 
 function parseOptions(value: string): string[] {

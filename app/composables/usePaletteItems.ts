@@ -70,12 +70,12 @@ export function usePaletteItems(): PaletteGroup[] {
           label: "Button",
           icon: "i-lucide-square",
           defaultWidth: 112,
-          defaultHeight: 42,
+          defaultHeight: 36,
           defaultProps: {
             label: "Button",
             fill: "solid",
-            backgroundColor: "#3880ff",
-            borderRadius: 8,
+            size: "default",
+            ionicColor: "primary",
           },
         },
         {
