@@ -41,9 +41,13 @@
       <!-- Spacer -->
       <div class="flex-1" />
 
-      <div class="hidden lg:flex items-center gap-2 text-[10px] text-neutral-500 mr-2">
+      <div
+        class="hidden lg:flex items-center gap-2 text-[10px] text-neutral-500 mr-2"
+      >
         <UIcon name="i-lucide-folder-open" class="size-3" />
-        <span class="font-mono truncate max-w-[180px]">{{ store.projectName.value }}</span>
+        <span class="font-mono truncate max-w-[180px]">{{
+          store.projectName.value
+        }}</span>
       </div>
 
       <UButton
@@ -236,7 +240,7 @@ function handleRun() {
 
 function handleNewProject() {
   const confirmed = window.confirm(
-    "Create a new project?\n\nYour current project is auto-saved, but this will clear the editor and start a fresh project."
+    "Create a new project?\n\nYour current project is auto-saved, but this will clear the editor and start a fresh project.",
   );
 
   if (!confirmed) return;

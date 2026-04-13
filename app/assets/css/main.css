@@ -8,15 +8,15 @@
   --color-brand-600: #4f46e5;
 
   /* Editor surface hierarchy */
-  --color-surface-base:   #030712;   /* neutral-950 — outermost bg */
-  --color-surface-panel:  #111827;   /* neutral-900 — panels */
-  --color-surface-raised: #1f2937;   /* neutral-800 — raised cards/items */
-  --color-surface-border: #374151;   /* neutral-700 — borders */
+  --color-surface-base: #030712; /* neutral-950 — outermost bg */
+  --color-surface-panel: #111827; /* neutral-900 — panels */
+  --color-surface-raised: #1f2937; /* neutral-800 — raised cards/items */
+  --color-surface-border: #374151; /* neutral-700 — borders */
 
   /* Semantic dataflow colours (used in Block mode) */
-  --color-flow-event:   #10b981;  /* emerald — input/event nodes */
-  --color-flow-process: #6366f1;  /* indigo  — logic/process nodes */
-  --color-flow-output:  #f59e0b;  /* amber   — output/UI nodes */
+  --color-flow-event: #10b981; /* emerald — input/event nodes */
+  --color-flow-process: #6366f1; /* indigo  — logic/process nodes */
+  --color-flow-output: #f59e0b; /* amber   — output/UI nodes */
 }
 
 /* ── Global resets for full-height editor layout ──────────────────────── */

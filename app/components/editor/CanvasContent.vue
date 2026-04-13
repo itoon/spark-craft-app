@@ -1,6 +1,6 @@
 <template>
   <!-- Renders the flat list of root-level containers onto the canvas surface.
-       Non-container elements cannot exist at root level; the store enforces this. -->
+         Non-container elements cannot exist at root level; the store enforces this. -->
   <div
     class="relative flex h-full min-h-full w-full flex-col transition-shadow duration-150"
     :class="{ 'ring-2 ring-indigo-400 ring-offset-2': isDragOver }"
@@ -61,39 +61,38 @@
       </div>
 
       <div class="flex min-h-full flex-col w-full">
-      <div
-        v-for="container in bodyElements"
-        :key="`${container.id}-${store.activePlatform.value}`"
-        class="relative cursor-pointer shrink-0"
-        :class="{
-          'ring-2 ring-indigo-500 ring-offset-0':
-            store.selectedElementId.value === container.id,
-        }"
-        :style="rootContainerStyle(container)"
-        @click.stop="store.selectElement(container.id)"
-      >
-        <!-- Selection label badge above the container -->
-        <template v-if="store.selectedElementId.value === container.id">
-          <div
-            class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none"
-          >
-            <span
-              class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none"
+        <div
+          v-for="container in bodyElements"
+          :key="`${container.id}-${store.activePlatform.value}`"
+          class="relative cursor-pointer shrink-0"
+          :class="{
+            'ring-2 ring-indigo-500 ring-offset-0':
+              store.selectedElementId.value === container.id,
+          }"
+          :style="rootContainerStyle(container)"
+          @click.stop="store.selectElement(container.id)"
+        >
+          <!-- Selection label badge above the container -->
+          <template v-if="store.selectedElementId.value === container.id">
+            <div
+              class="absolute -top-5 left-0 z-10 flex items-center gap-1 pointer-events-none"
             >
-              {{ container.type }}
-            </span>
-          </div>
-          <!-- Resize handle (visual only) -->
-          <div
-            class="absolute -bottom-1 -right-1 size-2.5 bg-indigo-500 rounded-sm border border-white cursor-se-resize z-10"
+              <span
+                class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none"
+              >
+                {{ container.type }}
+              </span>
+            </div>
+            <!-- Resize handle (visual only) -->
+            <div
+              class="absolute -bottom-1 -right-1 size-2.5 bg-indigo-500 rounded-sm border border-white cursor-se-resize z-10"
+            />
+          </template>
+          <EditorCanvasElementRenderer
+            :element="container"
+            :forced-height="bodyElementHeight(container)"
           />
-        </template>
-
-        <EditorCanvasElementRenderer
-          :element="container"
-          :forced-height="bodyElementHeight(container)"
-        />
-      </div>
+        </div>
       </div>
     </div>
   </div>
@@ -113,9 +112,7 @@ const store = useEditorStore();
 const paletteGroups = usePaletteItems();
 
 const currentPageElements = computed(() =>
-  store.elements.value.filter(
-    (el) => el.pageId === store.currentPageId.value,
-  ),
+  store.elements.value.filter((el) => el.pageId === store.currentPageId.value),
 );
 
 const { toolbarElement, bodyTopPadding, bodyElements, bodyElementHeight } =

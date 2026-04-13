@@ -117,11 +117,10 @@
       />
     </div>
 
-    <!-- ─── Device frame (using scale 0.6) -->
     <div v-if="isClientReady" class="shrink-0">
       <PreviewDeviceFrame
         :device="activeDevice"
-        :scale="0.6"
+        ceFrame
         @screen-click="store.selectElement(null)"
       >
         <div

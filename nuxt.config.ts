@@ -7,14 +7,14 @@ export default defineNuxtConfig({
   // those rules override Tailwind's resets on html/body/headings and break the
   // editor layout.  core.css is safe (only sets ion-* CSS variables).
   // Basic CSS is loaded only on the /ionic-test page via layouts/ionic.vue.
+  css: ["~/assets/css/main.css"],
   ionic: {
     css: {
       core: true,
       basic: false,
-      utilities: false,
+      utilities: true,
     },
   },
-  css: ["~/assets/css/main.css"],
   devtools: { enabled: true },
   devServer: {
     host: "0.0.0.0",

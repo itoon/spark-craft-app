@@ -1,0 +1,148 @@
+{
+  "appName": "Untitled Project",
+  "pages": [
+    {
+      "id": "page1",
+      "name": "Page 1"
+    }
+  ],
+  "elements": [
+    {
+      "id": "page1_container1",
+      "pageId": "page1",
+      "type": "Container",
+      "x": 0,
+      "y": 0,
+      "width": 393,
+      "height": 852,
+      "props": {
+        "direction": "col",
+        "gap": 16,
+        "padding": 16,
+        "backgroundColor": "transparent"
+      },
+      "parentId": null,
+      "children": [
+        "page1_button1",
+        "page1_labelledinput1",
+        "page1_input1",
+        "page1_label1",
+        "page1_floatingactionbutton1"
+      ],
+      "direction": "col"
+    },
+    {
+      "id": "page1_toolbar1",
+      "pageId": "page1",
+      "type": "Toolbar",
+      "x": 0,
+      "y": 0,
+      "width": 340,
+      "height": 56,
+      "props": {
+        "title": "My App",
+        "showBack": false,
+        "backgroundColor": "#3880ff"
+      },
+      "parentId": null,
+      "children": []
+    },
+    {
+      "id": "page1_button1",
+      "pageId": "page1",
+      "type": "Button",
+      "x": 0,
+      "y": 0,
+      "width": 112,
+      "height": 42,
+      "props": {
+        "label": "Button",
+        "fill": "solid",
+        "backgroundColor": "#a855f7",
+        "borderRadius": 6
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_labelledinput1",
+      "pageId": "page1",
+      "type": "LabelledInput",
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 56,
+      "props": {
+        "label": "Number1",
+        "placeholder": "Enter value",
+        "type": "text",
+        "value": ""
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_input1",
+      "pageId": "page1",
+      "type": "Input",
+      "x": 0,
+      "y": 0,
+      "width": 196,
+      "height": 42,
+      "props": {
+        "placeholder": "Enter text…",
+        "type": "text",
+        "borderRadius": 4,
+        "value": ""
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_label1",
+      "pageId": "page1",
+      "type": "Label",
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 28,
+      "props": {
+        "content": "Label",
+        "fontSize": 14,
+        "color": "#334155"
+      },
+      "parentId": "page1_container1",
+      "children": []
+    },
+    {
+      "id": "page1_floatingactionbutton1",
+      "pageId": "page1",
+      "type": "FloatingActionButton",
+      "x": 0,
+      "y": 0,
+      "width": 56,
+      "height": 56,
+      "props": {
+        "icon": "i-lucide-plus",
+        "backgroundColor": "#3880ff",
+        "borderRadius": 28,
+        "horizontalAlignment": "end",
+        "verticalAlignment": "bottom",
+        "edge": false
+      },
+      "parentId": "page1_container1",
+      "children": []
+    }
+  ],
+  "jsCodeByPage": {
+    "page1": "var label1 = new Label('page1_label1');\npage.add(label1);\n\nvar labelledinput1 = new LabelledInput('page1_labelledinput1');\npage.add(labelledinput1);\n\nvar input1 = new Input('page1_input1');\npage.add(input1);\n\n// --- Connect elements to the page ---\n\nvar toolbar1 = new Toolbar('page1_toolbar1');\npage.add(toolbar1);\n\nvar button1 = new Button('page1_button1');\npage.add(button1);\n\n// --- Add interactions ---\nbutton1.onClick(() => {\n    console.log(labelledinput1.value)\n    console.log(input1.value)\n    label1.content = parseInt(labelledinput1.value)+parseInt(input1.value)    \n});\n"
+  },
+  "startPageId": "page1",
+  "activeDeviceId": "android",
+  "iosDeviceId": "iphone15",
+  "androidDeviceId": "android",
+  "fallbackDeviceId": "android",
+  "shareId": "cc202604110735000on79",
+  "id": "cc202604110735000on79",
+  "createdAt": "2026-04-11T07:35:00.341Z"
+}
