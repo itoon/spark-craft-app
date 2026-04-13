@@ -268,6 +268,35 @@
       "Heading"
     }}
   </IonLabel>
+
+  <IonList v-else-if="element.type === 'Select'" :mode="ionicMode">
+    <IonItem :style="selectItemStyle">
+      <IonSelect placeholder="Select">
+        <IonSelectOption value="oranges">Oranges</IonSelectOption>
+        <IonSelectOption value="bananas">Bananas</IonSelectOption>
+      </IonSelect>
+    </IonItem>
+  </IonList>
+
+  <!-- <IonSelect
+    v-else-if="element.type === 'Select'"
+    class="w-full h-full"
+    :mode="ionicMode"
+    :value="(element.props.value as string) || ''"
+    :placeholder="(element.props.placeholder as string) || 'Select...'"
+    :interface="(element.props.interface as string) || 'popover'"
+    :style="selectStyle"
+    @click.stop="handleElementClick"
+    @ionChange="handleSelectChange"
+  >
+    <IonSelectOption
+      v-for="(opt, idx) in selectOptions"
+      :key="idx"
+      :value="opt"
+    >
+      {{ opt }}
+    </IonSelectOption>
+  </IonSelect> -->
 </template>
 
 <script setup lang="ts">
@@ -710,6 +739,13 @@ const labelledInputItemStyle = computed(() => ({
 }));
 
 const inputItemStyle = computed(() => ({
+  "--padding-start": "0",
+  "--padding-end": "0",
+  "--inner-padding-start": "0",
+  "--inner-padding-end": "0",
+}));
+
+const selectItemStyle = computed(() => ({
   "--padding-start": "0",
   "--padding-end": "0",
   "--inner-padding-start": "0",
