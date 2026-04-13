@@ -312,6 +312,23 @@
     @click.stop="handleElementClick"
     @ionInput="handleIonRangeInput"
   />
+
+  <!-- ─── DateTimePicker (ion-datetime) ────────────────────────────────
+           iOS  : wheel-style hint, rounded rect
+           Android: text field style                                         -->
+  <template
+    v-else-if="element.type === 'DateTimePicker'"
+    @click.stop="handleElementClick"
+  >
+    <ion-datetime-button
+      :mode="ionicMode"
+      datetime="datetime"
+    ></ion-datetime-button>
+
+    <ion-modal :mode="ionicMode" :keep-contents-mounted="true">
+      <ion-datetime :mode="ionicMode" id="datetime"></ion-datetime>
+    </ion-modal>
+  </template>
 </template>
 
 <script setup lang="ts">
