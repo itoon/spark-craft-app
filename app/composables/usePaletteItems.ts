@@ -159,7 +159,11 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: "i-lucide-check-square",
           defaultWidth: 154,
           defaultHeight: 28,
-          defaultProps: { label: "Checkbox", checked: false },
+          defaultProps: {
+            label: "Checkbox",
+            checked: false,
+            labelPlacement: "end",
+          },
         },
         {
           type: "RadioButton",

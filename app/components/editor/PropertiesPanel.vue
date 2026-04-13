@@ -129,6 +129,7 @@
           selectedElement.type !== 'Input' &&
           selectedElement.type !== 'LabelledInput' &&
           selectedElement.type !== 'RangeInput' &&
+          selectedElement.type !== 'Checkbox' &&
           selectedElement.type !== 'Select'
         "
         title="Style"
@@ -678,6 +679,28 @@
             />
           </EditorPropField>
 
+          <EditorPropField
+            v-if="selectedElement.type === 'Checkbox'"
+            label="Label placement"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in CHECKBOX_LABEL_PLACEMENT_OPTIONS"
+                :key="option"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100 capitalize"
+                :class="
+                  ((selectedElement.props.labelPlacement as string) ??
+                    'end') === option
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                "
+                @click="patchProps({ labelPlacement: option })"
+              >
+                {{ option }}
+              </button>
+            </div>
+          </EditorPropField>
+
           <!-- Toggle content -->
           <EditorPropField
             v-if="selectedElement.type === 'Toggle'"
@@ -1176,6 +1199,8 @@ const TEXTAREA_ALIGN_OPTIONS = [
   "wrap",
   "unwrap",
 ] as const;
+
+const CHECKBOX_LABEL_PLACEMENT_OPTIONS = ["start", "end"] as const;
 
 const FAB_HORIZONTAL_OPTIONS = ["start", "center", "end"] as const;
 const FAB_VERTICAL_OPTIONS = ["top", "center", "bottom"] as const;

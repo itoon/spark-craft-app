@@ -329,6 +329,26 @@
       <ion-datetime :mode="ionicMode" id="datetime"></ion-datetime>
     </ion-modal>
   </template>
+
+  <!-- ─── Checkbox (ion-checkbox) ───────────────────────────────────────
+           iOS  : rounded-sm with checkmark, indigo fill
+           Android: rounded-sm, Material style                               -->
+  <div
+    v-else-if="element.type === 'Checkbox'"
+    class="w-full h-full flex items-center gap-2"
+    @click.stop="handleElementClick"
+  >
+    <IonCheckbox
+      :mode="ionicMode"
+      :label-placement="
+        (element.props.labelPlacement as string) === 'start' ? 'start' : 'end'
+      "
+      :checked="Boolean(element.props.checked)"
+      @ionChange="handleCheckboxChange"
+      class="text-gray-700"
+      >{{ (element.props.label as string) || "Checkbox" }}</IonCheckbox
+    >
+  </div>
 </template>
 
 <script setup lang="ts">
