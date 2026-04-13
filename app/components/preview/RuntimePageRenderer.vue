@@ -3,7 +3,7 @@
     <div
       v-if="toolbarElement"
       class="sticky top-0 z-10 w-full shrink-0"
-      :style="{ height: `${toolbarElement.height}px` }"
+      :style="{ height: `${toolbarHeight}px` }"
     >
       <EditorCanvasElementRenderer
         :element="toolbarElement"
@@ -58,6 +58,7 @@ const emit = defineEmits<{
 }>()
 
 const pageElements = computed(() => props.pageElements)
-const { runtimeElementIds, toolbarElement, bodyTopPadding, bodyElements, bodyElementHeight } =
-  usePreviewPageLayout(pageElements)
+const platform = computed(() => props.platformOverride ?? 'ios')
+const { runtimeElementIds, toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElementHeight } =
+  usePreviewPageLayout(pageElements, platform)
 </script>

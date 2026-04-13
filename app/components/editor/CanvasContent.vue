@@ -18,7 +18,7 @@
         'ring-2 ring-inset ring-indigo-500':
           store.selectedElementId.value === toolbarElement.id,
       }"
-      :style="{ height: `${toolbarElement.height}px` }"
+      :style="{ height: `${toolbarHeight}px` }"
       @click.stop="store.selectElement(toolbarElement.id)"
     >
       <!-- Selection badge -->
@@ -37,13 +37,7 @@
 
     <!-- Empty state (only when no elements at all) -->
     <!-- Body containers stacked vertically -->
-    <div
-      class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[14px]"
-      :style="{
-        paddingTop: `${bodyTopPadding}px`,
-        paddingBottom: `${BODY_BOTTOM_PADDING}px`,
-      }"
-    >
+    <div class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
       <div
         v-if="bodyElements.length === 0"
         class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
@@ -115,8 +109,8 @@ const currentPageElements = computed(() =>
   store.elements.value.filter((el) => el.pageId === store.currentPageId.value),
 );
 
-const { toolbarElement, bodyTopPadding, bodyElements, bodyElementHeight } =
-  usePreviewPageLayout(currentPageElements);
+const { toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElementHeight } =
+  usePreviewPageLayout(currentPageElements, store.activePlatform);
 
 // Root containers get their x/y position from the store, but in this document-flow
 // layout we only apply width. Height comes from the element's height prop.
