@@ -171,7 +171,12 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: "i-lucide-circle-dot",
           defaultWidth: 154,
           defaultHeight: 28,
-          defaultProps: { label: "Option", selected: false },
+          defaultProps: {
+            label: "Option",
+            selected: false,
+            value: "",
+            content: [{ key: "Option", value: "Option" }],
+          },
         },
         {
           type: "Toggle",

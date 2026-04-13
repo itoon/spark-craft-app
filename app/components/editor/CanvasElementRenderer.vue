@@ -349,6 +349,44 @@
       >{{ (element.props.label as string) || "Checkbox" }}</IonCheckbox
     >
   </div>
+
+  <!-- ─── RadioButton (ion-radio) ───────────────────────────────────────
+           iOS  : checkmark style (filled circle with inner check)
+           Android: outer ring + filled inner circle                         -->
+  <div
+    v-else-if="element.type === 'RadioButton'"
+    class="w-full h-full"
+    @click.stop="handleElementClick"
+  >
+    <IonRadioGroup
+      :mode="ionicMode"
+      :value="radioGroupValue"
+      @ionChange="handleRadioChange"
+      class="flex flex-col gap-2"
+    >
+      <div
+        v-if="isRunMode"
+        v-for="(item, idx) in radioContent"
+        :key="idx"
+        class="flex items-center gap-2"
+      >
+        <IonRadio :value="getListItemValue(item)" />
+        <IonLabel class="text-[12px] text-gray-700 truncate">
+          {{ getListItemLabel(item) }}
+        </IonLabel>
+      </div>
+      <div
+        v-else="isRunMode"
+        v-for="item in ['Item 1', 'Item 2', 'Item 3']"
+        class="flex items-center gap-2"
+      >
+        <IonRadio :value="item" />
+        <IonLabel class="text-[12px] text-gray-700 truncate">
+          {{ item }}
+        </IonLabel>
+      </div>
+    </IonRadioGroup>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -362,6 +400,7 @@ import {
   resolveListContent,
 } from "~/utils/listContent";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
+import RunMode from "./RunMode.vue";
 
 const props = defineProps<{
   element: AppElement;
@@ -536,7 +575,12 @@ function handleToggleChange(event: CustomEvent) {
 }
 
 function handleRadioChange(event: CustomEvent) {
-  updateRunProps({ selected: Boolean(event.detail.value) });
+  const v = event.detail?.value;
+  if (typeof v === "boolean") {
+    updateRunProps({ selected: Boolean(v) });
+    return;
+  }
+  updateRunProps({ value: String(v ?? "") });
 }
 
 function handleSelectChange(event: CustomEvent) {
@@ -817,6 +861,23 @@ const selectInterface = computed(() => {
   return (
     allowed.includes(raw as (typeof allowed)[number]) ? raw : "popover"
   ) as (typeof allowed)[number];
+});
+
+const radioContent = computed(() => {
+  const resolved = resolveListContent(props.element.props);
+  if (resolved.length > 0) return resolved;
+  const label = String(props.element.props.label || "Option");
+  return [{ key: label, value: label }];
+});
+
+const radioGroupValue = computed(() => {
+  const current = props.element.props.value;
+  if (typeof current === "string") return current;
+  // Legacy boolean radio: selected=true => choose first item
+  if (props.element.props.selected && radioContent.value[0]) {
+    return getListItemValue(radioContent.value[0]);
+  }
+  return "";
 });
 
 const labelledInputWrapStyle = computed(() => {

@@ -130,6 +130,7 @@
           selectedElement.type !== 'LabelledInput' &&
           selectedElement.type !== 'RangeInput' &&
           selectedElement.type !== 'Checkbox' &&
+          selectedElement.type !== 'RadioButton' &&
           selectedElement.type !== 'Select'
         "
         title="Style"
@@ -917,6 +918,19 @@
           </EditorPropField>
           <EditorPropField
             v-if="selectedElement.type === 'Select'"
+            label="Content"
+          >
+            <p class="text-[10px] leading-relaxed text-neutral-500">
+              Please use code mode to bind list content.
+            </p>
+            <p class="mt-1 text-[10px] leading-relaxed text-neutral-500">
+              Use JSON array: <code>["Item1", "Item2"]</code> or<br />
+              <code>[{ "key": "Item 1", "value": "abc" }]</code>
+            </p>
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'RadioButton'"
             label="Content"
           >
             <p class="text-[10px] leading-relaxed text-neutral-500">
