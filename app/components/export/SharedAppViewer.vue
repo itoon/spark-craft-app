@@ -23,6 +23,7 @@
             v-else
             :page-elements="pageElements"
             :platform-override="runtimePlatform"
+            :viewport-height="activeDevice.canvasH"
             @run-click="handleRunClick"
             @run-input="handleRunInput"
           />
@@ -46,6 +47,7 @@
             <PreviewRuntimePageRenderer
               :page-elements="pageElements"
               :platform-override="runtimePlatform"
+              :viewport-height="activeDevice.canvasH"
               @run-click="handleRunClick"
               @run-input="handleRunInput"
             />

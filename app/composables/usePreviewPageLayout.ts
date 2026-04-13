@@ -9,8 +9,13 @@ export const BODY_BOTTOM_PADDING = 14;
 
 type ElementsSource = Ref<AppElement[]> | ComputedRef<AppElement[]>;
 type PlatformSource = Ref<"ios" | "android"> | ComputedRef<"ios" | "android">;
+type HeightSource = Ref<number> | ComputedRef<number>;
 
-export function usePreviewPageLayout(pageElements: ElementsSource, platform?: PlatformSource) {
+export function usePreviewPageLayout(
+  pageElements: ElementsSource,
+  platform?: PlatformSource,
+  viewportHeight?: HeightSource,
+) {
   const runtimeElementIds = computed(
     () => new Set(pageElements.value.map((element) => element.id)),
   );
@@ -43,9 +48,10 @@ export function usePreviewPageLayout(pageElements: ElementsSource, platform?: Pl
     if (element.type === "Camera" && !element.props.open) return 0;
     if (element.type !== "Container" || element.parentId !== null)
       return element.height;
-    const h = toolbarElement.value ? toolbarHeight.value : toolbarHeight.value;
+    const baseHeight = viewportHeight?.value ?? element.height;
+    const h = toolbarHeight.value;
     return Math.max(
-      element.height - h - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
+      baseHeight - h - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
       0,
     );
   }

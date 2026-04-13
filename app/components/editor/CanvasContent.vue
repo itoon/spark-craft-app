@@ -96,6 +96,7 @@
 import { ref, computed } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { usePaletteItems } from "~/composables/usePaletteItems";
+import { getPreviewDevice } from "~/composables/usePreviewDevices";
 import type { AppElement } from "~/composables/useEditorStore";
 import {
   BODY_BOTTOM_PADDING,
@@ -108,9 +109,14 @@ const paletteGroups = usePaletteItems();
 const currentPageElements = computed(() =>
   store.elements.value.filter((el) => el.pageId === store.currentPageId.value),
 );
+const activeDevice = computed(() => getPreviewDevice(store.activeDeviceId.value));
 
 const { toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElementHeight } =
-  usePreviewPageLayout(currentPageElements, store.activePlatform);
+  usePreviewPageLayout(
+    currentPageElements,
+    store.activePlatform,
+    computed(() => activeDevice.value.canvasH),
+  );
 
 // Root containers get their x/y position from the store, but in this document-flow
 // layout we only apply width. Height comes from the element's height prop.

@@ -50,6 +50,7 @@ import { BODY_BOTTOM_PADDING, usePreviewPageLayout } from '~/composables/usePrev
 const props = defineProps<{
   pageElements: AppElement[]
   platformOverride?: 'ios' | 'android'
+  viewportHeight?: number
 }>()
 
 const emit = defineEmits<{
@@ -60,5 +61,5 @@ const emit = defineEmits<{
 const pageElements = computed(() => props.pageElements)
 const platform = computed(() => props.platformOverride ?? 'ios')
 const { runtimeElementIds, toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElementHeight } =
-  usePreviewPageLayout(pageElements, platform)
+  usePreviewPageLayout(pageElements, platform, computed(() => props.viewportHeight ?? 0))
 </script>

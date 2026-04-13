@@ -134,6 +134,7 @@
             <PreviewRuntimePageRenderer
               v-else
               :page-elements="pageElements"
+              :viewport-height="activeDevice.canvasH"
               @run-click="handleRunClick"
               @run-input="handleRunInput"
             />
