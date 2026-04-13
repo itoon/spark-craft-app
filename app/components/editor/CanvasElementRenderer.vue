@@ -110,6 +110,9 @@
       </div>
     </IonToolbar>
   </IonHeader>
+  <!-- ─── Button (ion-button) ────────────────────────────
+       iOS  : rounded-full, ghost/solid, colored text or filled
+       Android: rounded-md, contained Material button -->
   <IonButton
     v-else-if="element.type === 'Button'"
     :mode="ionicMode"
@@ -128,12 +131,66 @@
   >
     {{ (element.props.content as string) || "Button" }}
   </IonButton>
+  <!-- ─── Separator ─────────────────────────────────── -->
+  <div
+    v-else-if="element.type === 'Separator'"
+    class="w-full h-full flex items-center select-none box-border"
+    :style="{
+      paddingTop: `${element.props.paddingTop ?? 8}px`,
+      paddingBottom: `${element.props.paddingBottom ?? 8}px`,
+    }"
+    @click.stop="handleElementClick"
+  >
+    <div
+      class="w-full"
+      :style="{
+        height: `${element.props.thickness ?? 1}px`,
+        backgroundColor: (element.props.color as string) || '#e2e8f0',
+      }"
+    />
+  </div>
+  <!-- ─── Spacer ────────────────────────────────────── -->
+  <div
+    v-else-if="element.type === 'Spacer'"
+    class="w-full h-full border border-dashed border-gray-300 flex items-center justify-center select-none"
+  >
+    <UIcon name="i-lucide-move-vertical" class="size-3 text-gray-300" />
+  </div>
+
+  <!-- ─── List (ion-list / ion-item) ─────────────────────
+       iOS  : inset rounded card, inner separators
+       Android: flat full-width list, dividers -->
+  <IonList
+    v-else-if="element.type === 'List'"
+    class="w-full h-full overflow-hidden select-none"
+    :mode="ionicMode"
+    :style="listWrapStyle"
+    @click.stop="handleElementClick"
+  >
+    <IonItem
+      v-for="(item, i) in listContent"
+      :key="i"
+      :mode="ionicMode"
+      lines="full"
+      :style="listItemStyle(i)"
+      @click.stop="handleElementClick"
+    >
+      <IonLabel class="text-[12px] text-gray-700">
+        {{ getListItemLabel(item) }}
+      </IonLabel>
+      <UIcon
+        name="i-lucide-chevron-right"
+        class="size-3 text-gray-400 shrink-0"
+      />
+    </IonItem>
+  </IonList>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
+import { getListItemLabel, resolveListContent } from "~/utils/listContent";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
 
 const props = defineProps<{
@@ -625,6 +682,17 @@ const cameraStatusStyle = computed(() => ({
 }));
 
 // ── List ──────────────────────────────────────────────────────────────────
+const listContent = computed(() => {
+  const resolved = resolveListContent(props.element.props);
+  return resolved.length > 0
+    ? resolved
+    : [
+        { key: "Item 1", value: "item1" },
+        { key: "Item 2", value: "item2" },
+        { key: "Item 3", value: "item3" },
+      ];
+});
+
 const listWrapStyle = computed(() => {
   if (platform.value === "ios") {
     return {
@@ -637,8 +705,7 @@ const listWrapStyle = computed(() => {
 });
 
 function listItemStyle(idx: number) {
-  const items = (props.element.props.items as string[]) || [];
-  const isLast = idx === items.length - 1;
+  const isLast = idx === listContent.value.length - 1;
   const base = {
     height: "40px",
     borderBottom: isLast ? "none" : "1px solid #f3f4f6",

@@ -443,7 +443,9 @@ function buildRendererFile(): string {
   </ion-card>
 
   <ion-list v-else-if="element.type === 'List'" inset>
-    <ion-item v-for="item in listItems" :key="item">{{ item }}</ion-item>
+    <ion-item v-for="(item, index) in listItems" :key="index">
+      {{ getListItemLabel(item) }}
+    </ion-item>
   </ion-list>
 
   <ion-segment
@@ -628,8 +630,28 @@ const childElements = computed(() =>
     .filter((value): value is CodeCraftElement => Boolean(value)),
 );
 
+function normalizeListItems(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (typeof item === 'string') return [item];
+    if (typeof item === 'number' || typeof item === 'boolean') return [String(item)];
+    if (item && typeof item === 'object' && ('key' in item || 'value' in item)) {
+      return [{
+        key: String((item as { key?: unknown }).key ?? ''),
+        value: String((item as { value?: unknown }).value ?? ''),
+      }];
+    }
+    return [];
+  });
+}
+
+function getListItemLabel(item: string | { key: string; value: string }) {
+  return typeof item === 'string' ? item : item.key || item.value || '';
+}
+
 const listItems = computed(() =>
-  Array.isArray(props.element.props.items) ? props.element.props.items as string[] : [],
+  normalizeListItems(props.element.props.content ?? props.element.props.items),
 );
 
 const segmentOptions = computed(() =>

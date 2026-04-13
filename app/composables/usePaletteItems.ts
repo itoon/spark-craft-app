@@ -32,7 +32,11 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultWidth: 300,
           defaultHeight: 168,
           defaultProps: {
-            items: ["Item 1", "Item 2", "Item 3"],
+            content: [
+              { key: "Item 1", value: "item1" },
+              { key: "Item 2", value: "item2" },
+              { key: "Item 3", value: "item3" },
+            ],
             backgroundColor: "#ffffff",
           },
         },

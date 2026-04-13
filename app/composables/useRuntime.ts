@@ -240,6 +240,10 @@ export function executeCode(
     /** Maps generic property names like 'text' to the specific prop used by the element type */
     _mapProp(prop: string): string {
       const p = this.__el.props
+      if (prop === 'content') {
+        if ('content' in p) return 'content'
+        if ('items' in p) return 'items'
+      }
       if (prop === 'text') {
         if ('text' in p) return 'text'
         if ('label' in p) return 'label'
