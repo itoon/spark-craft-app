@@ -308,6 +308,7 @@
     :min="Number(element.props.min ?? 0)"
     :max="Number(element.props.max ?? 100)"
     :value="Number(element.props.value ?? 50)"
+    :pin="true"
     @click.stop="handleElementClick"
     @ionInput="handleIonRangeInput"
   />
