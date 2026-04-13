@@ -212,6 +212,58 @@
       :style="{ color: fabIconColor }"
     />
   </IonFabButton>
+
+  <!-- ─── LabelledInput (ion-input with stacked label) ───
+       iOS  : rounded outline border, floating label
+       Android: underline + floating label (Material) -->
+  <IonList
+    v-else-if="element.type === 'LabelledInput'"
+    class="p-0! w-full min-w-0"
+  >
+    <IonItem :style="labelledInputItemStyle">
+      <IonInput
+        label-placement="floating"
+        :mode="ionicMode"
+        :placeholder="(element.props.placeholder as string) || ''"
+        :value="(element.props.value as string) || ''"
+        :label="(element.props.label as string) || 'Label'"
+        @click.stop="handleElementClick"
+        @ionInput="handleIonInput"
+      ></IonInput>
+    </IonItem>
+  </IonList>
+
+  <!-- ─── Input (ion-input) ──────────────────────────────
+       iOS  : rounded rect border
+       Android: bottom-border only (Material underline) -->
+  <IonList v-else-if="element.type === 'Input'" class="p-0! w-full">
+    <IonItem :style="inputItemStyle">
+      <IonInput
+        label-placement="stacked"
+        :mode="ionicMode"
+        :placeholder="(element.props.placeholder as string) || ''"
+        :value="(element.props.value as string) || ''"
+        :label="(element.props.label as string) || 'Label'"
+        @click.stop="handleElementClick"
+        @ionInput="handleIonInput"
+      />
+    </IonItem>
+  </IonList>
+
+  <!-- ─── Heading ──────────────────────────────────────── -->
+  <IonLabel
+    v-else-if="element.type === 'Heading'"
+    class="w-full h-full flex items-center overflow-hidden select-none"
+    :style="{
+      color: (element.props.color as string) || '#0f172a',
+      fontSize: headingFontSize,
+      fontWeight: '700',
+      lineHeight: '1.1',
+    }"
+    @click.stop="handleElementClick"
+  >
+    {{ (element.props.text as string) || "Heading" }}
+  </IonLabel>
 </template>
 
 <script setup lang="ts">
@@ -625,7 +677,6 @@ const inputStyle = computed(() => {
       ...shared,
       "--background": "#ffffff",
       "--border-color": "#d1d5db",
-      "--border-radius": "10px",
       "--highlight-color-focused": ionColor.value,
     };
   }
@@ -636,6 +687,21 @@ const inputStyle = computed(() => {
     "--border-color": "#9ca3af",
   };
 });
+
+// Strip ion-item inset so the field matches canvas width (Ionic defaults ~16px).
+const labelledInputItemStyle = computed(() => ({
+  "--padding-start": "0",
+  "--padding-end": "0",
+  "--inner-padding-start": "0",
+  "--inner-padding-end": "0",
+}));
+
+const inputItemStyle = computed(() => ({
+  "--padding-start": "0",
+  "--padding-end": "0",
+  "--inner-padding-start": "0",
+  "--inner-padding-end": "0",
+}));
 
 const labelledInputWrapStyle = computed(() => {
   const shared = {

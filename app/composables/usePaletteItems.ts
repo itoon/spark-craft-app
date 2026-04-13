@@ -117,9 +117,9 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultWidth: 196,
           defaultHeight: 42,
           defaultProps: {
+            label: "Label",
             placeholder: "Enter text…",
             type: "text",
-            borderRadius: 4,
             value: "",
           },
         },

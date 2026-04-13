@@ -123,7 +123,12 @@
 
       <!-- ── Style section (non-container elements) ── -->
       <EditorPropertiesSection
-        v-if="!isContainerType && selectedElement.type !== 'List'"
+        v-if="
+          !isContainerType &&
+          selectedElement.type !== 'List' &&
+          selectedElement.type !== 'Input' &&
+          selectedElement.type !== 'LabelledInput'
+        "
         title="Style"
         icon="i-lucide-palette"
       >
@@ -198,7 +203,9 @@
             v-if="
               hasProp('borderRadius') &&
               selectedElement.type !== 'FloatingActionButton' &&
-              selectedElement.type !== 'Button'
+              selectedElement.type !== 'Button' &&
+              selectedElement.type !== 'Input' &&
+              selectedElement.type !== 'LabelledInput'
             "
             label="Radius"
           >
@@ -525,10 +532,13 @@
             />
           </EditorPropField>
 
-          <!-- LabelledInput label text -->
+          <!-- Input / LabelledInput label -->
           <EditorPropField
-            v-if="selectedElement.type === 'LabelledInput'"
-            label="Label text"
+            v-if="
+              selectedElement.type === 'Input' ||
+              selectedElement.type === 'LabelledInput'
+            "
+            label="Label"
           >
             <UInput
               :model-value="(selectedElement.props.label as string) || ''"
