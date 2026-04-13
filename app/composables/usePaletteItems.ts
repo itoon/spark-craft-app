@@ -134,6 +134,7 @@ export function usePaletteItems(): PaletteGroup[] {
             options: ["Option 1", "Option 2"],
             value: "",
             interface: "popover",
+            multiple: false,
           },
         },
         {

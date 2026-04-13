@@ -127,7 +127,9 @@
           !isContainerType &&
           selectedElement.type !== 'List' &&
           selectedElement.type !== 'Input' &&
-          selectedElement.type !== 'LabelledInput'
+          selectedElement.type !== 'LabelledInput' &&
+          selectedElement.type !== 'RangeInput' &&
+          selectedElement.type !== 'Select'
         "
         title="Style"
         icon="i-lucide-palette"
@@ -890,6 +892,18 @@
               <code>[{ "key": "Item 1", "value": "abc" }]</code>
             </p>
           </EditorPropField>
+          <EditorPropField
+            v-if="selectedElement.type === 'Select'"
+            label="Content"
+          >
+            <p class="text-[10px] leading-relaxed text-neutral-500">
+              Please use code mode to bind list content.
+            </p>
+            <p class="mt-1 text-[10px] leading-relaxed text-neutral-500">
+              Use JSON array: <code>["Item1", "Item2"]</code> or<br />
+              <code>[{ "key": "Item 1", "value": "abc" }]</code>
+            </p>
+          </EditorPropField>
 
           <EditorPropField
             v-if="selectedElement.type === 'Segment'"
@@ -926,46 +940,6 @@
                 {{ option }}
               </button>
             </div>
-          </EditorPropField>
-
-          <EditorPropField
-            v-if="selectedElement.type === 'Select'"
-            label="Placeholder"
-          >
-            <UInput
-              :model-value="(selectedElement.props.placeholder as string) || ''"
-              size="xs"
-              class="prop-input"
-              @update:model-value="
-                (v) => patchProps({ placeholder: String(v) })
-              "
-            />
-          </EditorPropField>
-
-          <EditorPropField
-            v-if="selectedElement.type === 'Select'"
-            label="Options"
-          >
-            <UInput
-              :model-value="joinOptions(selectedElement.props.options)"
-              size="xs"
-              class="prop-input"
-              @update:model-value="
-                (v) => patchProps({ options: parseOptions(String(v)) })
-              "
-            />
-          </EditorPropField>
-
-          <EditorPropField
-            v-if="selectedElement.type === 'Select'"
-            label="Value"
-          >
-            <UInput
-              :model-value="(selectedElement.props.value as string) || ''"
-              size="xs"
-              class="prop-input"
-              @update:model-value="(v) => patchProps({ value: String(v) })"
-            />
           </EditorPropField>
 
           <EditorPropField v-if="selectedElement.type === 'Badge'" label="Text">
@@ -1032,35 +1006,33 @@
 
           <!-- Range min/max/value -->
           <template v-if="selectedElement.type === 'RangeInput'">
-            <div class="grid grid-cols-3 gap-1">
-              <EditorPropField label="Min">
-                <UInput
-                  :model-value="(selectedElement.props.min as number) ?? 0"
-                  type="number"
-                  size="xs"
-                  class="prop-input"
-                  @update:model-value="(v) => patchProps({ min: Number(v) })"
-                />
-              </EditorPropField>
-              <EditorPropField label="Value">
-                <UInput
-                  :model-value="(selectedElement.props.value as number) ?? 50"
-                  type="number"
-                  size="xs"
-                  class="prop-input"
-                  @update:model-value="(v) => patchProps({ value: Number(v) })"
-                />
-              </EditorPropField>
-              <EditorPropField label="Max">
-                <UInput
-                  :model-value="(selectedElement.props.max as number) ?? 100"
-                  type="number"
-                  size="xs"
-                  class="prop-input"
-                  @update:model-value="(v) => patchProps({ max: Number(v) })"
-                />
-              </EditorPropField>
-            </div>
+            <EditorPropField label="Min">
+              <UInput
+                :model-value="(selectedElement.props.min as number) ?? 0"
+                type="number"
+                size="xs"
+                class="prop-input"
+                @update:model-value="(v) => patchProps({ min: Number(v) })"
+              />
+            </EditorPropField>
+            <EditorPropField label="Value">
+              <UInput
+                :model-value="(selectedElement.props.value as number) ?? 50"
+                type="number"
+                size="xs"
+                class="prop-input"
+                @update:model-value="(v) => patchProps({ value: Number(v) })"
+              />
+            </EditorPropField>
+            <EditorPropField label="Max">
+              <UInput
+                :model-value="(selectedElement.props.max as number) ?? 100"
+                type="number"
+                size="xs"
+                class="prop-input"
+                @update:model-value="(v) => patchProps({ max: Number(v) })"
+              />
+            </EditorPropField>
           </template>
         </div>
       </EditorPropertiesSection>

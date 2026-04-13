@@ -269,34 +269,48 @@
     }}
   </IonLabel>
 
+  <!-- ─── Select (ion-select) ───────────────────────────────────────────
+           iOS  : right-aligned value + chevrons
+           Android: underline field + dropdown arrow                         -->
   <IonList v-else-if="element.type === 'Select'" :mode="ionicMode">
-    <IonItem :style="selectItemStyle">
-      <IonSelect placeholder="Select">
-        <IonSelectOption value="oranges">Oranges</IonSelectOption>
-        <IonSelectOption value="bananas">Bananas</IonSelectOption>
+    <IonItem>
+      <IonSelect
+        class="w-full"
+        :mode="ionicMode"
+        :value="(element.props.value as string) || ''"
+        :placeholder="(element.props.placeholder as string) || 'Select...'"
+        @click.stop="handleElementClick"
+        @ionChange="handleSelectChange"
+      >
+        <template v-if="selectContent">
+          <IonSelectOption
+            v-for="(item, idx) in selectContent"
+            :key="idx"
+            :value="getListItemValue(item)"
+          >
+            {{ getListItemLabel(item) }}
+          </IonSelectOption>
+        </template>
+        <template v-else>
+          <IonSelectOption> A </IonSelectOption>
+        </template>
       </IonSelect>
     </IonItem>
   </IonList>
 
-  <!-- <IonSelect
-    v-else-if="element.type === 'Select'"
+  <!-- ─── RangeInput (ion-range) ────────────────────────────────────────
+           iOS  : rounded track, iOS pill thumb
+           Android: rectangular track ends, Material thumb                   -->
+  <IonRange
+    v-else-if="element.type === 'RangeInput'"
     class="w-full h-full"
     :mode="ionicMode"
-    :value="(element.props.value as string) || ''"
-    :placeholder="(element.props.placeholder as string) || 'Select...'"
-    :interface="(element.props.interface as string) || 'popover'"
-    :style="selectStyle"
+    :min="Number(element.props.min ?? 0)"
+    :max="Number(element.props.max ?? 100)"
+    :value="Number(element.props.value ?? 50)"
     @click.stop="handleElementClick"
-    @ionChange="handleSelectChange"
-  >
-    <IonSelectOption
-      v-for="(opt, idx) in selectOptions"
-      :key="idx"
-      :value="opt"
-    >
-      {{ opt }}
-    </IonSelectOption>
-  </IonSelect> -->
+    @ionInput="handleIonRangeInput"
+  />
 </template>
 
 <script setup lang="ts">
@@ -304,7 +318,11 @@ import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { buildToolbarBackButtonClickId } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
-import { getListItemLabel, resolveListContent } from "~/utils/listContent";
+import {
+  getListItemLabel,
+  getListItemValue,
+  resolveListContent,
+} from "~/utils/listContent";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
 
 const props = defineProps<{
@@ -667,6 +685,7 @@ function isLightFabBackground(color: string) {
   if (!hex) return false;
 
   const value = hex[1];
+  if (!value) return false;
   const r = Number.parseInt(value.slice(0, 2), 16);
   const g = Number.parseInt(value.slice(2, 4), 16);
   const b = Number.parseInt(value.slice(4, 6), 16);
@@ -745,12 +764,22 @@ const inputItemStyle = computed(() => ({
   "--inner-padding-end": "0",
 }));
 
-const selectItemStyle = computed(() => ({
-  "--padding-start": "0",
-  "--padding-end": "0",
-  "--inner-padding-start": "0",
-  "--inner-padding-end": "0",
-}));
+const selectContent = computed(() => {
+  const resolved = resolveListContent(props.element.props);
+  if (resolved.length > 0) return resolved;
+  return selectOptions.value.map((opt) => ({
+    key: String(opt),
+    value: String(opt),
+  }));
+});
+
+const selectInterface = computed(() => {
+  const raw = String(props.element.props.interface || "popover");
+  const allowed = ["alert", "action-sheet", "popover", "modal"] as const;
+  return (
+    allowed.includes(raw as (typeof allowed)[number]) ? raw : "popover"
+  ) as (typeof allowed)[number];
+});
 
 const labelledInputWrapStyle = computed(() => {
   const shared = {
@@ -919,7 +948,7 @@ const headingFontSize = computed(() => {
 const containerStyle = computed(() => {
   const p = props.element.props;
   return {
-    position: "relative",
+    position: "relative" as const,
     height: `${props.forcedHeight ?? props.element.height}px`,
     padding: `${p.padding ?? 12}px`,
     backgroundColor: (p.backgroundColor as string) || "transparent",

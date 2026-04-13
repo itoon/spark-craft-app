@@ -9,7 +9,9 @@
         :style="screenStyle"
         @click.self="emit('screen-click')"
       >
-        <slot />
+        <IonApp>
+          <slot />
+        </IonApp>
         <div
           v-if="device.id === 'iphone15'"
           class="absolute bottom-2 left-1/2 -translate-x-1/2 w-[130px] h-[5px] bg-neutral-400/30 rounded-full"
