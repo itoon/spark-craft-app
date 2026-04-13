@@ -17,14 +17,17 @@
     </div>
 
     <div
-      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-[14px]"
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
       :style="{
         paddingTop: `${bodyTopPadding}px`,
         paddingBottom: `${BODY_BOTTOM_PADDING}px`,
       }"
     >
       <template v-for="element in bodyElements" :key="element.id">
-        <div class="w-full shrink-0" :style="{ height: `${bodyElementHeight(element)}px` }">
+        <div
+          class="w-full shrink-0"
+          :style="{ height: `${bodyElementHeight(element)}px` }"
+        >
           <EditorCanvasElementRenderer
             :element="element"
             is-run-mode
@@ -42,24 +45,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from "vue";
 
-import type { AppElement } from '~/composables/useEditorStore'
-import { BODY_BOTTOM_PADDING, usePreviewPageLayout } from '~/composables/usePreviewPageLayout'
+import type { AppElement } from "~/composables/useEditorStore";
+import {
+  BODY_BOTTOM_PADDING,
+  usePreviewPageLayout,
+} from "~/composables/usePreviewPageLayout";
 
 const props = defineProps<{
-  pageElements: AppElement[]
-  platformOverride?: 'ios' | 'android'
-  viewportHeight?: number
-}>()
+  pageElements: AppElement[];
+  platformOverride?: "ios" | "android";
+  viewportHeight?: number;
+}>();
 
 const emit = defineEmits<{
-  (e: 'run-click', id: string): void
-  (e: 'run-input', id: string, patch: Record<string, unknown>): void
-}>()
+  (e: "run-click", id: string): void;
+  (e: "run-input", id: string, patch: Record<string, unknown>): void;
+}>();
 
-const pageElements = computed(() => props.pageElements)
-const platform = computed(() => props.platformOverride ?? 'ios')
-const { runtimeElementIds, toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElementHeight } =
-  usePreviewPageLayout(pageElements, platform, computed(() => props.viewportHeight ?? 0))
+const pageElements = computed(() => props.pageElements);
+const platform = computed(() => props.platformOverride ?? "ios");
+const {
+  runtimeElementIds,
+  toolbarElement,
+  toolbarHeight,
+  bodyTopPadding,
+  bodyElements,
+  bodyElementHeight,
+} = usePreviewPageLayout(
+  pageElements,
+  platform,
+  computed(() => props.viewportHeight ?? 0),
+);
 </script>
