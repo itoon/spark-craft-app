@@ -489,6 +489,12 @@ const buttonSize = computed(
       | "large",
 );
 
+const BUTTON_HEIGHT_PX: Record<"small" | "default" | "large", number> = {
+  small: 30,
+  default: 36,
+  large: 42,
+};
+
 const buttonIonicColor = computed(
   () => (props.element.props.ionicColor as string) || "primary",
 );
@@ -570,7 +576,10 @@ function segmentItemStyle(idx: number) {
 const buttonStyle = computed(() => {
   const fill = (props.element.props.fill as string) || "solid";
   const isDisabled = Boolean(props.element.props.disabled);
+  const h = `${BUTTON_HEIGHT_PX[buttonSize.value]}px`;
   const sharedStyle = {
+    height: h,
+    minHeight: h,
     opacity: isDisabled ? "0.58" : "1",
     cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
   };

@@ -1,7 +1,7 @@
 <template>
   <div class="shrink-0">
     <div
-      class="relative bg-neutral-800 border-neutral-600 shadow-2xl shadow-black/50"
+      class="relative bg-neutral-800 border-neutral-600 shadow-2xl shadow-black/50 overflow-hidden"
       :style="frameStyle"
     >
       <div

@@ -1211,9 +1211,9 @@ const FAB_EDGE_OPTIONS = [true, false] as const;
 const BUTTON_FILL_OPTIONS = ["solid", "outline", "clear"] as const;
 const BUTTON_SIZE_OPTIONS = ["small", "default", "large"] as const;
 const BUTTON_SIZE_HEIGHT: Record<string, number> = {
-  small: 28,
+  small: 30,
   default: 36,
-  large: 48,
+  large: 42,
 };
 const IONIC_COLORS = [
   { name: "primary", label: "Primary" },
