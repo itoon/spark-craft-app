@@ -376,7 +376,7 @@
         </IonLabel>
       </div>
       <div
-        v-else="isRunMode"
+        v-else
         v-for="item in ['Item 1', 'Item 2', 'Item 3']"
         class="flex items-center gap-2"
       >
