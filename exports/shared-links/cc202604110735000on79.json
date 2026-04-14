@@ -274,7 +274,7 @@
       "props": {
         "open": true,
         "title": "Camera",
-        "filter": "none"
+        "filter": "grayscale"
       },
       "parentId": "page1_container6",
       "children": []

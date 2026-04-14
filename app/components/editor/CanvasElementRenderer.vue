@@ -135,6 +135,7 @@
       buttonRuntimeClass,
       designInteractiveClass,
     ]"
+    :style="buttonStyle"
     @click.stop="handleButtonClick"
   >
     {{ (element.props.content as string) || "Button" }}
@@ -950,22 +951,25 @@ const buttonStyle = computed(() => {
     (props.element.props.ionicColorContrast as string) ||
     resolveIonicColor(buttonIonicColor.value).contrast;
 
+  const isMd = platform.value === "android";
+
   const sharedStyle = {
     height: h,
     minHeight: h,
     opacity: isDisabled ? "0.58" : "1",
     cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
     "--background": fill === "solid" ? ionicHex : "transparent",
-    // Use a dark overlay so iOS tap press is clearly visible
-    "--background-activated": "rgba(0,0,0,1)",
-    "--background-activated-opacity": "0.15",
+    // iOS: dark overlay gives visible tap feedback (no ripple in ios mode)
+    // MD : zero out the activated overlay so Ionic's ripple is unobstructed
+    "--background-activated": isMd ? ionicHex : "rgba(0,0,0,1)",
+    "--background-activated-opacity": isMd ? "0" : "0.15",
     "--background-hover": fill === "solid" ? ionicHex : "transparent",
     "--color": fill === "solid" ? ionicContrast : ionicHex,
     "--color-activated": fill === "solid" ? ionicContrast : ionicHex,
     "--border-color": ionicHex,
     "--border-width": fill === "outline" ? "1px" : "0px",
-    // MD ripple colour — contrasts well on any button colour
-    "--ripple-color": "rgba(0,0,0,0.18)",
+    // MD ripple wave — light semi-transparent so it shows on any button colour
+    "--ripple-color": isMd ? "rgba(255,255,255,0.25)" : "transparent",
   };
 
   if (fill === "clear" || fill === "outline") {

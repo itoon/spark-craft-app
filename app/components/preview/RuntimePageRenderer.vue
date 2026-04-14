@@ -1,5 +1,5 @@
 <template>
-  <div class="absolute inset-0 flex flex-col overflow-hidden">
+  <ClientOnly class="absolute inset-0 flex flex-col overflow-hidden">
     <div
       v-if="toolbarElement"
       class="sticky top-0 z-10 w-full shrink-0"
@@ -41,7 +41,7 @@
         </div>
       </template>
     </div>
-  </div>
+  </ClientOnly>
 </template>
 
 <script setup lang="ts">
