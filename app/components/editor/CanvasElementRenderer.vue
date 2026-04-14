@@ -87,7 +87,6 @@
     <IonToolbar
       class="toolbar-canvas w-full h-full select-none flex"
       :mode="ionicMode"
-      :color="toolbarIonicColor"
       :style="toolbarStyle"
       @click.stop="handleElementClick"
     >
@@ -101,7 +100,7 @@
           <UIcon
             name="i-lucide-chevron-left"
             class="size-5 shrink-0"
-            :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
+            :style="{ color: (element.props.ionicColorContrast as string) || resolveIonicColor(toolbarIonicColor).contrast }"
           />
         </button>
         <button
@@ -113,7 +112,7 @@
           <UIcon
             name="i-lucide-arrow-left"
             class="size-5 shrink-0"
-            :style="{ color: `var(--ion-color-${toolbarIonicColor}-contrast)` }"
+            :style="{ color: (element.props.ionicColorContrast as string) || resolveIonicColor(toolbarIonicColor).contrast }"
           />
         </button>
         <IonTitle class="truncate" :style="toolbarTitleStyle">
@@ -131,7 +130,6 @@
     expand="full"
     :fill="buttonFill"
     :size="buttonSize"
-    :color="buttonIonicColor"
     :disabled="Boolean(element.props.disabled)"
     :style="buttonStyle"
     :class="[
@@ -793,6 +791,23 @@ function handleDatetimeChange(event: CustomEvent) {
   updateRunProps({ value: String(event.detail.value ?? "") });
 }
 
+// ── Ionic color map — explicit hex values for reliable canvas rendering ───
+const IONIC_COLOR_MAP: Record<string, { bg: string; contrast: string }> = {
+  primary:   { bg: "#3880ff", contrast: "#ffffff" },
+  secondary: { bg: "#3dc2ff", contrast: "#000000" },
+  tertiary:  { bg: "#b180f0", contrast: "#ffffff" },
+  success:   { bg: "#2dd36f", contrast: "#ffffff" },
+  warning:   { bg: "#ffd534", contrast: "#000000" },
+  danger:    { bg: "#ff4961", contrast: "#ffffff" },
+  light:     { bg: "#f4f5f8", contrast: "#000000" },
+  medium:    { bg: "#92949c", contrast: "#ffffff" },
+  dark:      { bg: "#222428", contrast: "#ffffff" },
+}
+
+function resolveIonicColor(name: string): { bg: string; contrast: string } {
+  return IONIC_COLOR_MAP[name] ?? IONIC_COLOR_MAP.primary
+}
+
 // ── Styling helpers ──────────────────────────────────────────────────────
 const ionColor = computed(
   () => (props.element.props.color as string) || "#3880ff",
@@ -831,15 +846,29 @@ const toolbarIonicColor = computed(
   () => (props.element.props.ionicColor as string) || "primary",
 );
 
-const toolbarStyle = computed(() => ({}));
+const toolbarStyle = computed(() => {
+  const ionicHex = (props.element.props.ionicColorHex as string)
+    || resolveIonicColor(toolbarIonicColor.value).bg
+  const ionicContrast = (props.element.props.ionicColorContrast as string)
+    || resolveIonicColor(toolbarIonicColor.value).contrast
+  return {
+    "--background": ionicHex,
+    "--color": ionicContrast,
+    "--ion-toolbar-color": ionicContrast,
+    "--ion-toolbar-background": ionicHex,
+  }
+});
 
 const toolbarTitleStyle = computed(() => {
+  const contrast = (props.element.props.ionicColorContrast as string)
+    || resolveIonicColor(toolbarIonicColor.value).contrast
   if (platform.value === "ios") {
     return {
       fontWeight: "700",
       fontSize: "17px",
       flex: "1",
       textAlign: "center" as const,
+      color: contrast,
     };
   }
   return {
@@ -847,6 +876,7 @@ const toolbarTitleStyle = computed(() => {
     fontSize: "20px",
     flex: "1",
     textAlign: "left" as const,
+    color: contrast,
   };
 });
 
@@ -904,11 +934,23 @@ const buttonStyle = computed(() => {
   const fill = (props.element.props.fill as string) || "solid";
   const isDisabled = Boolean(props.element.props.disabled);
   const h = `${BUTTON_HEIGHT_PX[buttonSize.value]}px`;
+  const ionicHex = (props.element.props.ionicColorHex as string)
+    || resolveIonicColor(buttonIonicColor.value).bg
+  const ionicContrast = (props.element.props.ionicColorContrast as string)
+    || resolveIonicColor(buttonIonicColor.value).contrast
+
   const sharedStyle = {
     height: h,
     minHeight: h,
     opacity: isDisabled ? "0.58" : "1",
     cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
+    "--background": fill === "solid" ? ionicHex : "transparent",
+    "--background-activated": fill === "solid" ? ionicHex : "transparent",
+    "--background-hover": fill === "solid" ? ionicHex : "transparent",
+    "--color": fill === "solid" ? ionicContrast : ionicHex,
+    "--color-activated": fill === "solid" ? ionicContrast : ionicHex,
+    "--border-color": ionicHex,
+    "--border-width": fill === "outline" ? "1px" : "0px",
   };
 
   if (fill === "clear" || fill === "outline") {

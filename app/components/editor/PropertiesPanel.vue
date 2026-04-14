@@ -151,17 +151,16 @@
             <div class="flex flex-wrap gap-1 mt-1">
               <button
                 v-for="c in IONIC_COLORS"
-                :key="c.name"
+                :key="c.hex"
                 class="size-7 rounded-lg border-2 transition-all duration-100 shrink-0 relative group"
                 :class="
-                  ((selectedElement.props.ionicColor as string) ??
-                    'primary') === c.name
+                  ((selectedElement.props.ionicColorHex as string) ?? '#3880ff') === c.hex
                     ? 'ring-2 ring-indigo-500 ring-offset-1 border-indigo-300'
                     : 'border-neutral-200 hover:border-indigo-300'
                 "
-                :style="{ backgroundColor: `var(--ion-color-${c.name})` }"
+                :style="{ backgroundColor: c.hex }"
                 :title="c.label"
-                @click="patchProps({ ionicColor: c.name })"
+                @click="patchProps({ ionicColor: c.name, ionicColorHex: c.hex, ionicColorContrast: c.contrast })"
               >
                 <span
                   class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 rounded text-[10px] bg-neutral-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-opacity"
@@ -1270,20 +1269,20 @@ const CONTENT_TYPES = new Set([
   "Camera",
 ]);
 
-// Kid-friendly preset color palette for swatches
+// Ionic-themed color palette — matches Ionic's named color tokens
 const PRESET_COLORS = [
-  { label: "White", value: "#ffffff" },
-  { label: "Light Gray", value: "#f1f5f9" },
-  { label: "Sky Blue", value: "#38bdf8" },
-  { label: "Indigo", value: "#6366f1" },
-  { label: "Purple", value: "#a855f7" },
-  { label: "Pink", value: "#ec4899" },
-  { label: "Red", value: "#ef4444" },
-  { label: "Orange", value: "#f97316" },
-  { label: "Yellow", value: "#eab308" },
-  { label: "Green", value: "#22c55e" },
-  { label: "Teal", value: "#14b8a6" },
-  { label: "Dark", value: "#1e293b" },
+  { label: "White",     value: "#ffffff"   },
+  { label: "Light",     value: "#f4f5f8"   },  // ion-color-light
+  { label: "Secondary", value: "#3dc2ff"   },  // ion-color-secondary
+  { label: "Primary",   value: "#3880ff"   },  // ion-color-primary
+  { label: "Tertiary",  value: "#b180f0"   },  // ion-color-tertiary
+  { label: "Pink",      value: "#f0748e"   },  // ion-color-danger tint
+  { label: "Danger",    value: "#ff4961"   },  // ion-color-danger
+  { label: "Orange",    value: "#ff6d00"   },  // ion-color-warning shade
+  { label: "Warning",   value: "#ffd534"   },  // ion-color-warning
+  { label: "Success",   value: "#2dd36f"   },  // ion-color-success
+  { label: "Teal",      value: "#0cd1e8"   },  // ion-color-secondary shade
+  { label: "Dark",      value: "#222428"   },  // ion-color-dark
   { label: "Transparent", value: "transparent" },
 ];
 
@@ -1336,16 +1335,17 @@ const BUTTON_SIZE_HEIGHT: Record<string, number> = {
   default: 36,
   large: 42,
 };
+// Ionic named colors with explicit hex so swatches render reliably in the editor
 const IONIC_COLORS = [
-  { name: "primary", label: "Primary" },
-  { name: "secondary", label: "Secondary" },
-  { name: "tertiary", label: "Tertiary" },
-  { name: "success", label: "Success" },
-  { name: "warning", label: "Warning" },
-  { name: "danger", label: "Danger" },
-  { name: "light", label: "Light" },
-  { name: "medium", label: "Medium" },
-  { name: "dark", label: "Dark" },
+  { name: "primary",   hex: "#3880ff", contrast: "#ffffff", label: "Primary"   },
+  { name: "secondary", hex: "#3dc2ff", contrast: "#000000", label: "Secondary" },
+  { name: "tertiary",  hex: "#b180f0", contrast: "#ffffff", label: "Tertiary"  },
+  { name: "success",   hex: "#2dd36f", contrast: "#ffffff", label: "Success"   },
+  { name: "warning",   hex: "#ffd534", contrast: "#000000", label: "Warning"   },
+  { name: "danger",    hex: "#ff4961", contrast: "#ffffff", label: "Danger"    },
+  { name: "light",     hex: "#f4f5f8", contrast: "#000000", label: "Light"     },
+  { name: "medium",    hex: "#92949c", contrast: "#ffffff", label: "Medium"    },
+  { name: "dark",      hex: "#222428", contrast: "#ffffff", label: "Dark"      },
 ];
 const BOOLEAN_OPTIONS = [true, false] as const;
 
