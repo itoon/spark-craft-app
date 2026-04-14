@@ -254,7 +254,7 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: "i-lucide-link",
           defaultWidth: 160,
           defaultHeight: 24,
-          defaultProps: { content: "Click here", href: "#" },
+          defaultProps: { content: "Click here", href: "#", target: "_self" },
         },
       ],
     },

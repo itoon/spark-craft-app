@@ -935,6 +935,28 @@
             />
           </EditorPropField>
 
+          <!-- Link target -->
+          <EditorPropField
+            v-if="selectedElement.type === 'Link'"
+            label="Target"
+          >
+            <div class="flex gap-1">
+              <button
+                v-for="t in ['_self', '_blank']"
+                :key="t"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="
+                  ((selectedElement.props.target as string) || '_blank') === t
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                "
+                @click="patchProps({ target: t })"
+              >
+                {{ t }}
+              </button>
+            </div>
+          </EditorPropField>
+
           <!-- Toolbar title -->
           <EditorPropField
             v-if="selectedElement.type === 'Toolbar'"

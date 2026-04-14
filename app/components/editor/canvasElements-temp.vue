@@ -580,7 +580,22 @@
         class="w-full h-full flex items-center overflow-hidden select-none"
         @click.stop="handleElementClick"
       >
+        <a
+          v-if="isRunMode"
+          :href="(element.props.href as string) || '#'"
+          :target="(element.props.target as string) || '_blank'"
+          class="text-[12px] underline truncate"
+          :style="{ color: (element.props.color as string) || ionColor }"
+          @click.stop
+        >
+          {{
+            (element.props.content as string) ||
+            (element.props.text as string) ||
+            "Click here"
+          }}
+        </a>
         <span
+          v-else
           class="text-[12px] underline truncate"
           :style="{ color: (element.props.color as string) || ionColor }"
         >
