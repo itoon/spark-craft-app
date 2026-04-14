@@ -131,6 +131,7 @@
           selectedElement.type !== 'RangeInput' &&
           selectedElement.type !== 'Checkbox' &&
           selectedElement.type !== 'RadioButton' &&
+          selectedElement.type !== 'Camera' &&
           selectedElement.type !== 'Image' &&
           selectedElement.type !== 'Toggle' &&
           selectedElement.type !== 'Select'
@@ -811,6 +812,39 @@
               class="prop-input"
               @update:model-value="(v) => patchElement({ height: Number(v) })"
             />
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'Camera'"
+            label="Filter"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="f in [
+                  'none',
+                  'grayscale',
+                  'sepia',
+                  'vintage',
+                  'warm',
+                  'cool',
+                  'invert',
+                  'blur',
+                  'brightness',
+                  'contrast',
+                  'saturate',
+                ]"
+                :key="f"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="
+                  ((selectedElement.props.filter as string) || 'none') === f
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                "
+                @click="patchProps({ filter: f })"
+              >
+                {{ f }}
+              </button>
+            </div>
           </EditorPropField>
 
           <EditorPropField

@@ -248,6 +248,25 @@ function getCameraVideoElement(id: string): HTMLVideoElement | null {
   return document.querySelector(\`[data-codecraft-camera-video-id="\${id}"]\`) as HTMLVideoElement | null;
 }
 
+const CAMERA_FILTER_PRESETS: Record<string, string> = {
+  none:       'none',
+  grayscale:  'grayscale(100%)',
+  sepia:      'sepia(100%)',
+  invert:     'invert(100%)',
+  blur:       'blur(4px)',
+  brightness: 'brightness(160%)',
+  contrast:   'contrast(160%)',
+  saturate:   'saturate(200%)',
+  vintage:    'sepia(50%) contrast(120%) brightness(90%)',
+  warm:       'sepia(30%) saturate(140%) brightness(110%)',
+  cool:       'hue-rotate(180deg) saturate(150%)',
+};
+
+function resolveCameraFilter(filter: string | undefined | null): string {
+  if (!filter || filter === 'none') return 'none';
+  return CAMERA_FILTER_PRESETS[filter] ?? filter;
+}
+
 function waitForVideoReady(video: HTMLVideoElement) {
   if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
     return Promise.resolve();
@@ -393,9 +412,17 @@ export function executeCode(
         throw new Error('Unable to create a canvas for camera capture.');
       }
 
+      const cssFilter = resolveCameraFilter(this.__el.props.filter as string | undefined);
+      if (cssFilter && cssFilter !== 'none') {
+        (context as CanvasRenderingContext2D & { filter: string }).filter = cssFilter;
+      }
       context.drawImage(video, 0, 0, width, height);
       const dataUrl = canvas.toDataURL('image/png');
       const elementId = this.__el.id;
+
+      // Freeze the camera display with the captured frame
+      this.__el.props.frozenFrame = dataUrl;
+      onUpdate(this.__el.id, { frozenFrame: dataUrl });
 
       return {
         dataUrl,
@@ -412,6 +439,24 @@ export function executeCode(
           return dataUrl;
         },
       };
+    }
+
+    reset() {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support reset()\`);
+      }
+      this.__el.props.frozenFrame = null;
+      onUpdate(this.__el.id, { frozenFrame: null });
+      return this;
+    }
+
+    setFilter(filter: string) {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support setFilter()\`);
+      }
+      this.__el.props.filter = filter;
+      onUpdate(this.__el.id, { filter });
+      return this;
     }
   }
 
@@ -734,7 +779,7 @@ function buildRendererFile(): string {
         <span>{{ element.props.title || 'Camera' }}</span>
       </div>
       <span class="camera-badge" :style="cameraStatusStyle">
-        {{ element.props.open ? 'Open' : 'Closed' }}
+        {{ element.props.frozenFrame ? 'Frozen' : element.props.open ? 'Open' : 'Closed' }}
       </span>
     </div>
 
@@ -744,12 +789,26 @@ function buildRendererFile(): string {
         ref="cameraVideoRef"
         :data-codecraft-camera-video-id="element.id"
         class="camera-video"
+        :style="{ filter: cameraFilterCss }"
         autoplay
         muted
         playsinline
       />
 
-      <div v-else class="camera-fallback">
+      <!-- Frozen frame overlay shown after capture() until reset() is called -->
+      <img
+        v-if="element.props.frozenFrame"
+        :src="element.props.frozenFrame"
+        class="camera-frozen-frame"
+      />
+
+      <!-- Active filter badge -->
+      <span
+        v-if="element.props.filter && element.props.filter !== 'none'"
+        class="camera-filter-badge"
+      >{{ element.props.filter }}</span>
+
+      <div v-else-if="!shouldUseLiveCamera || cameraError" class="camera-fallback">
         <div>{{ cameraError || (element.props.open ? 'Camera preview active' : 'Camera is closed') }}</div>
       </div>
     </div>
@@ -810,6 +869,20 @@ const childElements = computed(() =>
     .map((childId) => props.elementsMap.get(childId))
     .filter((value): value is CodeCraftElement => Boolean(value)),
 );
+
+const CAMERA_FILTER_PRESETS: Record<string, string> = {
+  none:       'none',
+  grayscale:  'grayscale(100%)',
+  sepia:      'sepia(100%)',
+  invert:     'invert(100%)',
+  blur:       'blur(4px)',
+  brightness: 'brightness(160%)',
+  contrast:   'contrast(160%)',
+  saturate:   'saturate(200%)',
+  vintage:    'sepia(50%) contrast(120%) brightness(90%)',
+  warm:       'sepia(30%) saturate(140%) brightness(110%)',
+  cool:       'hue-rotate(180deg) saturate(150%)',
+};
 
 function normalizeListItems(value: unknown) {
   if (!Array.isArray(value)) return [];
@@ -875,9 +948,16 @@ const cameraWrapStyle = computed(() => ({
   height: \`${Math.max(Number(props.element.height || 0), 120)}px\`,
 }));
 const cameraStatusStyle = computed(() => ({
-  backgroundColor: Boolean(props.element.props.open) ? '#22c55e' : '#475569',
+  backgroundColor: props.element.props.frozenFrame
+    ? '#f59e0b'
+    : Boolean(props.element.props.open) ? '#22c55e' : '#475569',
   color: '#ffffff',
 }));
+const cameraFilterCss = computed(() => {
+  const f = props.element.props.filter as string | undefined;
+  if (!f || f === 'none') return 'none';
+  return CAMERA_FILTER_PRESETS[f] ?? f;
+});
 const shouldUseLiveCamera = computed(() => props.element.type === 'Camera' && Boolean(props.element.props.open));
 const cameraVideoRef = ref<HTMLVideoElement | null>(null);
 const cameraError = ref('');
@@ -1032,6 +1112,29 @@ onBeforeUnmount(() => {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+.camera-frozen-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.camera-filter-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
 }
 
 .camera-fallback {

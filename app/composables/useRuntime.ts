@@ -36,6 +36,8 @@ export interface ElementInstance {
   hide?(): ElementInstance
   getVideoElement?(): HTMLVideoElement | null
   capture?(): Promise<CameraCaptureResult>
+  reset?(): ElementInstance
+  setFilter?(filter: string): ElementInstance
   onClick(cb: () => void): ElementInstance
   toString(): string
   valueOf(): unknown
@@ -205,6 +207,26 @@ export function executeCode(
     }
 
     return ancestors
+  }
+
+  // ── Camera filter presets ─────────────────────────────────────────────
+  const CAMERA_FILTER_PRESETS: Record<string, string> = {
+    none:       'none',
+    grayscale:  'grayscale(100%)',
+    sepia:      'sepia(100%)',
+    invert:     'invert(100%)',
+    blur:       'blur(4px)',
+    brightness: 'brightness(160%)',
+    contrast:   'contrast(160%)',
+    saturate:   'saturate(200%)',
+    vintage:    'sepia(50%) contrast(120%) brightness(90%)',
+    warm:       'sepia(30%) saturate(140%) brightness(110%)',
+    cool:       'hue-rotate(180deg) saturate(150%)',
+  }
+
+  function resolveCameraFilter(filter: string | undefined | null): string {
+    if (!filter || filter === 'none') return 'none'
+    return CAMERA_FILTER_PRESETS[filter] ?? filter
   }
 
   function getCameraVideoElement(id: string): HTMLVideoElement | null {
@@ -464,8 +486,16 @@ export function executeCode(
         throw new Error('Unable to create a canvas for camera capture.')
       }
 
+      const cssFilter = resolveCameraFilter(this.__el.props.filter as string | undefined)
+      if (cssFilter && cssFilter !== 'none') {
+        (context as CanvasRenderingContext2D & { filter: string }).filter = cssFilter
+      }
       context.drawImage(video, 0, 0, width, height)
       const dataUrl = canvas.toDataURL('image/png')
+
+      // Freeze the camera display with the captured frame
+      this.__el.props.frozenFrame = dataUrl
+      onUpdate?.(this.__el.id, { frozenFrame: dataUrl })
 
       pushEvent({
         type: 'log',
@@ -475,6 +505,41 @@ export function executeCode(
       })
 
       return buildCameraCaptureResult(this.__el, dataUrl)
+    }
+
+    reset(): this {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(`${this.__el.type} does not support reset()`)
+      }
+      this.__el.props.frozenFrame = null
+      pushEvent({
+        type: 'update',
+        message: `${this.__el.id}.reset()`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+        propName: 'frozenFrame',
+        value: null,
+      })
+      onUpdate?.(this.__el.id, { frozenFrame: null })
+      return this
+    }
+
+    setFilter(filter: string): this {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(`${this.__el.type} does not support setFilter()`)
+      }
+      const resolved = resolveCameraFilter(filter)
+      this.__el.props.filter = filter
+      pushEvent({
+        type: 'update',
+        message: `${this.__el.id}.setFilter('${filter}') → ${resolved}`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+        propName: 'filter',
+        value: filter,
+      })
+      onUpdate?.(this.__el.id, { filter })
+      return this
     }
 
     /** Returns the element's most meaningful "value" for use in expressions */

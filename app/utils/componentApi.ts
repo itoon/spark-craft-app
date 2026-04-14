@@ -54,6 +54,8 @@ const CAMERA_METHODS = [
   "close()",
   "getVideoElement()",
   "capture()",
+  "reset()",
+  "setFilter(filter)",
 ];
 const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
 const SPINNER_METHODS = ["show()", "hide()"];
@@ -131,10 +133,19 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
           ? [
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.open();`,
               ``,
-              `// inside a button click handler`,
+              `// Apply a filter: 'grayscale','sepia','vintage','warm','cool',`,
+              `//   'invert','blur','brightness','contrast','saturate'`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.setFilter('vintage');`,
+              ``,
+              `// Capture freezes the frame (filter is baked in); reset() resumes`,
               `button1.onClick(async () => {`,
               `  const photo = await ${className.charAt(0).toLowerCase()}${className.slice(1)}1.capture();`,
               `  await photo.save('my-photo.png');`,
+              `});`,
+              ``,
+              `// Resume live camera after capture`,
+              `button2.onClick(() => {`,
+              `  ${className.charAt(0).toLowerCase()}${className.slice(1)}1.reset();`,
               `});`,
             ]
           : []),

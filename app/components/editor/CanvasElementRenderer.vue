@@ -506,7 +506,7 @@
         class="rounded-full px-2 py-0.5 text-[10px] font-medium"
         :style="cameraStatusStyle"
       >
-        {{ element.props.open ? "Open" : "Closed" }}
+        {{ element.props.frozenFrame ? "Frozen" : element.props.open ? "Open" : "Closed" }}
       </span>
     </div>
     <div
@@ -517,10 +517,25 @@
         ref="cameraVideoRef"
         :data-codecraft-camera-video-id="element.id"
         class="h-full w-full object-cover"
+        :style="{ filter: cameraFilterCss }"
         autoplay
         muted
         playsinline
       />
+      <!-- Frozen frame overlay shown after capture() until reset() is called -->
+      <img
+        v-if="element.props.frozenFrame"
+        :src="(element.props.frozenFrame as string)"
+        class="absolute inset-0 h-full w-full object-cover"
+      />
+      <!-- Active filter badge -->
+      <span
+        v-if="element.props.filter && element.props.filter !== 'none'"
+        class="absolute bottom-1.5 right-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold text-white/90 backdrop-blur-sm"
+        style="background: rgba(0,0,0,0.45)"
+      >
+        {{ element.props.filter }}
+      </span>
       <div
         v-if="!shouldUseLiveCamera || cameraError"
         class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white/90"
@@ -1156,9 +1171,33 @@ const chipStyle = computed(() => {
   };
 });
 
-// ── Camera status ─────────────────────────────────────────────────────────
+// ── Camera status & filter ────────────────────────────────────────────────
+const CAMERA_FILTER_PRESETS: Record<string, string> = {
+  none:       'none',
+  grayscale:  'grayscale(100%)',
+  sepia:      'sepia(100%)',
+  invert:     'invert(100%)',
+  blur:       'blur(4px)',
+  brightness: 'brightness(160%)',
+  contrast:   'contrast(160%)',
+  saturate:   'saturate(200%)',
+  vintage:    'sepia(50%) contrast(120%) brightness(90%)',
+  warm:       'sepia(30%) saturate(140%) brightness(110%)',
+  cool:       'hue-rotate(180deg) saturate(150%)',
+}
+
+const cameraFilterCss = computed(() => {
+  const f = props.element.props.filter as string | undefined
+  if (!f || f === 'none') return 'none'
+  return CAMERA_FILTER_PRESETS[f] ?? f
+})
+
 const cameraStatusStyle = computed(() => ({
-  backgroundColor: props.element.props.open ? "#22c55e" : "#475569",
+  backgroundColor: props.element.props.frozenFrame
+    ? "#f59e0b"
+    : props.element.props.open
+      ? "#22c55e"
+      : "#475569",
   color: "#ffffff",
 }));
 

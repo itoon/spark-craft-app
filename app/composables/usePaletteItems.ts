@@ -273,6 +273,7 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultProps: {
             open: false,
             title: "Camera",
+            filter: "none",
           },
         },
       ],
