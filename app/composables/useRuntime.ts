@@ -18,6 +18,12 @@ export interface RuntimeExecutionEvent {
   logType?: ConsoleEntry['type']
 }
 
+export interface CameraCaptureResult {
+  dataUrl: string
+  save(filename?: string): Promise<void>
+  toString(): string
+}
+
 /** A live element instance returned from student code */
 export interface ElementInstance {
   __el: AppElement
@@ -28,6 +34,8 @@ export interface ElementInstance {
   }
   show?(): ElementInstance
   hide?(): ElementInstance
+  getVideoElement?(): HTMLVideoElement | null
+  capture?(): Promise<CameraCaptureResult>
   onClick(cb: () => void): ElementInstance
   toString(): string
   valueOf(): unknown
@@ -199,6 +207,73 @@ export function executeCode(
     return ancestors
   }
 
+  function getCameraVideoElement(id: string): HTMLVideoElement | null {
+    if (!import.meta.client) return null
+    return document.querySelector(
+      `[data-codecraft-camera-video-id="${id}"]`
+    ) as HTMLVideoElement | null
+  }
+
+  function waitForVideoReady(video: HTMLVideoElement) {
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+      return Promise.resolve()
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const timeoutId = window.setTimeout(() => {
+        cleanup()
+        reject(new Error('Camera preview timed out before a frame was available.'))
+      }, 4000)
+
+      const handleReady = () => {
+        cleanup()
+        resolve()
+      }
+      const handleError = () => {
+        cleanup()
+        reject(new Error('Camera preview is not ready yet.'))
+      }
+      const cleanup = () => {
+        window.clearTimeout(timeoutId)
+        video.removeEventListener('loadeddata', handleReady)
+        video.removeEventListener('canplay', handleReady)
+        video.removeEventListener('error', handleError)
+      }
+
+      video.addEventListener('loadeddata', handleReady, { once: true })
+      video.addEventListener('canplay', handleReady, { once: true })
+      video.addEventListener('error', handleError, { once: true })
+    })
+  }
+
+  function buildCameraCaptureResult(
+    element: AppElement,
+    dataUrl: string
+  ): CameraCaptureResult {
+    return {
+      dataUrl,
+      async save(filename?: string) {
+        if (!import.meta.client) return
+        const safeName = filename?.trim() || `${element.id}-${Date.now()}.png`
+        const link = document.createElement('a')
+        link.href = dataUrl
+        link.download = safeName
+        document.body.appendChild(link)
+        link.click()
+        link.remove()
+        pushEvent({
+          type: 'log',
+          message: `Save capture ${safeName}`,
+          elementId: element.id,
+          elementType: element.type,
+        })
+      },
+      toString() {
+        return dataUrl
+      },
+    }
+  }
+
   // ── Base element class ────────────────────────────────────────────────
   class BaseEl implements ElementInstance {
     __el: AppElement
@@ -355,6 +430,51 @@ export function executeCode(
       })
       onUpdate?.(this.__el.id, { show: false })
       return this
+    }
+
+    getVideoElement(): HTMLVideoElement | null {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(`${this.__el.type} does not support getVideoElement()`)
+      }
+      return getCameraVideoElement(this.__el.id)
+    }
+
+    async capture(): Promise<CameraCaptureResult> {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(`${this.__el.type} does not support capture()`)
+      }
+
+      const video = this.getVideoElement()
+      if (!video) {
+        throw new Error(
+          `Camera ${this.__el.id} is not ready. Add it to the page and call open() first.`
+        )
+      }
+
+      await waitForVideoReady(video)
+
+      const width = video.videoWidth || this.__el.width || 640
+      const height = video.videoHeight || this.__el.height || 480
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+
+      if (!context) {
+        throw new Error('Unable to create a canvas for camera capture.')
+      }
+
+      context.drawImage(video, 0, 0, width, height)
+      const dataUrl = canvas.toDataURL('image/png')
+
+      pushEvent({
+        type: 'log',
+        message: `Capture ${this.__el.type} ${this.__el.id}`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+      })
+
+      return buildCameraCaptureResult(this.__el, dataUrl)
     }
 
     /** Returns the element's most meaningful "value" for use in expressions */

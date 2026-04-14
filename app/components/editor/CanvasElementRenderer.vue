@@ -515,6 +515,7 @@
       <video
         v-if="shouldUseLiveCamera && !cameraError"
         ref="cameraVideoRef"
+        :data-codecraft-camera-video-id="element.id"
         class="h-full w-full object-cover"
         autoplay
         muted

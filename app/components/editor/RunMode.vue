@@ -254,6 +254,13 @@ function navigateToPage(pageRef: string) {
   })
 }
 
+function invokeRuntimeHandler(handler?: () => unknown) {
+  if (!handler) return
+  Promise.resolve(handler()).catch((err: any) => {
+    logs.value.push({ type: 'error', message: `Event handler error: ${err?.message || String(err)}` })
+  })
+}
+
 function handleRunClick(id: string) {
   const targetId = getToolbarIdFromBackButtonClickId(id)
   const instance = instances.value.find(inst => inst.__el.id === targetId)
@@ -273,19 +280,11 @@ function handleRunClick(id: string) {
     scrollTraceToBottom()
   }
   if (instance && isToolbarBackButtonClickId(id) && instance.__onBackClick) {
-    try {
-      instance.__onBackClick()
-    } catch (err: any) {
-      logs.value.push({ type: 'error', message: `Event handler error: ${err.message}` })
-    }
+    invokeRuntimeHandler(instance.__onBackClick)
     return
   }
   if (instance && instance.__onClick) {
-    try {
-      instance.__onClick()
-    } catch (err: any) {
-      logs.value.push({ type: 'error', message: `Event handler error: ${err.message}` })
-    }
+    invokeRuntimeHandler(instance.__onClick)
   }
 }
 

@@ -49,7 +49,12 @@ const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
 };
 
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
-const TOGGLE_OPEN_METHODS = ["open()", "close()"];
+const CAMERA_METHODS = [
+  "open()",
+  "close()",
+  "getVideoElement()",
+  "capture()",
+];
 const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
 const SPINNER_METHODS = ["show()", "hide()"];
 
@@ -95,7 +100,7 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
 
     const methods = unique([
       ...COMMON_ELEMENT_METHODS,
-      ...(designType === "Camera" ? TOGGLE_OPEN_METHODS : []),
+      ...(designType === "Camera" ? CAMERA_METHODS : []),
       ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
       ...(designType === "Spinner" ? SPINNER_METHODS : []),
     ]);
@@ -120,6 +125,17 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
           ? [
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.show();`,
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.hide();`,
+            ]
+          : []),
+        ...(designType === "Camera"
+          ? [
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.open();`,
+              ``,
+              `// inside a button click handler`,
+              `button1.onClick(async () => {`,
+              `  const photo = await ${className.charAt(0).toLowerCase()}${className.slice(1)}1.capture();`,
+              `  await photo.save('my-photo.png');`,
+              `});`,
             ]
           : []),
       ].join("\n"),

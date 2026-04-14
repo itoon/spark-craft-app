@@ -150,18 +150,21 @@ function navigateToPage(pageRef: string) {
   nextTick(runCode);
 }
 
+function invokeRuntimeHandler(handler?: () => unknown) {
+  if (!handler) return;
+  Promise.resolve(handler()).catch((error) => {
+    runtimeError.value = error instanceof Error ? error.message : "Event handler error";
+  });
+}
+
 function handleRunClick(id: string) {
   const targetId = getToolbarIdFromBackButtonClickId(id);
   const instance = instances.value.find((candidate) => candidate.__el.id === targetId);
-  try {
-    if (isToolbarBackButtonClickId(id)) {
-      instance?.__onBackClick?.();
-      return;
-    }
-    instance?.__onClick?.();
-  } catch (error) {
-    runtimeError.value = error instanceof Error ? error.message : "Event handler error";
+  if (isToolbarBackButtonClickId(id)) {
+    invokeRuntimeHandler(instance?.__onBackClick);
+    return;
   }
+  invokeRuntimeHandler(instance?.__onClick);
 }
 
 function handleRunInput(id: string, propsPatch: Record<string, unknown>) {

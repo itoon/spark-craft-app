@@ -33,6 +33,7 @@ const ELEMENT_CLASS_MAP: Record<string, string> = {
   Chip: "Chip",
   Spinner: "Spinner",
   Image: "Image",
+  Camera: "Camera",
   Icon: "Icon",
   List: "List",
   Card: "Card",
@@ -210,8 +211,16 @@ export interface RuntimeInstance {
   backButton?: {
     onClick(cb: () => unknown): unknown;
   };
+  open?(): RuntimeInstance;
+  close?(): RuntimeInstance;
   show?(): RuntimeInstance;
   hide?(): RuntimeInstance;
+  getVideoElement?(): HTMLVideoElement | null;
+  capture?(): Promise<{
+    dataUrl: string;
+    save(filename?: string): Promise<void>;
+    toString(): string;
+  }>;
   onClick(cb: () => void): RuntimeInstance;
 }
 
@@ -233,6 +242,42 @@ function updateProps(
         }
       : element,
   );
+}
+
+function getCameraVideoElement(id: string): HTMLVideoElement | null {
+  return document.querySelector(\`[data-codecraft-camera-video-id="\${id}"]\`) as HTMLVideoElement | null;
+}
+
+function waitForVideoReady(video: HTMLVideoElement) {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Camera preview timed out before a frame was available.'));
+    }, 4000);
+
+    const handleReady = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error('Camera preview is not ready yet.'));
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.removeEventListener('loadeddata', handleReady);
+      video.removeEventListener('canplay', handleReady);
+      video.removeEventListener('error', handleError);
+    };
+
+    video.addEventListener('loadeddata', handleReady, { once: true });
+    video.addEventListener('canplay', handleReady, { once: true });
+    video.addEventListener('error', handleError, { once: true });
+  });
 }
 
 export function executeCode(
@@ -294,6 +339,18 @@ export function executeCode(
       return this;
     }
 
+    open() {
+      this.__el.props.open = true;
+      onUpdate(this.__el.id, { open: true });
+      return this;
+    }
+
+    close() {
+      this.__el.props.open = false;
+      onUpdate(this.__el.id, { open: false });
+      return this;
+    }
+
     show() {
       this.__el.props.show = true;
       onUpdate(this.__el.id, { show: true });
@@ -304,6 +361,57 @@ export function executeCode(
       this.__el.props.show = false;
       onUpdate(this.__el.id, { show: false });
       return this;
+    }
+
+    getVideoElement() {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support getVideoElement()\`);
+      }
+      return getCameraVideoElement(this.__el.id);
+    }
+
+    async capture() {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support capture()\`);
+      }
+
+      const video = this.getVideoElement();
+      if (!video) {
+        throw new Error(\`Camera \${this.__el.id} is not ready. Add it to the page and call open() first.\`);
+      }
+
+      await waitForVideoReady(video);
+
+      const width = video.videoWidth || this.__el.width || 640;
+      const height = video.videoHeight || this.__el.height || 480;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('Unable to create a canvas for camera capture.');
+      }
+
+      context.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/png');
+      const elementId = this.__el.id;
+
+      return {
+        dataUrl,
+        async save(filename?: string) {
+          const safeName = filename?.trim() || \`\${elementId}-\${Date.now()}.png\`;
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = safeName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        },
+        toString() {
+          return dataUrl;
+        },
+      };
     }
   }
 
@@ -357,6 +465,7 @@ export function executeCode(
   const Chip = make('Chip');
   const Spinner = make('Spinner');
   const Image = make('Image');
+  const Camera = make('Camera');
   const Icon = make('Icon');
   const List = make('List');
   const Card = make('Card');
@@ -407,6 +516,7 @@ export function executeCode(
     'Chip',
     'Spinner',
     'Image',
+    'Camera',
     'Icon',
     'List',
     'Card',
@@ -435,6 +545,7 @@ export function executeCode(
     Chip,
     Spinner,
     Image,
+    Camera,
     Icon,
     List,
     Card,
@@ -613,6 +724,37 @@ function buildRendererFile(): string {
     :style="imageStyle"
   />
 
+  <div
+    v-else-if="element.type === 'Camera'"
+    class="camera-plugin"
+    :style="cameraWrapStyle"
+  >
+    <div class="camera-toolbar">
+      <div class="camera-title">
+        <span>{{ element.props.title || 'Camera' }}</span>
+      </div>
+      <span class="camera-badge" :style="cameraStatusStyle">
+        {{ element.props.open ? 'Open' : 'Closed' }}
+      </span>
+    </div>
+
+    <div class="camera-stage">
+      <video
+        v-if="shouldUseLiveCamera && !cameraError"
+        ref="cameraVideoRef"
+        :data-codecraft-camera-video-id="element.id"
+        class="camera-video"
+        autoplay
+        muted
+        playsinline
+      />
+
+      <div v-else class="camera-fallback">
+        <div>{{ cameraError || (element.props.open ? 'Camera preview active' : 'Camera is closed') }}</div>
+      </div>
+    </div>
+  </div>
+
   <div v-else-if="element.type === 'Icon'" class="icon-wrapper" :style="colorStyle">
     <ion-icon :icon="resolvedIcon" />
   </div>
@@ -623,7 +765,7 @@ function buildRendererFile(): string {
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import {
   IonBadge,
   IonButton,
@@ -729,6 +871,16 @@ const imageStyle = computed(() => ({
   objectFit: 'contain',
   borderRadius: \`${Number(props.element.props.borderRadius || 4)}px\`,
 }));
+const cameraWrapStyle = computed(() => ({
+  height: \`${Math.max(Number(props.element.height || 0), 120)}px\`,
+}));
+const cameraStatusStyle = computed(() => ({
+  backgroundColor: Boolean(props.element.props.open) ? '#22c55e' : '#475569',
+  color: '#ffffff',
+}));
+const shouldUseLiveCamera = computed(() => props.element.type === 'Camera' && Boolean(props.element.props.open));
+const cameraVideoRef = ref<HTMLVideoElement | null>(null);
+const cameraError = ref('');
 
 const resolvedIcon = computed(() => {
   const iconName = String(props.element.props.name || props.element.props.icon || '');
@@ -755,6 +907,68 @@ function handleSegmentChange(event: CustomEvent) {
 function emitInput(patch: Record<string, unknown>) {
   emit('run-input', props.element.id, patch);
 }
+
+async function startCameraPreview() {
+  if (props.element.type !== 'Camera' || !shouldUseLiveCamera.value) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraError.value = 'This browser does not support live camera preview.';
+    return;
+  }
+
+  stopCameraPreview();
+  cameraError.value = '';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    });
+
+    await nextTick();
+
+    if (!cameraVideoRef.value) {
+      for (const track of stream.getTracks()) track.stop();
+      return;
+    }
+
+    cameraVideoRef.value.srcObject = stream;
+    await cameraVideoRef.value.play().catch(() => undefined);
+  } catch (error) {
+    cameraError.value = error instanceof Error ? error.message : 'Unable to access the camera.';
+    stopCameraPreview();
+  }
+}
+
+function stopCameraPreview() {
+  const currentVideo = cameraVideoRef.value;
+  const stream = currentVideo?.srcObject instanceof MediaStream ? currentVideo.srcObject : null;
+
+  if (currentVideo) {
+    currentVideo.pause();
+    currentVideo.srcObject = null;
+  }
+
+  if (stream) {
+    for (const track of stream.getTracks()) track.stop();
+  }
+}
+
+watch(
+  shouldUseLiveCamera,
+  (enabled) => {
+    if (enabled) {
+      void startCameraPreview();
+      return;
+    }
+    stopCameraPreview();
+    cameraError.value = '';
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  stopCameraPreview();
+});
 </script>
 
 <style scoped>
@@ -775,6 +989,61 @@ function emitInput(patch: Record<string, unknown>) {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.camera-plugin {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.camera-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.camera-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(135deg, #0f172a 0%, #475569 100%);
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.camera-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
 }
 
 .unsupported {
