@@ -240,10 +240,10 @@ export function usePaletteItems(): PaletteGroup[] {
           type: "Image",
           label: "Image",
           icon: "i-lucide-image",
-          defaultWidth: 168,
-          defaultHeight: 112,
+          defaultWidth: 300,
+          defaultHeight: 0,
           defaultProps: {
-            src: "https://picsum.photos/160/120",
+            src: "https://picsum.photos/800/480",
             alt: "placeholder",
             borderRadius: 4,
           },

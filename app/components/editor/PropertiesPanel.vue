@@ -131,6 +131,7 @@
           selectedElement.type !== 'RangeInput' &&
           selectedElement.type !== 'Checkbox' &&
           selectedElement.type !== 'RadioButton' &&
+          selectedElement.type !== 'Image' &&
           selectedElement.type !== 'Toggle' &&
           selectedElement.type !== 'Select'
         "
@@ -209,6 +210,7 @@
               hasProp('borderRadius') &&
               selectedElement.type !== 'FloatingActionButton' &&
               selectedElement.type !== 'Button' &&
+              selectedElement.type !== 'Image' &&
               selectedElement.type !== 'Input' &&
               selectedElement.type !== 'LabelledInput'
             "
@@ -840,6 +842,35 @@
               class="prop-input font-mono"
               @update:model-value="(v) => patchProps({ src: String(v) })"
             />
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'Image'"
+            label="Width"
+          >
+            <UInput
+              :model-value="selectedElement.width"
+              type="number"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchElement({ width: Number(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField
+            v-if="selectedElement.type === 'Image'"
+            label="Height"
+          >
+            <UInput
+              :model-value="selectedElement.height"
+              type="number"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchElement({ height: Number(v) })"
+            />
+            <p class="mt-1 text-[10px] leading-relaxed text-neutral-500">
+              Use <code>0</code> for auto height.
+            </p>
           </EditorPropField>
 
           <EditorPropField

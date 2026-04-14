@@ -454,6 +454,33 @@
     @click.stop="handleElementClick"
     @ionInput="handleTextareaInput"
   />
+
+  <!-- ─── Image (ion-img) ────────────────────────────── -->
+  <IonImg
+    v-else-if="element.type === 'Image'"
+    :src="(element.props.src as string) || 'https://picsum.photos/800/480'"
+    class="w-full select-none cursor-pointer"
+    :style="imageStyle"
+    @click.stop="handleElementClick"
+  />
+
+  <!-- ─── Link ──────────────────────────────────────── -->
+  <div
+    v-else-if="element.type === 'Link'"
+    class="w-full h-full flex items-center overflow-hidden select-none"
+    @click.stop="handleElementClick"
+  >
+    <span
+      class="text-[12px] underline truncate"
+      :style="{ color: (element.props.color as string) || ionColor }"
+    >
+      {{
+        (element.props.content as string) ||
+        (element.props.text as string) ||
+        "Click here"
+      }}
+    </span>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -533,6 +560,13 @@ function handleToolbarBackClick() {
 const spinnerVisible = computed(
   () => props.element.type !== "Spinner" || props.element.props.show !== false,
 );
+
+const imageStyle = computed(() => ({
+  width: "100%",
+  height: props.element.height > 0 ? `${props.element.height}px` : "auto",
+  objectFit: "contain",
+  borderRadius: `${props.element.props.borderRadius ?? 4}px`,
+}));
 
 // Clicks that reach the container's child wrapper in design mode — fired
 // because the inner interactive element has `pointer-events: none` and lets
@@ -1142,9 +1176,15 @@ function childStyle(childId: string): Record<string, string> {
   }
   const type = props.element.type;
   const isCol = type === "Container" || type === "ColContainer";
+  const colWidth =
+    child.type === "Image"
+      ? child.width > 0
+        ? `${child.width}px`
+        : "100%"
+      : "100%";
   return {
     ...(isCol
-      ? { width: `w-full` }
+      ? { width: colWidth }
       : { flex: "0 0 auto", minWidth: "0", width: `${child.width}px` }),
   };
 }

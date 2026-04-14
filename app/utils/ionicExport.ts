@@ -610,6 +610,7 @@ function buildRendererFile(): string {
     v-else-if="element.type === 'Image'"
     :src="String(element.props.src || '')"
     :alt="String(element.props.alt || '')"
+    :style="imageStyle"
   />
 
   <div v-else-if="element.type === 'Icon'" class="icon-wrapper" :style="colorStyle">
@@ -722,6 +723,12 @@ const colorStyle = computed(() => ({
 }));
 
 const spinnerVisible = computed(() => props.element.type !== 'Spinner' || props.element.props.show !== false);
+const imageStyle = computed(() => ({
+  width: '100%',
+  height: Number(props.element.height || 0) > 0 ? \`${Number(props.element.height)}px\` : 'auto',
+  objectFit: 'contain',
+  borderRadius: \`${Number(props.element.props.borderRadius || 4)}px\`,
+}));
 
 const resolvedIcon = computed(() => {
   const iconName = String(props.element.props.name || props.element.props.icon || '');
