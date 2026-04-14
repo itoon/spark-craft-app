@@ -416,6 +416,44 @@
       :style="{ color: ionColor }"
     />
   </div>
+  <!-- ─── Label ────────────────────────────────────────── -->
+  <IonLabel
+    v-else-if="element.type === 'Label'"
+    class="w-full h-full flex items-center overflow-hidden select-none"
+    :style="{
+      color: (element.props.color as string) || '#334155',
+      fontSize: `${element.props.fontSize ?? 14}px`,
+      lineHeight: '1.3',
+    }"
+    @click.stop="handleElementClick"
+  >
+    {{ (element.props.content as string) || "Label" }}
+  </IonLabel>
+
+  <IonTextarea
+    v-else-if="element.type === 'TextBox'"
+    :class="[
+      'canvas-textarea w-full h-full overflow-hidden select-none',
+      designInteractiveClass,
+    ]"
+    :mode="ionicMode"
+    fill="outline"
+    :auto-grow="false"
+    :value="(element.props.content as string) || ''"
+    :placeholder="(element.props.placeholder as string) || 'Write something...'"
+    :style="{
+      '--color': (element.props.color as string) || '#334155',
+      fontSize: `${element.props.fontSize ?? 14}px`,
+      lineHeight: '1.4',
+      textAlign: (element.props.textAlign as string) || 'left',
+      whiteSpace:
+        (element.props.wrap as string) === 'unwrap' ? 'nowrap' : 'normal',
+      wordBreak:
+        (element.props.wrap as string) === 'unwrap' ? 'normal' : 'break-word',
+    }"
+    @click.stop="handleElementClick"
+    @ionInput="handleTextareaInput"
+  />
 </template>
 
 <script setup lang="ts">
