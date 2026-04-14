@@ -22,7 +22,7 @@
           <PreviewRuntimePageRenderer
             v-else
             :page-elements="pageElements"
-            :platform-override="runtimePlatform"
+            :platform-override="desktopPlatform"
             :viewport-height="activeDevice.canvasH"
             @run-click="handleRunClick"
             @run-input="handleRunInput"
@@ -46,7 +46,7 @@
           <template v-else>
             <PreviewRuntimePageRenderer
               :page-elements="pageElements"
-              :platform-override="runtimePlatform"
+              :platform-override="mobilePlatform"
               :viewport-height="mobileViewportHeight || activeDevice.canvasH"
               @run-click="handleRunClick"
               @run-input="handleRunInput"
@@ -87,10 +87,19 @@ const pageElements = ref<AppElement[]>([]);
 const instances = ref<ElementInstance[]>([]);
 const runtimeError = ref("");
 const mobileViewportHeight = ref(0);
+const detectedMobilePlatform = ref<"ios" | "android" | null>(null);
 const desktopPreviewRef = ref<HTMLElement | null>(null)
 const activeDevice = computed(() => getPreviewDevice(props.payload.activeDeviceId))
-const runtimePlatform = computed<"ios" | "android">(() =>
+
+// Desktop: always use creator's design intent (activeDeviceId)
+const desktopPlatform = computed<"ios" | "android">(() =>
   props.payload.activeDeviceId === "android" ? "android" : "ios"
+);
+
+// Mobile: auto-detect from device OS; fall back to creator's design intent
+const mobilePlatform = computed<"ios" | "android">(() =>
+  detectedMobilePlatform.value ??
+  (props.payload.activeDeviceId === "android" ? "android" : "ios")
 );
 const { scale: desktopScale } = usePreviewDeviceScale(desktopPreviewRef, activeDevice, {
   widthPadding: 48,
@@ -181,8 +190,10 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
 }
 
 onMounted(() => {
-  if (import.meta.client) {
-    mobileViewportHeight.value = window.innerHeight;
-  }
+  if (!import.meta.client) return;
+  mobileViewportHeight.value = window.innerHeight;
+  const ua = navigator.userAgent || "";
+  if (/Android/i.test(ua)) detectedMobilePlatform.value = "android";
+  else if (/iPhone|iPad|iPod/i.test(ua)) detectedMobilePlatform.value = "ios";
 });
 </script>

@@ -303,11 +303,11 @@
       "x": 0,
       "y": 0,
       "width": 112,
-      "height": 30,
+      "height": 36,
       "props": {
         "content": "Reset",
         "fill": "solid",
-        "size": "small",
+        "size": "default",
         "ionicColor": "warning"
       },
       "parentId": "page1_container6",

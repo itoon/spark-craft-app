@@ -2,8 +2,8 @@ import { computed, type ComputedRef, type Ref } from "vue";
 
 import type { AppElement } from "~/composables/useEditorStore";
 
-export const TOOLBAR_HEIGHT_IOS = 44;
-export const TOOLBAR_HEIGHT_MD = 56;
+export const TOOLBAR_HEIGHT_IOS = 52;
+export const TOOLBAR_HEIGHT_MD = 52;
 export const BODY_TOP_PADDING = 0;
 export const BODY_BOTTOM_PADDING = 0;
 

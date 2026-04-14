@@ -83,41 +83,40 @@
       </div>
     </div>
   </div>
-  <IonHeader :mode="ionicMode" v-else-if="element.type === 'Toolbar'">
+  <IonHeader v-else-if="element.type === 'Toolbar'" style="height: 100%">
     <IonToolbar
-      class="toolbar-canvas w-full h-full select-none flex"
-      :mode="ionicMode"
+      class="toolbar-canvas w-full select-none"
+      :mode="isRunMode ? (platform == 'ios' ? 'ios' : 'md') : ionicMode"
       :style="toolbarStyle"
       @click.stop="handleElementClick"
     >
-      <div class="flex h-full items-center px-3 gap-1.5">
+      <IonButtons v-if="element.props.showBack" slot="start">
         <button
-          v-if="element.props.showBack && platform === 'ios'"
           type="button"
-          class="inline-flex shrink-0 items-center justify-center relative z-10"
+          class="inline-flex shrink-0 items-center justify-center px-2 h-full"
           @click.stop.prevent="handleToolbarBackClick"
         >
           <UIcon
-            name="i-lucide-chevron-left"
+            :name="
+              platform === 'ios'
+                ? 'i-lucide-chevron-left'
+                : 'i-lucide-arrow-left'
+            "
             class="size-5 shrink-0"
-            :style="{ color: (element.props.ionicColorContrast as string) || resolveIonicColor(toolbarIonicColor).contrast }"
+            :style="{
+              color:
+                (element.props.ionicColorContrast as string) ||
+                resolveIonicColor(toolbarIonicColor).contrast,
+            }"
           />
         </button>
-        <button
-          v-if="element.props.showBack && platform === 'android'"
-          type="button"
-          class="inline-flex shrink-0 items-center justify-center relative z-10"
-          @click.stop.prevent="handleToolbarBackClick"
-        >
-          <UIcon
-            name="i-lucide-arrow-left"
-            class="size-5 shrink-0"
-            :style="{ color: (element.props.ionicColorContrast as string) || resolveIonicColor(toolbarIonicColor).contrast }"
-          />
-        </button>
-        <IonTitle class="truncate" :style="toolbarTitleStyle">
-          {{ (element.props.title as string) || "My App" }}
-        </IonTitle>
+      </IonButtons>
+      <div
+        class="flex items-center h-full overflow-hidden px-1"
+        :class="platform == 'ios' ? 'justify-center' : 'justify-start'"
+        :style="toolbarTitleStyle"
+      >
+        {{ (element.props.title as string) || "My App" }}
       </div>
     </IonToolbar>
   </IonHeader>
@@ -126,12 +125,11 @@
        Android: rounded-md, contained Material button -->
   <IonButton
     v-else-if="element.type === 'Button'"
-    :mode="ionicMode"
+    :mode="isRunMode ? (platform == 'ios' ? 'ios' : 'md') : ionicMode"
     expand="full"
     :fill="buttonFill"
     :size="buttonSize"
     :disabled="Boolean(element.props.disabled)"
-    :style="buttonStyle"
     :class="[
       'canvas-button select-none',
       buttonRuntimeClass,
@@ -519,7 +517,13 @@
         class="rounded-full px-2 py-0.5 text-[10px] font-medium"
         :style="cameraStatusStyle"
       >
-        {{ element.props.frozenFrame ? "Frozen" : element.props.open ? "Open" : "Closed" }}
+        {{
+          element.props.frozenFrame
+            ? "Frozen"
+            : element.props.open
+              ? "Open"
+              : "Closed"
+        }}
       </span>
     </div>
     <div
@@ -538,14 +542,14 @@
       <!-- Frozen frame overlay shown after capture() until reset() is called -->
       <img
         v-if="element.props.frozenFrame"
-        :src="(element.props.frozenFrame as string)"
+        :src="element.props.frozenFrame as string"
         class="absolute inset-0 h-full w-full object-cover"
       />
       <!-- Active filter badge -->
       <span
         v-if="element.props.filter && element.props.filter !== 'none'"
         class="absolute bottom-1.5 right-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold text-white/90 backdrop-blur-sm"
-        style="background: rgba(0,0,0,0.45)"
+        style="background: rgba(0, 0, 0, 0.45)"
       >
         {{ element.props.filter }}
       </span>
@@ -793,19 +797,19 @@ function handleDatetimeChange(event: CustomEvent) {
 
 // ── Ionic color map — explicit hex values for reliable canvas rendering ───
 const IONIC_COLOR_MAP: Record<string, { bg: string; contrast: string }> = {
-  primary:   { bg: "#3880ff", contrast: "#ffffff" },
+  primary: { bg: "#3880ff", contrast: "#ffffff" },
   secondary: { bg: "#3dc2ff", contrast: "#000000" },
-  tertiary:  { bg: "#b180f0", contrast: "#ffffff" },
-  success:   { bg: "#2dd36f", contrast: "#ffffff" },
-  warning:   { bg: "#ffd534", contrast: "#000000" },
-  danger:    { bg: "#ff4961", contrast: "#ffffff" },
-  light:     { bg: "#f4f5f8", contrast: "#000000" },
-  medium:    { bg: "#92949c", contrast: "#ffffff" },
-  dark:      { bg: "#222428", contrast: "#ffffff" },
-}
+  tertiary: { bg: "#b180f0", contrast: "#ffffff" },
+  success: { bg: "#2dd36f", contrast: "#ffffff" },
+  warning: { bg: "#ffd534", contrast: "#000000" },
+  danger: { bg: "#ff4961", contrast: "#ffffff" },
+  light: { bg: "#f4f5f8", contrast: "#000000" },
+  medium: { bg: "#92949c", contrast: "#ffffff" },
+  dark: { bg: "#222428", contrast: "#ffffff" },
+};
 
 function resolveIonicColor(name: string): { bg: string; contrast: string } {
-  return IONIC_COLOR_MAP[name] ?? { bg: "#3880ff", contrast: "#ffffff" }
+  return IONIC_COLOR_MAP[name] ?? { bg: "#3880ff", contrast: "#ffffff" };
 }
 
 // ── Styling helpers ──────────────────────────────────────────────────────
@@ -847,21 +851,26 @@ const toolbarIonicColor = computed(
 );
 
 const toolbarStyle = computed(() => {
-  const ionicHex = (props.element.props.ionicColorHex as string)
-    || resolveIonicColor(toolbarIonicColor.value).bg
-  const ionicContrast = (props.element.props.ionicColorContrast as string)
-    || resolveIonicColor(toolbarIonicColor.value).contrast
+  const ionicHex =
+    (props.element.props.ionicColorHex as string) ||
+    resolveIonicColor(toolbarIonicColor.value).bg;
+  const ionicContrast =
+    (props.element.props.ionicColorContrast as string) ||
+    resolveIonicColor(toolbarIonicColor.value).contrast;
   return {
     "--background": ionicHex,
     "--color": ionicContrast,
     "--ion-toolbar-color": ionicContrast,
     "--ion-toolbar-background": ionicHex,
-  }
+    "--min-height": "100%",
+    height: "100%",
+  };
 });
 
 const toolbarTitleStyle = computed(() => {
-  const contrast = (props.element.props.ionicColorContrast as string)
-    || resolveIonicColor(toolbarIonicColor.value).contrast
+  const contrast =
+    (props.element.props.ionicColorContrast as string) ||
+    resolveIonicColor(toolbarIonicColor.value).contrast;
   if (platform.value === "ios") {
     return {
       fontWeight: "700",
@@ -934,10 +943,12 @@ const buttonStyle = computed(() => {
   const fill = (props.element.props.fill as string) || "solid";
   const isDisabled = Boolean(props.element.props.disabled);
   const h = `${BUTTON_HEIGHT_PX[buttonSize.value]}px`;
-  const ionicHex = (props.element.props.ionicColorHex as string)
-    || resolveIonicColor(buttonIonicColor.value).bg
-  const ionicContrast = (props.element.props.ionicColorContrast as string)
-    || resolveIonicColor(buttonIonicColor.value).contrast
+  const ionicHex =
+    (props.element.props.ionicColorHex as string) ||
+    resolveIonicColor(buttonIonicColor.value).bg;
+  const ionicContrast =
+    (props.element.props.ionicColorContrast as string) ||
+    resolveIonicColor(buttonIonicColor.value).contrast;
 
   const sharedStyle = {
     height: h,
@@ -945,12 +956,16 @@ const buttonStyle = computed(() => {
     opacity: isDisabled ? "0.58" : "1",
     cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
     "--background": fill === "solid" ? ionicHex : "transparent",
-    "--background-activated": fill === "solid" ? ionicHex : "transparent",
+    // Use a dark overlay so iOS tap press is clearly visible
+    "--background-activated": "rgba(0,0,0,1)",
+    "--background-activated-opacity": "0.15",
     "--background-hover": fill === "solid" ? ionicHex : "transparent",
     "--color": fill === "solid" ? ionicContrast : ionicHex,
     "--color-activated": fill === "solid" ? ionicContrast : ionicHex,
     "--border-color": ionicHex,
     "--border-width": fill === "outline" ? "1px" : "0px",
+    // MD ripple colour — contrasts well on any button colour
+    "--ripple-color": "rgba(0,0,0,0.18)",
   };
 
   if (fill === "clear" || fill === "outline") {
@@ -1230,24 +1245,24 @@ const chipStyle = computed(() => {
 
 // ── Camera status & filter ────────────────────────────────────────────────
 const CAMERA_FILTER_PRESETS: Record<string, string> = {
-  none:       'none',
-  grayscale:  'grayscale(100%)',
-  sepia:      'sepia(100%)',
-  invert:     'invert(100%)',
-  blur:       'blur(4px)',
-  brightness: 'brightness(160%)',
-  contrast:   'contrast(160%)',
-  saturate:   'saturate(200%)',
-  vintage:    'sepia(50%) contrast(120%) brightness(90%)',
-  warm:       'sepia(30%) saturate(140%) brightness(110%)',
-  cool:       'hue-rotate(180deg) saturate(150%)',
-}
+  none: "none",
+  grayscale: "grayscale(100%)",
+  sepia: "sepia(100%)",
+  invert: "invert(100%)",
+  blur: "blur(4px)",
+  brightness: "brightness(160%)",
+  contrast: "contrast(160%)",
+  saturate: "saturate(200%)",
+  vintage: "sepia(50%) contrast(120%) brightness(90%)",
+  warm: "sepia(30%) saturate(140%) brightness(110%)",
+  cool: "hue-rotate(180deg) saturate(150%)",
+};
 
 const cameraFilterCss = computed(() => {
-  const f = props.element.props.filter as string | undefined
-  if (!f || f === 'none') return 'none'
-  return CAMERA_FILTER_PRESETS[f] ?? f
-})
+  const f = props.element.props.filter as string | undefined;
+  if (!f || f === "none") return "none";
+  return CAMERA_FILTER_PRESETS[f] ?? f;
+});
 
 const cameraStatusStyle = computed(() => ({
   backgroundColor: props.element.props.frozenFrame
