@@ -96,7 +96,7 @@
           v-if="element.props.showBack && platform === 'ios'"
           type="button"
           class="inline-flex shrink-0 items-center justify-center relative z-10"
-          @click="handleToolbarBackClick"
+          @click.stop.prevent="handleToolbarBackClick"
         >
           <UIcon
             name="i-lucide-chevron-left"
@@ -108,7 +108,7 @@
           v-if="element.props.showBack && platform === 'android'"
           type="button"
           class="inline-flex shrink-0 items-center justify-center relative z-10"
-          @click="handleToolbarBackClick"
+          @click.stop.prevent="handleToolbarBackClick"
         >
           <UIcon
             name="i-lucide-arrow-left"
@@ -403,6 +403,19 @@
       @ionChange="handleToggleChange"
     />
   </div>
+  <!-- ─── Spinner (ion-spinner) ──────────────────────────
+       iOS  : iOS activity spinner (lines)
+       Android: Material circular progress -->
+  <div
+    v-else-if="element.type === 'Spinner' && spinnerVisible"
+    class="w-full h-full flex items-center justify-center select-none"
+    @click.stop="handleElementClick"
+  >
+    <IonSpinner
+      :name="platform === 'ios' ? 'lines' : 'crescent'"
+      :style="{ color: ionColor }"
+    />
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -472,13 +485,16 @@ function handleButtonClick() {
 }
 
 function handleToolbarBackClick() {
-  console.log("TESTR");
   if (props.isRunMode) {
     emit("run-click", buildToolbarBackButtonClickId(props.element.id));
   } else {
     store.selectElement(props.element.id);
   }
 }
+
+const spinnerVisible = computed(
+  () => props.element.type !== "Spinner" || props.element.props.show !== false,
+);
 
 // Clicks that reach the container's child wrapper in design mode — fired
 // because the inner interactive element has `pointer-events: none` and lets

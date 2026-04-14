@@ -231,7 +231,10 @@ export function usePaletteItems(): PaletteGroup[] {
           icon: "i-lucide-loader",
           defaultWidth: 42,
           defaultHeight: 42,
-          defaultProps: { color: "#3880ff" },
+          defaultProps: {
+            color: "#3880ff",
+            show: true,
+          },
         },
         {
           type: "Image",

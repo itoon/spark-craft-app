@@ -23,7 +23,7 @@
         paddingBottom: `${BODY_BOTTOM_PADDING}px`,
       }"
     >
-      <template v-for="element in bodyElements" :key="element.id">
+      <template v-for="element in visibleBodyElements" :key="element.id">
         <div
           class="w-full shrink-0"
           :style="{ minHeight: `${bodyElementHeight(element)}px` }"
@@ -41,6 +41,7 @@
         </div>
       </template>
     </div>
+
   </div>
 </template>
 
@@ -77,5 +78,13 @@ const {
   pageElements,
   platform,
   computed(() => props.viewportHeight ?? 0),
+);
+
+function isVisibleSpinner(element: AppElement) {
+  return element.type !== "Spinner" || element.props.show !== false;
+}
+
+const visibleBodyElements = computed(() =>
+  bodyElements.value.filter((element) => isVisibleSpinner(element)),
 );
 </script>

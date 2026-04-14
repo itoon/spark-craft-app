@@ -26,6 +26,8 @@ export interface ElementInstance {
   backButton?: {
     onClick(cb: () => void): unknown
   }
+  show?(): ElementInstance
+  hide?(): ElementInstance
   onClick(cb: () => void): ElementInstance
   toString(): string
   valueOf(): unknown
@@ -324,6 +326,34 @@ export function executeCode(
         value: false,
       })
       onUpdate?.(this.__el.id, { open: false })
+      return this
+    }
+
+    show(): this {
+      this.__el.props.show = true
+      pushEvent({
+        type: 'update',
+        message: `${this.__el.id}.show = true`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+        propName: 'show',
+        value: true,
+      })
+      onUpdate?.(this.__el.id, { show: true })
+      return this
+    }
+
+    hide(): this {
+      this.__el.props.show = false
+      pushEvent({
+        type: 'update',
+        message: `${this.__el.id}.show = false`,
+        elementId: this.__el.id,
+        elementType: this.__el.type,
+        propName: 'show',
+        value: false,
+      })
+      onUpdate?.(this.__el.id, { show: false })
       return this
     }
 

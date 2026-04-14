@@ -51,6 +51,7 @@ const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
 const TOGGLE_OPEN_METHODS = ["open()", "close()"];
 const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
+const SPINNER_METHODS = ["show()", "hide()"];
 
 function unique(items: string[]) {
   return Array.from(new Set(items));
@@ -96,6 +97,7 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       ...COMMON_ELEMENT_METHODS,
       ...(designType === "Camera" ? TOGGLE_OPEN_METHODS : []),
       ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
+      ...(designType === "Spinner" ? SPINNER_METHODS : []),
     ]);
 
     schemas.push({
@@ -112,6 +114,12 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.backButton.onClick(() => {`,
               `  page.goTo('page1');`,
               `});`,
+            ]
+          : []),
+        ...(designType === "Spinner"
+          ? [
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.show();`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.hide();`,
             ]
           : []),
       ].join("\n"),

@@ -56,7 +56,7 @@
 
       <div class="flex min-h-full flex-col w-full">
         <div
-          v-for="container in bodyElements"
+          v-for="container in visibleBodyElements"
           :key="`${container.id}-${store.activePlatform.value}`"
           class="relative cursor-pointer shrink-0"
           :class="{
@@ -88,6 +88,7 @@
           />
         </div>
       </div>
+
     </div>
   </div>
 </template>
@@ -117,6 +118,14 @@ const { toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElement
     store.activePlatform,
     computed(() => activeDevice.value.canvasH),
   );
+
+function isVisibleSpinner(element: AppElement) {
+  return element.type !== "Spinner" || element.props.show !== false;
+}
+
+const visibleBodyElements = computed(() =>
+  bodyElements.value.filter((element) => isVisibleSpinner(element)),
+);
 
 // Root containers get their x/y position from the store, but in this document-flow
 // layout we only apply width. Height comes from the element's height prop.

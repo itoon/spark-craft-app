@@ -42,7 +42,9 @@
               @click="activeKey = item.key"
             >
               <div class="flex items-center justify-between gap-3">
-                <span class="text-sm font-medium text-white">{{ item.title }}</span>
+                <span class="text-sm font-medium text-white">{{
+                  item.title
+                }}</span>
                 <span
                   class="rounded-full px-2 py-0.5 text-[9px] uppercase tracking-wider"
                   :class="
@@ -75,12 +77,16 @@
                   {{ activeEntry.kind }}
                 </span>
               </div>
-              <p class="mt-1 text-sm text-neutral-400">{{ activeEntry.subtitle }}</p>
+              <p class="mt-1 text-sm text-neutral-400">
+                {{ activeEntry.subtitle }}
+              </p>
 
               <template v-if="activeEntry.kind === 'component'">
                 <div class="mt-5 grid gap-5 lg:grid-cols-2">
                   <section>
-                    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    <h3
+                      class="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500"
+                    >
                       Attrs
                     </h3>
                     <div class="flex flex-wrap gap-2">
@@ -95,7 +101,9 @@
                   </section>
 
                   <section>
-                    <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    <h3
+                      class="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500"
+                    >
                       Methods
                     </h3>
                     <div class="flex flex-wrap gap-2">
@@ -112,7 +120,9 @@
 
                 <section class="mt-6">
                   <div class="mb-2 flex items-center justify-between gap-3">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    <h3
+                      class="text-xs font-semibold uppercase tracking-wider text-neutral-500"
+                    >
                       Code Example
                     </h3>
                     <button
@@ -123,13 +133,17 @@
                       Copy
                     </button>
                   </div>
-                  <pre class="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-xs leading-6 text-green-300"><code>{{ activeEntry.schema.codeExample }}</code></pre>
+                  <pre
+                    class="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-xs leading-6 text-green-300"
+                  ><code>{{ activeEntry.schema.codeExample }}</code></pre>
                 </section>
               </template>
 
               <template v-else>
                 <section class="mt-6">
-                  <h3 class="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                  <h3
+                    class="mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500"
+                  >
                     Methods
                   </h3>
                   <div class="flex flex-wrap gap-2">
@@ -145,7 +159,9 @@
 
                 <section class="mt-6">
                   <div class="mb-2 flex items-center justify-between gap-3">
-                    <h3 class="text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                    <h3
+                      class="text-xs font-semibold uppercase tracking-wider text-neutral-500"
+                    >
                       Code Example
                     </h3>
                     <button
@@ -156,7 +172,9 @@
                       Copy
                     </button>
                   </div>
-                  <pre class="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-xs leading-6 text-green-300"><code>{{ activeEntry.codeExample }}</code></pre>
+                  <pre
+                    class="overflow-x-auto rounded-xl border border-neutral-800 bg-neutral-950 p-4 text-xs leading-6 text-green-300"
+                  ><code>{{ activeEntry.codeExample }}</code></pre>
                 </section>
               </template>
             </template>
@@ -168,7 +186,6 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
 import {
   CONSOLE_API_METHODS,
   PAGE_API_METHODS,
@@ -206,13 +223,15 @@ const query = ref("");
 const activeKey = ref("");
 
 const entries = computed<PaletteEntry[]>(() => {
-  const componentEntries: PaletteEntry[] = getComponentApiSchemas().map((schema) => ({
-    key: `component:${schema.className}`,
-    kind: "component",
-    title: schema.className,
-    subtitle: `${schema.label} component`,
-    schema,
-  }));
+  const componentEntries: PaletteEntry[] = getComponentApiSchemas().map(
+    (schema) => ({
+      key: `component:${schema.className}`,
+      kind: "component",
+      title: schema.className,
+      subtitle: `${schema.label} component`,
+      schema,
+    }),
+  );
 
   return [
     {
@@ -229,7 +248,10 @@ const entries = computed<PaletteEntry[]>(() => {
       title: "console",
       subtitle: "Debug console",
       methods: CONSOLE_API_METHODS,
-      codeExample: ["console.log('hello');", "console.warn('check this');"].join("\n"),
+      codeExample: [
+        "console.log('hello');",
+        "console.warn('check this');",
+      ].join("\n"),
     },
     ...componentEntries,
   ];
@@ -244,8 +266,12 @@ const filteredItems = computed(() => {
     if (entry.subtitle.toLowerCase().includes(needle)) return true;
     if (entry.kind === "component") {
       return (
-        entry.schema.props.some((prop) => prop.toLowerCase().includes(needle)) ||
-        entry.schema.methods.some((method) => method.toLowerCase().includes(needle)) ||
+        entry.schema.props.some((prop) =>
+          prop.toLowerCase().includes(needle),
+        ) ||
+        entry.schema.methods.some((method) =>
+          method.toLowerCase().includes(needle),
+        ) ||
         entry.schema.codeExample.toLowerCase().includes(needle)
       );
     }
@@ -257,7 +283,9 @@ const filteredItems = computed(() => {
 });
 
 const activeEntry = computed(() => {
-  const match = filteredItems.value.find((item) => item.key === activeKey.value);
+  const match = filteredItems.value.find(
+    (item) => item.key === activeKey.value,
+  );
   return match ?? filteredItems.value[0] ?? null;
 });
 

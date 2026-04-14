@@ -811,6 +811,27 @@
             />
           </EditorPropField>
 
+          <EditorPropField
+            v-if="selectedElement.type === 'Spinner'"
+            label="Show"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BOOLEAN_OPTIONS"
+                :key="String(option)"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="
+                  ((selectedElement.props.show as boolean) ?? true) === option
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                "
+                @click="patchProps({ show: option })"
+              >
+                {{ String(option) }}
+              </button>
+            </div>
+          </EditorPropField>
+
           <!-- Image src -->
           <EditorPropField v-if="selectedElement.type === 'Image'" label="Src">
             <UInput
@@ -1156,6 +1177,7 @@ const CONTENT_TYPES = new Set([
   "TextBox",
   "Label",
   "Link",
+  "Spinner",
   "Separator",
   "Spacer",
   "Camera",

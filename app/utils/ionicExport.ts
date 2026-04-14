@@ -210,6 +210,8 @@ export interface RuntimeInstance {
   backButton?: {
     onClick(cb: () => unknown): unknown;
   };
+  show?(): RuntimeInstance;
+  hide?(): RuntimeInstance;
   onClick(cb: () => void): RuntimeInstance;
 }
 
@@ -289,6 +291,18 @@ export function executeCode(
 
     onClick(cb: () => void) {
       this.__onClick = cb;
+      return this;
+    }
+
+    show() {
+      this.__el.props.show = true;
+      onUpdate(this.__el.id, { show: true });
+      return this;
+    }
+
+    hide() {
+      this.__el.props.show = false;
+      onUpdate(this.__el.id, { show: false });
       return this;
     }
   }
@@ -585,7 +599,12 @@ function buildRendererFile(): string {
     <ion-label>{{ element.props.label || 'Chip' }}</ion-label>
   </ion-chip>
 
-  <ion-spinner v-else-if="element.type === 'Spinner'" name="crescent" :style="colorStyle" />
+  <div
+    v-else-if="element.type === 'Spinner' && spinnerVisible"
+    class="spinner-inline"
+  >
+    <ion-spinner name="crescent" :style="colorStyle" />
+  </div>
 
   <ion-img
     v-else-if="element.type === 'Image'"
@@ -702,6 +721,8 @@ const colorStyle = computed(() => ({
   color: String(props.element.props.color || '#3880ff'),
 }));
 
+const spinnerVisible = computed(() => props.element.type !== 'Spinner' || props.element.props.show !== false);
+
 const resolvedIcon = computed(() => {
   const iconName = String(props.element.props.name || props.element.props.icon || '');
   if (iconName.includes('calendar')) return calendar;
@@ -741,6 +762,14 @@ function emitInput(patch: Record<string, unknown>) {
   font-size: 24px;
 }
 
+.spinner-inline {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .unsupported {
   padding: 12px;
   border: 1px dashed rgba(56, 128, 255, 0.3);
@@ -771,7 +800,7 @@ function buildPageViewFile(): string {
         </ion-note>
 
         <CodeCraftRenderer
-          v-for="element in bodyElements"
+          v-for="element in visibleBodyElements"
           :key="element.id"
           :element="element"
           :elements-map="elementsMap"
@@ -896,6 +925,14 @@ const bodyElements = computed(() =>
       element.type !== 'Toolbar' &&
       element.type !== 'FloatingActionButton',
   ),
+);
+
+function isVisibleSpinner(element: CodeCraftElement) {
+  return element.type !== 'Spinner' || element.props.show !== false;
+}
+
+const visibleBodyElements = computed(() =>
+  bodyElements.value.filter((element) => isVisibleSpinner(element)),
 );
 
 const toolbarStyle = computed(() => ({
