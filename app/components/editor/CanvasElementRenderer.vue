@@ -481,6 +481,66 @@
       }}
     </span>
   </div>
+
+  <!-- ─── Camera Plugin ──────────────────────────────────────────────── -->
+  <div
+    v-else-if="element.type === 'Camera'"
+    class="w-full h-full overflow-hidden rounded-2xl border border-slate-200 select-none"
+    :class="'flex flex-col'"
+    :style="cameraWrapStyle"
+    @click.stop="handleElementClick"
+  >
+    <div
+      class="flex items-center justify-between px-3 py-2 text-white"
+      :style="{
+        backgroundColor: platform === 'ios' ? '#111827' : '#1f2937',
+      }"
+    >
+      <div class="flex items-center gap-2">
+        <UIcon name="i-lucide-camera" class="size-4" />
+        <span class="text-xs font-semibold">
+          {{ (element.props.title as string) || "Camera" }}
+        </span>
+      </div>
+      <span
+        class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+        :style="cameraStatusStyle"
+      >
+        {{ element.props.open ? "Open" : "Closed" }}
+      </span>
+    </div>
+    <div
+      class="relative flex-1 bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500"
+    >
+      <video
+        v-if="shouldUseLiveCamera && !cameraError"
+        ref="cameraVideoRef"
+        class="h-full w-full object-cover"
+        autoplay
+        muted
+        playsinline
+      />
+      <div
+        v-if="!shouldUseLiveCamera || cameraError"
+        class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white/90"
+      >
+        <UIcon name="i-lucide-aperture" class="size-10" />
+        <span class="text-xs font-medium">
+          {{
+            cameraError
+              ? cameraError
+              : element.props.open
+                ? "Camera preview active"
+                : "Camera is closed"
+          }}
+        </span>
+        <span v-if="cameraError" class="text-[10px] text-white/70">
+          Camera access usually needs permission and often requires HTTPS or
+          localhost.
+        </span>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -494,7 +554,6 @@ import {
   resolveListContent,
 } from "~/utils/listContent";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
-import RunMode from "./RunMode.vue";
 
 const props = defineProps<{
   element: AppElement;
@@ -566,6 +625,10 @@ const imageStyle = computed(() => ({
   height: props.element.height > 0 ? `${props.element.height}px` : "auto",
   objectFit: "contain",
   borderRadius: `${props.element.props.borderRadius ?? 4}px`,
+}));
+
+const cameraWrapStyle = computed(() => ({
+  height: `${Math.max(Number(props.element.height) || 0, 120)}px`,
 }));
 
 // Clicks that reach the container's child wrapper in design mode — fired
@@ -1168,9 +1231,6 @@ const innerFlexStyle = computed(() => {
 function childStyle(childId: string): Record<string, string> {
   const child = getElement(childId);
   if (!child) return {};
-  if (child.type === "Camera" && props.isRunMode && !child.props.open) {
-    return { width: "100%", height: "0px", overflow: "hidden" };
-  }
   if (child.type === "FloatingActionButton") {
     return fabPositionStyle(child);
   }
