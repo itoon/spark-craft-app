@@ -92,11 +92,11 @@
         @click="handleRun"
       />
 
-      <!-- PWA Link button -->
+      <!-- Share Link button -->
       <UButton
         :loading="isCreatingShareLink"
-        label="PWA Link"
-        icon="i-lucide-link"
+        label="Share Link"
+        icon="i-lucide-share-2"
         color="primary"
         variant="subtle"
         size="xs"
@@ -158,11 +158,50 @@
       :open="isCommandPaletteOpen"
       @close="isCommandPaletteOpen = false"
     />
+
+    <!-- Share Link QR overlay -->
+    <Teleport to="body">
+      <div
+        v-if="shareLinkOverlay.visible"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        @click.self="shareLinkOverlay.visible = false"
+      >
+        <div class="bg-neutral-900 border border-neutral-700 rounded-2xl p-6 w-80 flex flex-col items-center gap-4 shadow-2xl">
+          <p class="text-sm font-semibold text-white">Share Link</p>
+          <img
+            v-if="shareLinkOverlay.qrDataUrl"
+            :src="shareLinkOverlay.qrDataUrl"
+            alt="QR Code"
+            class="size-48 rounded-lg bg-white p-2"
+          />
+          <p class="text-xs text-neutral-400 text-center break-all select-all font-mono">{{ shareLinkOverlay.url }}</p>
+          <div class="flex items-center gap-2 w-full">
+            <UButton
+              :label="shareLinkOverlay.copied ? 'Copied!' : 'Copy URL'"
+              :icon="shareLinkOverlay.copied ? 'i-lucide-check' : 'i-lucide-copy'"
+              color="primary"
+              variant="solid"
+              size="sm"
+              class="flex-1"
+              @click="copyShareUrl"
+            />
+            <UButton
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="shareLinkOverlay.visible = false"
+            />
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from "vue";
+import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import QRCode from "qrcode";
 
 import { useEditorStore } from "~/composables/useEditorStore";
 import type { EditorMode } from "~/composables/useEditorStore";
@@ -175,6 +214,21 @@ const store = useEditorStore();
 const isExporting = ref(false);
 const isCreatingShareLink = ref(false);
 const isCommandPaletteOpen = ref(false);
+
+const shareLinkOverlay = reactive({
+  visible: false,
+  url: "",
+  qrDataUrl: "",
+  copied: false,
+});
+
+async function copyShareUrl() {
+  const copied = await copyToClipboard(shareLinkOverlay.url);
+  if (copied) {
+    shareLinkOverlay.copied = true;
+    setTimeout(() => { shareLinkOverlay.copied = false; }, 2000);
+  }
+}
 
 interface ModeTab {
   key: EditorMode;
@@ -304,8 +358,10 @@ async function handleCreateShareLink() {
 
   try {
     const result = await $fetch<{
+      id: string;
       shareUrl: string;
       filePath: string;
+      reused?: boolean;
     }>("/api/export/link", {
       method: "POST",
       body: {
@@ -322,22 +378,19 @@ async function handleCreateShareLink() {
     store.setShareLinkId(result.id);
     store.saveProject();
 
-    const copied = await copyToClipboard(result.shareUrl);
+    copyToClipboard(result.shareUrl);
 
-    window.alert(
-      [
-        result.reused
-          ? `Shared link updated successfully.`
-          : `Shared link created successfully.`,
-        ``,
-        `URL: ${result.shareUrl}`,
-        `Saved snapshot: ${result.filePath}`,
-        ``,
-        copied
-          ? `The URL has been copied to your clipboard.`
-          : `Clipboard copy was blocked, so please copy the URL manually.`,
-      ].join("\n"),
-    );
+    shareLinkOverlay.url = result.shareUrl;
+    shareLinkOverlay.copied = false;
+    shareLinkOverlay.qrDataUrl = "";
+    shareLinkOverlay.visible = true;
+
+    if (import.meta.client) {
+      shareLinkOverlay.qrDataUrl = await QRCode.toDataURL(result.shareUrl, {
+        width: 300,
+        margin: 1,
+      });
+    }
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to create shared link.";

@@ -47,7 +47,7 @@
             <PreviewRuntimePageRenderer
               :page-elements="pageElements"
               :platform-override="runtimePlatform"
-              :viewport-height="activeDevice.canvasH"
+              :viewport-height="mobileViewportHeight || activeDevice.canvasH"
               @run-click="handleRunClick"
               @run-input="handleRunInput"
             />
@@ -86,12 +86,11 @@ const elementState = ref<AppElement[]>(cloneElements(props.payload.elements));
 const pageElements = ref<AppElement[]>([]);
 const instances = ref<ElementInstance[]>([]);
 const runtimeError = ref("");
-const detectedMobilePlatform = ref<"ios" | "android" | null>(null);
+const mobileViewportHeight = ref(0);
 const desktopPreviewRef = ref<HTMLElement | null>(null)
 const activeDevice = computed(() => getPreviewDevice(props.payload.activeDeviceId))
 const runtimePlatform = computed<"ios" | "android">(() =>
-  detectedMobilePlatform.value ??
-  (props.payload.activeDeviceId === "android" ? "android" : "ios"),
+  props.payload.activeDeviceId === "android" ? "android" : "ios"
 );
 const { scale: desktopScale } = usePreviewDeviceScale(desktopPreviewRef, activeDevice, {
   widthPadding: 48,
@@ -161,10 +160,10 @@ function handleRunClick(id: string) {
   const targetId = getToolbarIdFromBackButtonClickId(id);
   const instance = instances.value.find((candidate) => candidate.__el.id === targetId);
   if (isToolbarBackButtonClickId(id)) {
-    invokeRuntimeHandler(instance?.__onBackClick);
+    invokeRuntimeHandler(instance?.__onBackClick ?? undefined);
     return;
   }
-  invokeRuntimeHandler(instance?.__onClick);
+  invokeRuntimeHandler(instance?.__onClick ?? undefined);
 }
 
 function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
@@ -181,18 +180,9 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
   instances.value = nextRuntime.instances;
 }
 
-function detectMobilePlatformFromBrowser(): "ios" | "android" | null {
-  if (!import.meta.client) return null;
-
-  const userAgent = navigator.userAgent || "";
-
-  if (/Android/i.test(userAgent)) return "android";
-  if (/iPhone|iPad|iPod/i.test(userAgent)) return "ios";
-
-  return null;
-}
-
 onMounted(() => {
-  detectedMobilePlatform.value = detectMobilePlatformFromBrowser();
+  if (import.meta.client) {
+    mobileViewportHeight.value = window.innerHeight;
+  }
 });
 </script>

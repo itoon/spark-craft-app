@@ -940,12 +940,12 @@ const colorStyle = computed(() => ({
 const spinnerVisible = computed(() => props.element.type !== 'Spinner' || props.element.props.show !== false);
 const imageStyle = computed(() => ({
   width: '100%',
-  height: Number(props.element.height || 0) > 0 ? \`${Number(props.element.height)}px\` : 'auto',
+  height: Number(props.element.height || 0) > 0 ? \`\${Number(props.element.height)}px\` : 'auto',
   objectFit: 'contain',
-  borderRadius: \`${Number(props.element.props.borderRadius || 4)}px\`,
+  borderRadius: \`\${Number(props.element.props.borderRadius || 4)}px\`,
 }));
 const cameraWrapStyle = computed(() => ({
-  height: \`${Math.max(Number(props.element.height || 0), 120)}px\`,
+  height: \`\${Math.max(Number(props.element.height || 0), 120)}px\`,
 }));
 const cameraStatusStyle = computed(() => ({
   backgroundColor: props.element.props.frozenFrame

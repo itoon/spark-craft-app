@@ -805,7 +805,7 @@ const IONIC_COLOR_MAP: Record<string, { bg: string; contrast: string }> = {
 }
 
 function resolveIonicColor(name: string): { bg: string; contrast: string } {
-  return IONIC_COLOR_MAP[name] ?? IONIC_COLOR_MAP.primary
+  return IONIC_COLOR_MAP[name] ?? { bg: "#3880ff", contrast: "#ffffff" }
 }
 
 // ── Styling helpers ──────────────────────────────────────────────────────

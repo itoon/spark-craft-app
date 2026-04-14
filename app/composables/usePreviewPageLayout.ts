@@ -4,8 +4,8 @@ import type { AppElement } from "~/composables/useEditorStore";
 
 export const TOOLBAR_HEIGHT_IOS = 44;
 export const TOOLBAR_HEIGHT_MD = 56;
-export const BODY_TOP_PADDING = 14;
-export const BODY_BOTTOM_PADDING = 14;
+export const BODY_TOP_PADDING = 0;
+export const BODY_BOTTOM_PADDING = 0;
 
 type ElementsSource = Ref<AppElement[]> | ComputedRef<AppElement[]>;
 type PlatformSource = Ref<"ios" | "android"> | ComputedRef<"ios" | "android">;
@@ -30,9 +30,7 @@ export function usePreviewPageLayout(
   );
 
   const bodyTopPadding = computed(() =>
-    toolbarElement.value
-      ? BODY_TOP_PADDING
-      : toolbarHeight.value + BODY_TOP_PADDING,
+    toolbarElement.value ? 0 : toolbarHeight.value,
   );
 
   const bodyElements = computed(() =>

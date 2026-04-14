@@ -4,12 +4,35 @@
     {
       "id": "page1",
       "name": "Page 1"
+    },
+    {
+      "id": "page2",
+      "name": "Page 2"
     }
   ],
   "elements": [
     {
-      "id": "page1_container1",
+      "id": "page1_toolbar1",
       "pageId": "page1",
+      "type": "Toolbar",
+      "x": 0,
+      "y": 0,
+      "width": 340,
+      "height": 56,
+      "props": {
+        "title": "Page 1",
+        "showBack": false,
+        "backgroundColor": "#ffffff",
+        "ionicColor": "primary",
+        "ionicColorHex": "#3880ff",
+        "ionicColorContrast": "#ffffff"
+      },
+      "parentId": null,
+      "children": []
+    },
+    {
+      "id": "page2_container5",
+      "pageId": "page2",
       "type": "Container",
       "x": 0,
       "y": 0,
@@ -23,49 +46,143 @@
       },
       "parentId": null,
       "children": [
-        "page1_button1",
-        "page1_labelledinput1",
-        "page1_input1",
-        "page1_label1",
-        "page1_floatingactionbutton1"
+        "page2_rangeinput1"
       ],
       "direction": "col"
     },
     {
-      "id": "page1_toolbar1",
-      "pageId": "page1",
+      "id": "page2_toolbar2",
+      "pageId": "page2",
       "type": "Toolbar",
       "x": 0,
       "y": 0,
       "width": 340,
       "height": 56,
       "props": {
-        "title": "My App",
-        "showBack": false,
-        "backgroundColor": "#3880ff"
+        "title": "Page2",
+        "showBack": true,
+        "ionicColor": "primary"
       },
       "parentId": null,
       "children": []
     },
     {
-      "id": "page1_button1",
+      "id": "page2_rangeinput1",
+      "pageId": "page2",
+      "type": "RangeInput",
+      "x": 0,
+      "y": 0,
+      "width": 196,
+      "height": 42,
+      "props": {
+        "min": 0,
+        "max": 100,
+        "value": 50
+      },
+      "parentId": "page2_container5",
+      "children": []
+    },
+    {
+      "id": "page1_container6",
+      "pageId": "page1",
+      "type": "Container",
+      "x": 0,
+      "y": 0,
+      "width": 393,
+      "height": 852,
+      "props": {
+        "direction": "col",
+        "gap": 16,
+        "padding": 16,
+        "backgroundColor": "#ffffff"
+      },
+      "parentId": null,
+      "children": [
+        "page1_camera3",
+        "page1_button2",
+        "page1_button5",
+        "page1_button4",
+        "page1_button6",
+        "page1_rangeinput4",
+        "page1_datetimepicker3",
+        "page1_heading5",
+        "page1_labelledinput2",
+        "page1_input3",
+        "page1_image1",
+        "page1_spinner1",
+        "page1_link1",
+        "page1_link2"
+      ],
+      "direction": "col"
+    },
+    {
+      "id": "page1_button2",
       "pageId": "page1",
       "type": "Button",
       "x": 0,
       "y": 0,
       "width": 112,
-      "height": 42,
+      "height": 36,
       "props": {
-        "label": "Button",
+        "content": "Capture",
         "fill": "solid",
-        "backgroundColor": "#a855f7",
-        "borderRadius": 6
+        "size": "default",
+        "ionicColor": "primary",
+        "ionicColorHex": "#3880ff",
+        "ionicColorContrast": "#ffffff"
       },
-      "parentId": "page1_container1",
+      "parentId": "page1_container6",
       "children": []
     },
     {
-      "id": "page1_labelledinput1",
+      "id": "page1_rangeinput4",
+      "pageId": "page1",
+      "type": "RangeInput",
+      "x": 0,
+      "y": 0,
+      "width": 196,
+      "height": 42,
+      "props": {
+        "min": 0,
+        "max": 100,
+        "value": 50
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_datetimepicker3",
+      "pageId": "page1",
+      "type": "DateTimePicker",
+      "x": 0,
+      "y": 0,
+      "width": 196,
+      "height": 42,
+      "props": {
+        "placeholder": "Select date",
+        "value": ""
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_heading5",
+      "pageId": "page1",
+      "type": "Heading",
+      "x": 0,
+      "y": 0,
+      "width": 220,
+      "height": 48,
+      "props": {
+        "content": "Heading",
+        "level": 2,
+        "color": "#0f172a"
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_labelledinput2",
       "pageId": "page1",
       "type": "LabelledInput",
       "x": 0,
@@ -73,16 +190,16 @@
       "width": 220,
       "height": 56,
       "props": {
-        "label": "Number1",
+        "label": "Label",
         "placeholder": "Enter value",
         "type": "text",
         "value": ""
       },
-      "parentId": "page1_container1",
+      "parentId": "page1_container6",
       "children": []
     },
     {
-      "id": "page1_input1",
+      "id": "page1_input3",
       "pageId": "page1",
       "type": "Input",
       "x": 0,
@@ -90,58 +207,155 @@
       "width": 196,
       "height": 42,
       "props": {
+        "label": "Label",
         "placeholder": "Enter text…",
         "type": "text",
-        "borderRadius": 4,
         "value": ""
       },
-      "parentId": "page1_container1",
+      "parentId": "page1_container6",
       "children": []
     },
     {
-      "id": "page1_label1",
+      "id": "page1_image1",
       "pageId": "page1",
-      "type": "Label",
+      "type": "Image",
+      "x": 0,
+      "y": 0,
+      "width": 0,
+      "height": 0,
+      "props": {
+        "src": "https://picsum.photos/160/120",
+        "alt": "placeholder",
+        "borderRadius": 0
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_spinner1",
+      "pageId": "page1",
+      "type": "Spinner",
+      "x": 0,
+      "y": 0,
+      "width": 42,
+      "height": 42,
+      "props": {
+        "color": "#38bdf8",
+        "displayMode": "overlay",
+        "show": false
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_link1",
+      "pageId": "page1",
+      "type": "Link",
+      "x": 0,
+      "y": 0,
+      "width": 160,
+      "height": 24,
+      "props": {
+        "content": "Click here",
+        "href": "#",
+        "target": "_self"
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_camera3",
+      "pageId": "page1",
+      "type": "Camera",
       "x": 0,
       "y": 0,
       "width": 220,
-      "height": 28,
+      "height": 300,
       "props": {
-        "content": "Label",
-        "fontSize": 14,
-        "color": "#334155"
+        "open": true,
+        "title": "Camera",
+        "filter": "none"
       },
-      "parentId": "page1_container1",
+      "parentId": "page1_container6",
       "children": []
     },
     {
-      "id": "page1_floatingactionbutton1",
+      "id": "page1_button4",
       "pageId": "page1",
-      "type": "FloatingActionButton",
+      "type": "Button",
       "x": 0,
       "y": 0,
-      "width": 56,
-      "height": 56,
+      "width": 112,
+      "height": 42,
       "props": {
-        "icon": "i-lucide-plus",
-        "backgroundColor": "#3880ff",
-        "borderRadius": 28,
-        "horizontalAlignment": "end",
-        "verticalAlignment": "bottom",
-        "edge": false
+        "content": "Save",
+        "fill": "solid",
+        "size": "large",
+        "ionicColor": "primary"
       },
-      "parentId": "page1_container1",
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_button5",
+      "pageId": "page1",
+      "type": "Button",
+      "x": 0,
+      "y": 0,
+      "width": 112,
+      "height": 30,
+      "props": {
+        "content": "Reset",
+        "fill": "solid",
+        "size": "small",
+        "ionicColor": "warning"
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_button6",
+      "pageId": "page1",
+      "type": "Button",
+      "x": 0,
+      "y": 0,
+      "width": 112,
+      "height": 36,
+      "props": {
+        "content": "Random Filter",
+        "fill": "solid",
+        "size": "default",
+        "ionicColor": "primary"
+      },
+      "parentId": "page1_container6",
+      "children": []
+    },
+    {
+      "id": "page1_link2",
+      "pageId": "page1",
+      "type": "Link",
+      "x": 0,
+      "y": 0,
+      "width": 160,
+      "height": 24,
+      "props": {
+        "content": "Click here",
+        "href": "#",
+        "target": "_blank"
+      },
+      "parentId": "page1_container6",
       "children": []
     }
   ],
   "jsCodeByPage": {
-    "page1": "var label1 = new Label('page1_label1');\npage.add(label1);\n\nvar labelledinput1 = new LabelledInput('page1_labelledinput1');\npage.add(labelledinput1);\n\nvar input1 = new Input('page1_input1');\npage.add(input1);\n\n// --- Connect elements to the page ---\n\nvar toolbar1 = new Toolbar('page1_toolbar1');\npage.add(toolbar1);\n\nvar button1 = new Button('page1_button1');\npage.add(button1);\n\n// --- Add interactions ---\nbutton1.onClick(() => {\n    console.log(labelledinput1.value)\n    console.log(input1.value)\n    label1.content = parseInt(labelledinput1.value)+parseInt(input1.value)    \n});\n"
+    "page1": "var toolbar1 = new Toolbar('page1_toolbar1');\npage.add(toolbar1);\n\nvar spinner1 = new Spinner('page1_spinner1');\npage.add(spinner1);\nspinner1.hide()\n\nvar camera3 = new Camera('page1_camera3');\npage.add(camera3);\n\nvar button2 = new Button('page1_button2');\npage.add(button2);\n\nvar button4 = new Button('page1_button4');\npage.add(button4);\n\nvar button5 = new Button('page1_button5');\npage.add(button5);\n\nvar button6 = new Button('page1_button6');\npage.add(button6);\n\nlet photo\n\nbutton2.onClick(async() =>{\n  photo = await camera3.capture()  \n})\n\nbutton6.onClick(() => {\n  const filter = ['warn','cool', 'grayscale']  \n  camera3.setFilter(filter[Math.floor(Math.random()*filter.length)])\n})\n\nbutton5.onClick(function(){\n  camera3.reset()\n})\n\nbutton4.onClick(async() =>{\n  await photo.save('my-photo.png')\n})\n\n",
+    "page2": "// --- Connect elements to the page ---\n\nvar toolbar2 = new Toolbar('page2_toolbar2');\npage.add(toolbar2)\ntoolbar2.backButton.onClick(() => {\n  page.goTo('page1');\n});"
   },
   "startPageId": "page1",
-  "activeDeviceId": "android",
+  "activeDeviceId": "iphone15",
   "iosDeviceId": "iphone15",
   "androidDeviceId": "android",
-  "fallbackDeviceId": "android",
+  "fallbackDeviceId": "iphone15",
   "shareId": "cc202604110735000on79",
   "id": "cc202604110735000on79",
   "createdAt": "2026-04-11T07:35:00.341Z"
