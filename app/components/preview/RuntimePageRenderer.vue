@@ -26,7 +26,7 @@
       <template v-for="element in bodyElements" :key="element.id">
         <div
           class="w-full shrink-0"
-          :style="{ height: `${bodyElementHeight(element)}px` }"
+          :style="{ minHeight: `${bodyElementHeight(element)}px` }"
         >
           <EditorCanvasElementRenderer
             :element="element"

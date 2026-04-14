@@ -123,7 +123,7 @@ const { toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElement
 function rootContainerStyle(el: AppElement): Record<string, string> {
   return {
     width: "100%",
-    height: `${bodyElementHeight(el)}px`,
+    minHeight: `${bodyElementHeight(el)}px`,
   };
 }
 

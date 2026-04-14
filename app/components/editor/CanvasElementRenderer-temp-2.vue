@@ -1259,7 +1259,7 @@ const containerStyle = computed(() => {
     width: props.element.parentId
       ? `min(100%, ${props.element.width}px)`
       : "100%",
-    height: `${props.forcedHeight ?? props.element.height}px`,
+    minHeight: `${props.forcedHeight ?? props.element.height}px`,
     padding: `${p.padding ?? 12}px`,
     backgroundColor: (p.backgroundColor as string) || "transparent",
   };

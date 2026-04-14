@@ -1273,7 +1273,7 @@ const containerStyle = computed(() => {
   return {
     position: "relative",
     width: "100%",
-    height: `${props.forcedHeight ?? props.element.height}px`,
+    minHeight: `${props.forcedHeight ?? props.element.height}px`,
     padding: `${p.padding ?? 8}px`,
     backgroundColor: (p.backgroundColor as string) || "transparent",
   };

@@ -1064,7 +1064,7 @@ const containerStyle = computed(() => {
   const p = props.element.props;
   return {
     position: "relative" as const,
-    height: `${props.forcedHeight ?? props.element.height}px`,
+    minHeight: `${props.forcedHeight ?? props.element.height}px`,
     padding: `${p.padding ?? 12}px`,
     backgroundColor: (p.backgroundColor as string) || "transparent",
   };
