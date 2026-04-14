@@ -15,7 +15,6 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
   FloatingActionButton: "FAB",
   Input: "Input",
   LabelledInput: "LabelledInput",
-  Searchbar: "Searchbar",
   RangeInput: "Range",
   DateTimePicker: "DatePicker",
   Checkbox: "Checkbox",
@@ -25,28 +24,16 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
   Heading: "Heading",
   Label: "Label",
   TextBox: "Textarea",
-  Badge: "Badge",
-  Chip: "Chip",
   Spinner: "Spinner",
   Image: "Image",
   Camera: "Camera",
   Link: "Link",
-  Video: "Video",
   List: "List",
-  Card: "Card",
-  Segment: "Segment",
   Separator: "Separator",
   Spacer: "Spacer",
-  Container: "Container",
 };
 
-const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
-  Searchbar: { placeholder: "Search...", value: "", backgroundColor: "#ffffff" },
-  Segment: { options: ["Option 1", "Option 2"], selected: "Option 1", color: "#3880ff" },
-  Badge: { text: "Badge", color: "#3880ff" },
-  Chip: { label: "Chip", color: "#3880ff", outline: false },
-  Video: { src: "", title: "Video" },
-};
+const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {};
 
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
 const CAMERA_METHODS = [
