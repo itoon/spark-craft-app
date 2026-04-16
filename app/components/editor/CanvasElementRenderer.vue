@@ -83,7 +83,11 @@
       </div>
     </div>
   </div>
-  <IonHeader v-else-if="element.type === 'Toolbar'" style="height: 100%">
+  <IonHeader
+    v-else-if="element.type === 'Toolbar'"
+    :mode="isRunMode ? (platform == 'ios' ? 'ios' : 'md') : ionicMode"
+    style="height: 100%"
+  >
     <IonToolbar
       class="toolbar-canvas w-full select-none"
       :mode="isRunMode ? (platform == 'ios' ? 'ios' : 'md') : ionicMode"
@@ -584,13 +588,20 @@
   >
     <ClientOnly>
       <EditorElementsChartRenderer
-        :chart-type="(element.props.chartType as 'bar'|'line'|'pie'|'doughnut') || 'bar'"
-        :labels="(element.props.labels as string[]) || ['A','B','C','D','E']"
+        :chart-type="
+          (element.props.chartType as 'bar' | 'line' | 'pie' | 'doughnut') ||
+          'bar'
+        "
+        :labels="
+          (element.props.labels as string[]) || ['A', 'B', 'C', 'D', 'E']
+        "
         :datasets="chartDatasets"
         :title="(element.props.title as string) || ''"
       />
       <template #fallback>
-        <div class="w-full h-full flex items-center justify-center text-neutral-400 text-xs">
+        <div
+          class="w-full h-full flex items-center justify-center text-neutral-400 text-xs"
+        >
           <UIcon name="i-lucide-chart-bar" class="size-8" />
         </div>
       </template>
@@ -1302,13 +1313,17 @@ const cameraStatusStyle = computed(() => ({
 // ionicColorHex takes precedence over the stored dataset colour so that the
 // Ionic colour picker in PropertiesPanel stays in sync with the chart colour.
 const chartDatasets = computed(() => {
-  const raw = props.element.props.datasets as { label: string; data: number[]; color: string }[] | undefined
-  const fallback = [{ label: 'Series 1', data: [40, 65, 28, 80, 52], color: '#3880ff' }]
-  const ds = raw && raw.length > 0 ? raw : fallback
-  const overrideColor = props.element.props.ionicColorHex as string | undefined
-  if (!overrideColor) return ds
-  return ds.map((d, i) => i === 0 ? { ...d, color: overrideColor } : d)
-})
+  const raw = props.element.props.datasets as
+    | { label: string; data: number[]; color: string }[]
+    | undefined;
+  const fallback = [
+    { label: "Series 1", data: [40, 65, 28, 80, 52], color: "#3880ff" },
+  ];
+  const ds = raw && raw.length > 0 ? raw : fallback;
+  const overrideColor = props.element.props.ionicColorHex as string | undefined;
+  if (!overrideColor) return ds;
+  return ds.map((d, i) => (i === 0 ? { ...d, color: overrideColor } : d));
+});
 
 // ── List ──────────────────────────────────────────────────────────────────
 const listContent = computed(() => {
