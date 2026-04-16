@@ -45,9 +45,41 @@
         class="hidden lg:flex items-center gap-2 text-[10px] text-neutral-500 mr-2"
       >
         <UIcon name="i-lucide-folder-open" class="size-3" />
-        <span class="font-mono truncate max-w-[180px]">{{
-          store.projectName.value
-        }}</span>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <UInput
+            v-if="isEditingProjectName"
+            ref="projectNameInput"
+            v-model="draftProjectName"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            :ui="{ base: 'h-7 text-[11px] font-mono', trailing: 'pe-1' }"
+            class="w-[220px]"
+            placeholder="Untitled Project"
+            @blur="commitProjectName"
+            @keydown.enter.prevent="commitProjectName"
+            @keydown.esc.prevent="cancelProjectNameEdit"
+          />
+          <button
+            v-else
+            class="max-w-[220px] truncate font-mono text-left text-neutral-400 hover:text-white transition-colors"
+            type="button"
+            @click="startProjectNameEdit"
+          >
+            {{ store.projectName.value }}
+          </button>
+          <button
+            class="rounded p-1 text-neutral-500 hover:text-white hover:bg-neutral-800 transition-colors"
+            type="button"
+            :aria-label="isEditingProjectName ? 'Save project name' : 'Rename project'"
+            @click="isEditingProjectName ? commitProjectName() : startProjectNameEdit()"
+          >
+            <UIcon
+              :name="isEditingProjectName ? 'i-lucide-check' : 'i-lucide-pencil'"
+              class="size-3"
+            />
+          </button>
+        </div>
       </div>
 
       <UButton
@@ -200,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import QRCode from "qrcode";
 
 import { useEditorStore } from "~/composables/useEditorStore";
@@ -214,6 +246,9 @@ const store = useEditorStore();
 const isExporting = ref(false);
 const isCreatingShareLink = ref(false);
 const isCommandPaletteOpen = ref(false);
+const isEditingProjectName = ref(false);
+const draftProjectName = ref("");
+const projectNameInput = ref<{ inputRef?: HTMLInputElement | null } | HTMLInputElement | null>(null);
 
 const shareLinkOverlay = reactive({
   visible: false,
@@ -240,6 +275,35 @@ const modeTabs: ModeTab[] = [
   { key: "design", label: "Design", icon: "i-lucide-pen-tool" },
   { key: "code", label: "Code", icon: "i-lucide-code-2" },
 ];
+
+function focusProjectNameInput() {
+  const target =
+    projectNameInput.value instanceof HTMLInputElement
+      ? projectNameInput.value
+      : projectNameInput.value?.inputRef ?? null;
+
+  target?.focus();
+  target?.select();
+}
+
+function startProjectNameEdit() {
+  draftProjectName.value = store.projectName.value;
+  isEditingProjectName.value = true;
+  nextTick(() => {
+    focusProjectNameInput();
+  });
+}
+
+function commitProjectName() {
+  store.setProjectName(draftProjectName.value);
+  draftProjectName.value = store.projectName.value;
+  isEditingProjectName.value = false;
+}
+
+function cancelProjectNameEdit() {
+  draftProjectName.value = store.projectName.value;
+  isEditingProjectName.value = false;
+}
 
 function onWindowKeydown(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
