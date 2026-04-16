@@ -414,9 +414,11 @@ function updateElementProps(id: string, propsPatch: Record<string, unknown>) {
   const idx = elements.value.findIndex(el => el.id === id)
   if (idx !== -1) {
     const el = elements.value[idx]!
+    const { __height, ...rest } = propsPatch
     elements.value[idx] = {
       ...el,
-      props: { ...el.props, ...propsPatch },
+      ...(__height !== undefined ? { height: Number(__height) } : {}),
+      props: { ...el.props, ...rest },
     } as AppElement
   }
 }

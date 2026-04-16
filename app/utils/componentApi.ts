@@ -31,6 +31,7 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
   List: "List",
   Separator: "Separator",
   Spacer: "Spacer",
+  Chart: "Chart",
 };
 
 const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {};
@@ -46,6 +47,12 @@ const CAMERA_METHODS = [
 ];
 const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
 const SPINNER_METHODS = ["show()", "hide()"];
+const CHART_METHODS = [
+  "setData(labels, data)",
+  "setDatasets(datasets)",
+  "setType(type)",
+  "setTitle(title)",
+];
 
 function unique(items: string[]) {
   return Array.from(new Set(items));
@@ -92,6 +99,7 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       ...(designType === "Camera" ? CAMERA_METHODS : []),
       ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
       ...(designType === "Spinner" ? SPINNER_METHODS : []),
+      ...(designType === "Chart" ? CHART_METHODS : []),
     ]);
 
     schemas.push({
@@ -114,6 +122,23 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
           ? [
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.show();`,
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.hide();`,
+            ]
+          : []),
+        ...(designType === "Chart"
+          ? [
+              `// Direct property assignment`,
+              `chart1.title      = 'Revenue Q1';`,
+              `chart1.chartType  = 'line';  // 'bar' | 'line' | 'pie' | 'doughnut'`,
+              `chart1.labels     = ['Jan', 'Feb', 'Mar', 'Apr', 'May'];`,
+              `chart1.data       = [30, 70, 45, 88, 60];`,
+              `chart1.color      = '#2dd36f';`,
+              `chart1.height     = 250;`,
+              ``,
+              `// Multi-series datasets`,
+              `chart1.setDatasets([`,
+              `  { label: 'Sales', data: [30, 70, 45], color: '#3880ff' },`,
+              `  { label: 'Cost',  data: [20, 40, 35], color: '#ff4961' },`,
+              `]);`,
             ]
           : []),
         ...(designType === "Camera"

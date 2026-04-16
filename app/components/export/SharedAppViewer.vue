@@ -126,9 +126,14 @@ function runCode() {
       code,
       allElements,
       (id, patch) => {
+        const { __height, ...propsPatch } = patch as Record<string, unknown>;
         elementState.value = elementState.value.map((element) =>
           element.id === id
-            ? { ...element, props: { ...element.props, ...patch } }
+            ? {
+                ...element,
+                ...(__height !== undefined ? { height: Number(__height) } : {}),
+                props: { ...element.props, ...propsPatch },
+              }
             : element,
         );
       },

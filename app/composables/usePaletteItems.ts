@@ -276,6 +276,22 @@ export function usePaletteItems(): PaletteGroup[] {
             filter: "none",
           },
         },
+        {
+          type: "Chart",
+          label: "Chart",
+          icon: "i-lucide-chart-bar",
+          defaultWidth: 300,
+          defaultHeight: 220,
+          defaultProps: {
+            chartType: "bar",
+            title: "My Chart",
+            labels: ["Jan", "Feb", "Mar", "Apr", "May"],
+            datasets: [{ label: "Series 1", data: [40, 65, 28, 80, 52], color: "#3880ff" }],
+            ionicColor: "primary",
+            ionicColorHex: "#3880ff",
+            ionicColorContrast: "#ffffff",
+          },
+        },
       ],
     },
   ];

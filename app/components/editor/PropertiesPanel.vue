@@ -140,11 +140,12 @@
         icon="i-lucide-palette"
       >
         <div class="space-y-3">
-          <!-- Ionic color picker for Button / Toolbar -->
+          <!-- Ionic color picker for Button / Toolbar / Chart -->
           <EditorPropField
             v-if="
               selectedElement.type === 'Button' ||
-              selectedElement.type === 'Toolbar'
+              selectedElement.type === 'Toolbar' ||
+              selectedElement.type === 'Chart'
             "
             label="Color"
           >
@@ -160,7 +161,15 @@
                 "
                 :style="{ backgroundColor: c.hex }"
                 :title="c.label"
-                @click="patchProps({ ionicColor: c.name, ionicColorHex: c.hex, ionicColorContrast: c.contrast })"
+                @click="() => {
+                  if (selectedElement.type === 'Chart') {
+                    const ds = JSON.parse(JSON.stringify(selectedElement.props.datasets || [{ label: 'Series 1', data: [], color: c.hex }]));
+                    (ds[0] as { color: string }).color = c.hex;
+                    patchProps({ ionicColor: c.name, ionicColorHex: c.hex, ionicColorContrast: c.contrast, datasets: ds });
+                  } else {
+                    patchProps({ ionicColor: c.name, ionicColorHex: c.hex, ionicColorContrast: c.contrast });
+                  }
+                }"
               >
                 <span
                   class="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-1.5 py-0.5 rounded text-[10px] bg-neutral-800 text-white whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none z-50 transition-opacity"
@@ -168,6 +177,21 @@
                   {{ c.label }}
                 </span>
               </button>
+            </div>
+          </EditorPropField>
+
+          <!-- Chart type picker -->
+          <EditorPropField v-if="selectedElement.type === 'Chart'" label="Chart type">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="t in ['bar', 'line', 'pie', 'doughnut']"
+                :key="t"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="((selectedElement.props.chartType as string) || 'bar') === t
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'"
+                @click="patchProps({ chartType: t })"
+              >{{ t }}</button>
             </div>
           </EditorPropField>
 
@@ -846,6 +870,53 @@
             </div>
           </EditorPropField>
 
+          <!-- ── Chart ── -->
+
+          <EditorPropField v-if="selectedElement.type === 'Chart'" label="Title">
+            <UInput
+              :model-value="(selectedElement.props.title as string) || ''"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ title: String(v) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Chart'" label="Labels (comma)">
+            <UInput
+              :model-value="((selectedElement.props.labels as string[]) || []).join(', ')"
+              size="xs"
+              class="prop-input"
+              placeholder="Jan, Feb, Mar"
+              @update:model-value="(v) => patchProps({ labels: String(v).split(',').map(s => s.trim()).filter(Boolean) })"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Chart'" label="Data (comma)">
+            <UInput
+              :model-value="(((selectedElement.props.datasets as {data:number[]}[])?.[0]?.data) || []).join(', ')"
+              size="xs"
+              class="prop-input"
+              placeholder="40, 65, 28, 80, 52"
+              @update:model-value="(v) => {
+                const nums = String(v).split(',').map(s => Number(s.trim())).filter(n => !isNaN(n));
+                const ds = JSON.parse(JSON.stringify((selectedElement.props.datasets as object[]) || [{label:'Series 1',data:[],color:'#3880ff'}]));
+                (ds[0] as {data:number[]}).data = nums;
+                patchProps({ datasets: ds });
+              }"
+            />
+          </EditorPropField>
+
+          <EditorPropField v-if="selectedElement.type === 'Chart'" label="Height">
+            <UInput
+              :model-value="selectedElement.height"
+              type="number"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchElement({ height: Number(v) })"
+            />
+          </EditorPropField>
+
+          <!-- ── Spinner ── -->
           <EditorPropField
             v-if="selectedElement.type === 'Spinner'"
             label="Show"
@@ -1267,6 +1338,7 @@ const CONTENT_TYPES = new Set([
   "Separator",
   "Spacer",
   "Camera",
+  "Chart",
 ]);
 
 // Ionic-themed color palette — matches Ionic's named color tokens

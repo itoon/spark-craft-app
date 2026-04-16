@@ -1,5 +1,6 @@
 import type { AppElement } from './useEditorStore'
 import { getComponentClassMap } from '../utils/componentApi'
+import { usePaletteItems } from './usePaletteItems'
 
 export interface ConsoleEntry {
   type: 'log' | 'error' | 'warn' | 'success'
@@ -38,6 +39,10 @@ export interface ElementInstance {
   capture?(): Promise<CameraCaptureResult>
   reset?(): ElementInstance
   setFilter?(filter: string): ElementInstance
+  setData?(labels: string[], data: number[]): ElementInstance
+  setDatasets?(datasets: { label: string; data: number[]; color: string }[]): ElementInstance
+  setType?(type: string): ElementInstance
+  setTitle?(title: string): ElementInstance
   onClick(cb: () => void): ElementInstance
   toString(): string
   valueOf(): unknown
@@ -150,12 +155,14 @@ export function syncRuntimeElementProps(
 // ── Execute student code ───────────────────────────────────────────────────
 export function executeCode(
   code: string,
-  allElements: AppElement[],
+  sourceElements: AppElement[],
   onUpdate?: (id: string, props: Record<string, any>) => void,
   onNavigate?: (pageRef: string) => void,
   onLog?: (entry: ConsoleEntry) => void,
   onEvent?: (event: RuntimeExecutionEvent) => void
 ): RuntimeResult {
+  // Work on a shallow copy so virtual elements don't pollute the store
+  const allElements: AppElement[] = [...sourceElements]
   const logs: ConsoleEntry[] = []
   const pageElements: AppElement[] = []
   const instances: ElementInstance[] = []
@@ -181,16 +188,48 @@ export function executeCode(
     onLog?.(entry)
   }
 
-  // Look up element by ID, throw descriptive error if missing
+  // Reverse map: className → element type  (e.g. 'FAB' → 'FloatingActionButton')
+  const typeByClassName: Record<string, string> = Object.fromEntries(
+    Object.entries(ELEMENT_CLASS_MAP).map(([type, cls]) => [cls, type])
+  )
+
+  // Default props from palette, keyed by element type
+  const paletteDefaults: Record<string, { defaultProps: Record<string, unknown>; defaultWidth: number; defaultHeight: number }> = {}
+  for (const group of usePaletteItems()) {
+    for (const item of group.items) {
+      paletteDefaults[item.type] = { defaultProps: item.defaultProps, defaultWidth: item.defaultWidth, defaultHeight: item.defaultHeight }
+    }
+  }
+
+  // Build a virtual AppElement for code-first usage (element not on canvas yet)
+  function makeVirtualEl(id: string, elementType: string): AppElement {
+    const defaults = paletteDefaults[elementType]
+    return {
+      id,
+      pageId: id.includes('_') ? id.split('_')[0]! : 'page1',
+      type: elementType,
+      x: 0,
+      y: 0,
+      width: defaults?.defaultWidth ?? 200,
+      height: defaults?.defaultHeight ?? 40,
+      props: { ...(defaults?.defaultProps ?? {}) },
+      parentId: null,
+      children: [],
+    }
+  }
+
+  // Look up element by ID — strict match only
   function getEl(id: string, className: string): AppElement {
     const el = allElements.find(e => e.id === id)
-    if (!el) {
-      const avail = allElements.map(e => `'${e.id}'`).join(', ')
-      throw new Error(
-        `${className}('${id}'): ID not found.\nAvailable: ${avail || '(none — add elements in Design mode)'}`
-      )
-    }
-    return el
+    if (el) return el
+
+    // Build a helpful error: show IDs of elements with the same type
+    const elementType = typeByClassName[className] ?? className
+    const sameType = allElements.filter(e => e.type === elementType).map(e => `'${e.id}'`)
+    const hint = sameType.length > 0
+      ? `\nDid you mean: ${sameType.join(', ')}?`
+      : `\nNo ${className} elements found on canvas — add one in Design mode first.`
+    throw new Error(`${className}('${id}'): ID not found.${hint}`)
   }
 
   function collectContainerAncestors(element: AppElement): AppElement[] {
@@ -369,6 +408,60 @@ export function executeCode(
           enumerable: true,
         })
       }
+
+      if (className === 'Chart') {
+        const defineChartProp = (name: string, getter: () => unknown, setter: (v: unknown) => void) => {
+          Object.defineProperty(this, name, { get: getter, set: setter, configurable: true, enumerable: true })
+        }
+
+        // chart1.labels = ['Jan','Feb','Mar']
+        defineChartProp('labels',
+          () => this.__el.props.labels,
+          (val) => {
+            this.__el.props.labels = val
+            pushEvent({ type: 'update', message: `${this.__el.id}.labels = ${JSON.stringify(val)}`, elementId: this.__el.id, elementType: 'Chart', propName: 'labels', value: val })
+            onUpdate?.(this.__el.id, { labels: val })
+          },
+        )
+
+        // chart1.data = [10, 20, 30]
+        defineChartProp('data',
+          () => (this.__el.props.datasets as { data: unknown[] }[] | undefined)?.[0]?.data,
+          (val) => {
+            const ds = [...((this.__el.props.datasets as object[]) ?? [{ label: 'Series 1', data: [], color: '#3880ff' }])]
+            const first = { ...(ds[0] as Record<string, unknown>), data: val }
+            const updated = [first, ...ds.slice(1)]
+            this.__el.props.datasets = updated
+            pushEvent({ type: 'update', message: `${this.__el.id}.data = ${JSON.stringify(val)}`, elementId: this.__el.id, elementType: 'Chart', propName: 'datasets', value: updated })
+            onUpdate?.(this.__el.id, { datasets: updated })
+          },
+        )
+
+        // chart1.height = 250  (structural — mutates __el.height directly)
+        defineChartProp('height',
+          () => this.__el.height,
+          (val) => {
+            this.__el.height = Number(val)
+            pushEvent({ type: 'update', message: `${this.__el.id}.height = ${val}`, elementId: this.__el.id, elementType: 'Chart', propName: 'height', value: val })
+            // Propagate via onUpdate so host components can also reflect the change
+            onUpdate?.(this.__el.id, { __height: Number(val) })
+          },
+        )
+
+        // chart1.color = '#ff4961'  (syncs both ionicColorHex and datasets[0].color)
+        defineChartProp('color',
+          () => (this.__el.props.ionicColorHex as string) ?? (this.__el.props.datasets as { color: string }[] | undefined)?.[0]?.color,
+          (val) => {
+            const ds = [...((this.__el.props.datasets as object[]) ?? [{ label: 'Series 1', data: [], color: val }])]
+            const first = { ...(ds[0] as Record<string, unknown>), color: val }
+            const updated = [first, ...ds.slice(1)]
+            this.__el.props.datasets = updated
+            this.__el.props.ionicColorHex = val
+            pushEvent({ type: 'update', message: `${this.__el.id}.color = '${val}'`, elementId: this.__el.id, elementType: 'Chart', propName: 'color', value: val })
+            onUpdate?.(this.__el.id, { datasets: updated, ionicColorHex: val })
+          },
+        )
+      }
     }
 
     /** Maps generic property names like 'text' to the specific prop used by the element type */
@@ -542,6 +635,41 @@ export function executeCode(
       return this
     }
 
+    setData(labels: string[], data: number[]): this {
+      if (this.__el.type !== 'Chart') throw new Error(`${this.__el.type} does not support setData()`)
+      const datasets = (this.__el.props.datasets as { label: string; data: number[]; color: string }[] | undefined) ?? [{ label: 'Series 1', data, color: '#3880ff' }]
+      const updated = datasets.map((ds, i) => i === 0 ? { ...ds, data } : ds)
+      this.__el.props.labels = labels
+      this.__el.props.datasets = updated
+      onUpdate?.(this.__el.id, { labels, datasets: updated })
+      pushEvent({ type: 'update', message: `${this.__el.id}.setData(${JSON.stringify(labels)}, ${JSON.stringify(data)})`, elementId: this.__el.id, elementType: 'Chart', propName: 'datasets', value: updated })
+      return this
+    }
+
+    setDatasets(datasets: { label: string; data: number[]; color: string }[]): this {
+      if (this.__el.type !== 'Chart') throw new Error(`${this.__el.type} does not support setDatasets()`)
+      this.__el.props.datasets = datasets
+      onUpdate?.(this.__el.id, { datasets })
+      pushEvent({ type: 'update', message: `${this.__el.id}.setDatasets(...)`, elementId: this.__el.id, elementType: 'Chart', propName: 'datasets', value: datasets })
+      return this
+    }
+
+    setType(type: string): this {
+      if (this.__el.type !== 'Chart') throw new Error(`${this.__el.type} does not support setType()`)
+      this.__el.props.chartType = type
+      onUpdate?.(this.__el.id, { chartType: type })
+      pushEvent({ type: 'update', message: `${this.__el.id}.setType('${type}')`, elementId: this.__el.id, elementType: 'Chart', propName: 'chartType', value: type })
+      return this
+    }
+
+    setTitle(title: string): this {
+      if (this.__el.type !== 'Chart') throw new Error(`${this.__el.type} does not support setTitle()`)
+      this.__el.props.title = title
+      onUpdate?.(this.__el.id, { title })
+      pushEvent({ type: 'update', message: `${this.__el.id}.setTitle('${title}')`, elementId: this.__el.id, elementType: 'Chart', propName: 'title', value: title })
+      return this
+    }
+
     /** Returns the element's most meaningful "value" for use in expressions */
     valueOf(): unknown {
       const p = this.__el.props
@@ -585,6 +713,7 @@ export function executeCode(
   const Separator     = make('Separator')
   const Spacer        = make('Spacer')
   const Container     = make('Container')
+  const Chart         = make('Chart')
 
   // ── page object ───────────────────────────────────────────────────────
   const page = {
@@ -644,7 +773,7 @@ export function executeCode(
       'Range','DatePicker','Checkbox','Radio','Toggle','Select',
       'Heading','Label','TextBox','Textarea','Badge','Chip','Spinner',
       'Image','Camera','Link','Video','List','Card','Segment',
-      'Separator','Spacer','Container',
+      'Separator','Spacer','Container','Chart',
       'page','console',
       `"use strict";\n${code}`
     )(
@@ -652,7 +781,7 @@ export function executeCode(
       Range,DatePicker,Checkbox,Radio,Toggle,Select,
       Heading,Label,TextBox,Textarea,Badge,Chip,Spinner,
       Image,Camera,Link,Video,List,Card,Segment,
-      Separator,Spacer,Container,
+      Separator,Spacer,Container,Chart,
       page,console
     )
     pushLog({ type: 'success', message: `Done — ${pageElements.length} element(s) on page` })
