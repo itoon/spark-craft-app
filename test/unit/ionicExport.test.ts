@@ -83,6 +83,11 @@ describe("ionic export generator", () => {
     expect(runtimeFile?.content).toContain("onChange(cb: (value: unknown) => unknown)");
     expect(runtimeFile?.content).toContain('"RangeInput":["value"]');
     expect(runtimeFile?.content).toContain("export function getChangeValue(");
+    expect(runtimeFile?.content).toContain("onReady(cb: () => unknown)");
+    expect(runtimeFile?.content).toContain("export function describeCameraError(");
+    expect(runtimeFile?.content).not.toContain("from '../runtime/codecraft-runtime'");
+    const rendererFile = files.find((file) => file.path === "src/components/CodeCraftRenderer.vue");
+    expect(rendererFile?.content).toContain("emit('run-event', props.element.id, 'ready')");
   });
 
   it("creates a stable export folder name", () => {

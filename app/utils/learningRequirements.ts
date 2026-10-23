@@ -107,7 +107,7 @@ export type LearningRequirement =
       type: "runtime-handler";
       elementType: string;
       pageId?: string;
-      event: "onClick" | "onChange";
+      event: "onClick" | "onChange" | "onReady" | "onError";
       minCount?: number;
       message: string;
     }
@@ -492,6 +492,8 @@ export function evaluateLearningRequirement(
         if (instance.__el.type !== requirement.elementType) return false;
         if (requirement.event === "onClick") return Boolean(instance.__onClick);
         if (requirement.event === "onChange") return Boolean(instance.__onChange);
+        if (requirement.event === "onReady") return Boolean(instance.__onReady);
+        if (requirement.event === "onError") return Boolean(instance.__onError);
         return false;
       }).length ?? 0;
 

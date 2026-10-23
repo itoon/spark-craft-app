@@ -1420,7 +1420,7 @@ const store = useEditorStore();
 const pageAdd = usePageAddStatus();
 
 // ── Events: show whether the selected element's onClick / onChange is used in code ──
-type ElementEvent = "onClick" | "onChange";
+type ElementEvent = "onClick" | "onChange" | "onReady" | "onError";
 // The variable the code already uses for this element (e.g. `var button = new Button('page1_button1')`),
 // else the default name the scaffold would give it.
 const varName = computed(() => {
@@ -1435,6 +1435,7 @@ const varName = computed(() => {
 
 const elementEvents = computed<ElementEvent[]>(() => {
   const el = store.selectedElement.value;
+  if (el?.type === "Camera") return ["onReady", "onError"];
   return el && supportsChangeEvent(el.type) ? ["onClick", "onChange"] : ["onClick"];
 });
 
@@ -1459,10 +1460,13 @@ function addHandler(event: ElementEvent) {
   const declared = new RegExp(`\\b(?:var|let|const)\\s+${name}\\b`).test(current);
   const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
   const declaration = declared ? "" : `\nvar ${name} = new ${cls}('${el.id}');\npage.add(${name});\n`;
-  const snippet =
-    event === "onChange"
-      ? `\n${name}.onChange((value) => {\n  // what should happen when ${name} changes? value is the new value\n});\n`
-      : `\n${name}.onClick(() => {\n  // what should happen when ${name} is clicked?\n});\n`;
+  const snippets: Record<ElementEvent, string> = {
+    onClick: `\n${name}.onClick(() => {\n  // what should happen when ${name} is clicked?\n});\n`,
+    onChange: `\n${name}.onChange((value) => {\n  // what should happen when ${name} changes? value is the new value\n});\n`,
+    onReady: `\n${name}.onReady(() => {\n  // the camera is showing — what should happen now?\n});\n`,
+    onError: `\n${name}.onError((message) => {\n  // the camera could not start — message says why\n});\n`,
+  };
+  const snippet = snippets[event];
   store.jsCodeByPage.value[el.pageId] = `${current.replace(/\s*$/, "")}\n${declaration}${snippet}`;
   store.markJsCodeInitialized();
   store.setMode("code");

@@ -80,6 +80,8 @@ const CAMERA_METHODS = [
   "capture()",
   "reset()",
   "setFilter(filter)",
+  "onReady(callback)",
+  "onError(callback(message))",
 ];
 const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
 const SPINNER_METHODS = ["show()", "hide()"];
@@ -212,6 +214,16 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
         ...(designType === "Camera"
           ? [
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.open();`,
+              ``,
+              `// Runs once the live preview is showing`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.onReady(() => {`,
+              `  label1.text = 'กล้องพร้อมแล้ว 📸';`,
+              `});`,
+              ``,
+              `// Runs when the camera can't start (no permission, no camera…)`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.onError((message) => {`,
+              `  label1.text = 'เปิดกล้องไม่ได้: ' + message;`,
+              `});`,
               ``,
               `// Apply a filter: 'grayscale','sepia','vintage','warm','cool',`,
               `//   'invert','blur','brightness','contrast','saturate'`,

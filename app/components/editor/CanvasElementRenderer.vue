@@ -78,6 +78,7 @@
           :runtime-elements="props.runtimeElements"
           @run-click="emit('run-click', $event)"
           @run-input="(id, patch) => emit('run-input', id, patch)"
+          @run-event="(id, name, payload) => emit('run-event', id, name, payload)"
         />
       </div>
       <div
@@ -659,7 +660,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
-import { buildToolbarBackButtonClickId } from "~/composables/useRuntime";
+import { buildToolbarBackButtonClickId, describeCameraError } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { usePageAddStatus } from "~/composables/usePageAddStatus";
@@ -687,6 +688,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "run-click", id: string): void;
   (e: "run-input", id: string, propsPatch: Record<string, unknown>): void;
+  /** Element events that are not a prop change, e.g. Camera ready / error */
+  (e: "run-event", id: string, name: string, payload?: unknown): void;
 }>();
 
 const store = useEditorStore();
@@ -779,10 +782,15 @@ const designInteractiveClass = computed(() =>
 );
 
 // ── Camera lifecycle ─────────────────────────────────────────────────────
+function reportCameraError(message: string) {
+  cameraError.value = message;
+  emit("run-event", props.element.id, "error", message);
+}
+
 async function startCameraPreview() {
   if (!import.meta.client || !shouldUseLiveCamera.value) return;
   if (!navigator.mediaDevices?.getUserMedia) {
-    cameraError.value = "This browser does not support live camera preview.";
+    reportCameraError(describeCameraError(null));
     return;
   }
 
@@ -801,10 +809,9 @@ async function startCameraPreview() {
 
     cameraVideoRef.value.srcObject = cameraStream;
     await cameraVideoRef.value.play().catch(() => undefined);
+    emit("run-event", props.element.id, "ready");
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to access the camera.";
-    cameraError.value = message;
+    reportCameraError(describeCameraError(error));
     stopCameraPreview();
   }
 }

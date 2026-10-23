@@ -149,6 +149,7 @@
               :viewport-height="activeDevice.canvasH"
               @run-click="handleRunClick"
               @run-input="handleRunInput"
+              @run-event="handleRunEvent"
             />
             <template #overlay>
               <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" />
@@ -174,6 +175,7 @@ import {
   buildScaffold,
   executeCode,
   getRuntimeChangeValue,
+  getRuntimeEventHandler,
   getToolbarIdFromBackButtonClickId,
   isToolbarBackButtonClickId,
   syncRuntimeElementProps,
@@ -381,6 +383,24 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
   ]
   scrollTraceToBottom()
   invokeRuntimeHandler(() => onChange(value))
+}
+
+function handleRunEvent(id: string, name: string, payload?: unknown) {
+  const instance = instances.value.find(inst => inst.__el.id === id)
+  if (!instance) return
+  const handler = getRuntimeEventHandler(instance, name)
+  executionEvents.value = [
+    ...executionEvents.value,
+    {
+      step: executionEvents.value.length + 1,
+      type: 'log',
+      message: `${instance.__el.type} ${id} ${name}${payload === undefined ? '' : ` → ${String(payload)}`}`,
+      elementId: id,
+      elementType: instance.__el.type,
+    },
+  ]
+  scrollTraceToBottom()
+  if (handler) invokeRuntimeHandler(() => handler(payload))
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────

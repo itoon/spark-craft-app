@@ -210,6 +210,8 @@ export interface RuntimeInstance {
   __onClick: (() => void) | null;
   __onBackClick?: (() => void) | null;
   __onChange?: ((value: unknown) => unknown) | null;
+  __onReady?: (() => unknown) | null;
+  __onError?: ((message: string) => unknown) | null;
   backButton?: {
     onClick(cb: () => unknown): unknown;
   };
@@ -225,6 +227,8 @@ export interface RuntimeInstance {
   }>;
   onClick(cb: () => void): RuntimeInstance;
   onChange?(cb: (value: unknown) => unknown): RuntimeInstance;
+  onReady?(cb: () => unknown): RuntimeInstance;
+  onError?(cb: (message: string) => unknown): RuntimeInstance;
 }
 
 export interface RuntimeResult {
@@ -234,6 +238,16 @@ export interface RuntimeResult {
 
 /** Elements the user can change → props in an input patch that fire onChange */
 const CHANGE_EVENT_PROPS: Record<string, string[]> = ${JSON.stringify(CHANGE_EVENT_PROPS)};
+
+/** A short, learner-friendly reason the camera could not start */
+export function describeCameraError(error: unknown): string {
+  const name = error instanceof Error ? error.name : '';
+  if (!error) return 'This browser does not support the camera.';
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'Camera permission was denied.';
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No camera was found on this device.';
+  if (name === 'NotReadableError') return 'The camera is being used by another app.';
+  return error instanceof Error && error.message ? error.message : 'Unable to start the camera.';
+}
 
 /** Typed value for onChange, or undefined when the patch is not a value change */
 export function getChangeValue(type: string, patch: Record<string, unknown>): unknown {
@@ -337,6 +351,8 @@ export function executeCode(
     __onClick: (() => void) | null = null;
     __onBackClick: (() => void) | null = null;
     __onChange: ((value: unknown) => unknown) | null = null;
+    __onReady: (() => unknown) | null = null;
+    __onError: ((message: string) => unknown) | null = null;
 
     constructor(id: string, className: string) {
       this.__el = getElement(id, className);
@@ -380,6 +396,18 @@ export function executeCode(
         throw new Error(\`\${this.__el.type} does not support onChange()\`);
       }
       this.__onChange = cb;
+      return this;
+    }
+
+    onReady(cb: () => unknown) {
+      if (this.__el.type !== 'Camera') throw new Error(\`\${this.__el.type} does not support onReady()\`);
+      this.__onReady = cb;
+      return this;
+    }
+
+    onError(cb: (message: string) => unknown) {
+      if (this.__el.type !== 'Camera') throw new Error(\`\${this.__el.type} does not support onError()\`);
+      this.__onError = cb;
       return this;
     }
 
@@ -646,6 +674,7 @@ function buildRendererFile(): string {
       :click-handlers="clickHandlers"
       @run-click="$emit('run-click', $event)"
       @run-input="(id, patch) => $emit('run-input', id, patch)"
+      @run-event="(id, name, payload) => $emit('run-event', id, name, payload)"
     />
   </div>
 
@@ -877,6 +906,7 @@ import {
 } from '@ionic/vue';
 import { add, calendar, search, star } from 'ionicons/icons';
 import type { CodeCraftElement } from '../data/codecraft-app';
+import { describeCameraError } from '../runtime/codecraft-runtime';
 
 const props = defineProps<{
   element: CodeCraftElement;
@@ -887,6 +917,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (event: 'run-click', id: string): void;
   (event: 'run-input', id: string, patch: Record<string, unknown>): void;
+  (event: 'run-event', id: string, name: string, payload?: unknown): void;
 }>();
 
 const childElements = computed(() =>
@@ -1016,7 +1047,7 @@ function emitInput(patch: Record<string, unknown>) {
 async function startCameraPreview() {
   if (props.element.type !== 'Camera' || !shouldUseLiveCamera.value) return;
   if (!navigator.mediaDevices?.getUserMedia) {
-    cameraError.value = 'This browser does not support live camera preview.';
+    reportCameraError(describeCameraError(null));
     return;
   }
 
@@ -1038,10 +1069,16 @@ async function startCameraPreview() {
 
     cameraVideoRef.value.srcObject = stream;
     await cameraVideoRef.value.play().catch(() => undefined);
+    emit('run-event', props.element.id, 'ready');
   } catch (error) {
-    cameraError.value = error instanceof Error ? error.message : 'Unable to access the camera.';
+    reportCameraError(describeCameraError(error));
     stopCameraPreview();
   }
+}
+
+function reportCameraError(message: string) {
+  cameraError.value = message;
+  emit('run-event', props.element.id, 'error', message);
 }
 
 function stopCameraPreview() {
@@ -1211,6 +1248,7 @@ function buildPageViewFile(): string {
           :click-handlers="clickHandlers"
           @run-click="handleClick"
           @run-input="handleInput"
+          @run-event="handleEvent"
         />
 
         <ion-fab
@@ -1268,6 +1306,7 @@ const router = useRouter();
 const runtimeElements = ref<CodeCraftElement[]>([]);
 const clickHandlers = ref<Record<string, () => void>>({});
 const changeInstances = ref<Record<string, RuntimeInstance>>({});
+const eventInstances = ref<Record<string, RuntimeInstance>>({});
 const runtimeError = ref('');
 const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton';
 
@@ -1399,10 +1438,16 @@ function runPage() {
         .filter((instance) => instance.__onChange)
         .map((instance) => [instance.__el.id, instance]),
     );
+    eventInstances.value = Object.fromEntries(
+      result.instances
+        .filter((instance) => instance.__onReady || instance.__onError)
+        .map((instance) => [instance.__el.id, instance]),
+    );
   } catch (error) {
     runtimeElements.value = baseElements;
     clickHandlers.value = {};
     changeInstances.value = {};
+    eventInstances.value = {};
     runtimeError.value = error instanceof Error ? error.message : 'Unknown runtime error';
   }
 }
@@ -1436,6 +1481,12 @@ function handleInput(id: string, patch: Record<string, unknown>) {
   Object.assign(instance.__el.props, patch);
   const value = getChangeValue(instance.__el.type, patch);
   if (value !== undefined) instance.__onChange(value);
+}
+
+function handleEvent(id: string, name: string, payload?: unknown) {
+  const instance = eventInstances.value[id];
+  if (name === 'ready') instance?.__onReady?.();
+  if (name === 'error') instance?.__onError?.(String(payload ?? ''));
 }
 </script>
 

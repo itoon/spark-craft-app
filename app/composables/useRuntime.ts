@@ -35,6 +35,8 @@ export interface ElementInstance {
   __onClick: (() => void) | null
   __onBackClick?: (() => void) | null
   __onChange?: ((value: unknown) => unknown) | null
+  __onReady?: (() => unknown) | null
+  __onError?: ((message: string) => unknown) | null
   backButton?: {
     onClick(cb: () => void): unknown
   }
@@ -50,6 +52,8 @@ export interface ElementInstance {
   setTitle?(title: string): ElementInstance
   onClick(cb: () => void): ElementInstance
   onChange?(cb: (value: unknown) => unknown): ElementInstance
+  onReady?(cb: () => unknown): ElementInstance
+  onError?(cb: (message: string) => unknown): ElementInstance
   toString(): string
   valueOf(): unknown
 }
@@ -153,6 +157,26 @@ export function getRuntimeChangeValue(type: string, propsPatch: Record<string, u
   if (type === 'RangeInput' || type === 'Segment') return Number(raw)
   if (type === 'Toggle' || type === 'Checkbox' || typeof raw === 'boolean') return Boolean(raw)
   return String(raw ?? '')
+}
+
+/** A short, learner-friendly reason the camera could not start */
+export function describeCameraError(error: unknown): string {
+  const name = error instanceof Error ? error.name : ''
+  if (!error) return 'This browser does not support the camera.'
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'Camera permission was denied.'
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'No camera was found on this device.'
+  if (name === 'NotReadableError') return 'The camera is being used by another app.'
+  return error instanceof Error && error.message ? error.message : 'Unable to start the camera.'
+}
+
+/** The handler for an element event (run-event) such as Camera 'ready' / 'error' */
+export function getRuntimeEventHandler(instance: ElementInstance, name: string): ((payload?: unknown) => unknown) | null {
+  if (name === 'ready') return instance.__onReady ?? null
+  if (name === 'error') {
+    const onError = instance.__onError
+    return onError ? (payload?: unknown) => onError(String(payload ?? '')) : null
+  }
+  return null
 }
 
 export function syncRuntimeElementProps(
@@ -378,6 +402,8 @@ export function executeCode(
     __onClick: (() => void) | null = null
     __onBackClick: (() => void) | null = null
     __onChange: ((value: unknown) => unknown) | null = null
+    __onReady: (() => unknown) | null = null
+    __onError: ((message: string) => unknown) | null = null
 
     constructor(id: string, className: string) {
       const existing = instanceById.get(id)
@@ -595,6 +621,20 @@ export function executeCode(
         throw new Error(`${this.__el.type} does not support onChange()`)
       }
       this.__onChange = cb
+      return this
+    }
+
+    /** Camera: runs once the live preview is showing (after open()) */
+    onReady(cb: () => unknown): this {
+      if (this.__el.type !== 'Camera') throw new Error(`${this.__el.type} does not support onReady()`)
+      this.__onReady = cb
+      return this
+    }
+
+    /** Camera: runs with a message when the camera can't start (no permission, no camera…) */
+    onError(cb: (message: string) => unknown): this {
+      if (this.__el.type !== 'Camera') throw new Error(`${this.__el.type} does not support onError()`)
+      this.__onError = cb
       return this
     }
 

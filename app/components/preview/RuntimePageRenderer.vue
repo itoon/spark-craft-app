@@ -22,6 +22,7 @@
           :runtime-elements="pageElements"
           @run-click="emit('run-click', $event)"
           @run-input="(id, patch) => emit('run-input', id, patch)"
+          @run-event="(id, name, payload) => emit('run-event', id, name, payload)"
         />
       </div>
 
@@ -39,6 +40,7 @@
             :runtime-elements="pageElements"
             @run-click="emit('run-click', $event)"
             @run-input="(id, patch) => emit('run-input', id, patch)"
+            @run-event="(id, name, payload) => emit('run-event', id, name, payload)"
           />
         </div>
       </template>
@@ -64,6 +66,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "run-click", id: string): void;
   (e: "run-input", id: string, patch: Record<string, unknown>): void;
+  (e: "run-event", id: string, name: string, payload?: unknown): void;
 }>();
 
 const pageElements = computed(() => props.pageElements);

@@ -37,6 +37,7 @@
             :viewport-height="activeDevice.canvasH"
             @run-click="handleRunClick"
             @run-input="handleRunInput"
+            @run-event="handleRunEvent"
           />
           <template #overlay>
             <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" />
@@ -65,6 +66,7 @@
               :viewport-height="mobileViewportHeight || activeDevice.canvasH"
               @run-click="handleRunClick"
               @run-input="handleRunInput"
+              @run-event="handleRunEvent"
             />
           </IonApp>
           <PreviewRuntimeNotifications
@@ -85,6 +87,7 @@ import {
   buildScaffold,
   executeCode,
   getRuntimeChangeValue,
+  getRuntimeEventHandler,
   getToolbarIdFromBackButtonClickId,
   isToolbarBackButtonClickId,
   syncRuntimeElementProps,
@@ -283,6 +286,12 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
   const value = getRuntimeChangeValue(instance.__el.type, propsPatch);
   if (value === undefined) return;
   invokeRuntimeHandler(() => onChange(value));
+}
+
+function handleRunEvent(id: string, name: string, payload?: unknown) {
+  const instance = instances.value.find((candidate) => candidate.__el.id === id);
+  const handler = instance ? getRuntimeEventHandler(instance, name) : null;
+  if (handler) invokeRuntimeHandler(() => handler(payload));
 }
 
 onBeforeUnmount(() => {

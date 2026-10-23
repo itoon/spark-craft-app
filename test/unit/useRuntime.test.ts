@@ -7,7 +7,9 @@ import {
 } from "../../app/utils/componentApi";
 import {
   executeCode,
+  describeCameraError,
   getRuntimeChangeValue,
+  getRuntimeEventHandler,
   syncRuntimeElementProps,
   type ElementInstance,
   type RuntimeExecutionEvent,
@@ -382,6 +384,47 @@ describe("onChange", () => {
   });
 });
 
+describe("Camera onReady / onError", () => {
+  it("registers ready and error handlers on a Camera", () => {
+    const result = executeCode(
+      [
+        "var cam = new Camera('page1_camera1'); page.add(cam);",
+        "cam.onReady(() => console.log('ready!'));",
+        "cam.onError((message) => console.log('error: ' + message));",
+        "cam.open();",
+      ].join("\n"),
+      [makeElement("page1_camera1", "Camera", { open: false })],
+    );
+    const cam = result.instances[0]!;
+
+    getRuntimeEventHandler(cam, "ready")!();
+    getRuntimeEventHandler(cam, "error")!("Camera permission was denied.");
+
+    expect(result.logs.map((log) => log.message)).toEqual(
+      expect.arrayContaining(["ready!", "error: Camera permission was denied."]),
+    );
+    expect(getRuntimeEventHandler(cam, "unknown")).toBeNull();
+  });
+
+  it("explains that only Camera has onReady / onError", () => {
+    const result = executeCode(
+      "var b = new Button('page1_button1'); page.add(b); b.onReady(() => {});",
+      [makeElement("page1_button1", "Button", { label: "Go" })],
+    );
+
+    expect(result.logs.some((log) => log.type === "error" && log.message === "Button does not support onReady()")).toBe(true);
+  });
+
+  it("turns camera failures into learner-friendly messages", () => {
+    const named = (name: string) => Object.assign(new Error("raw"), { name });
+    expect(describeCameraError(named("NotAllowedError"))).toBe("Camera permission was denied.");
+    expect(describeCameraError(named("NotFoundError"))).toBe("No camera was found on this device.");
+    expect(describeCameraError(named("NotReadableError"))).toBe("The camera is being used by another app.");
+    expect(describeCameraError(null)).toBe("This browser does not support the camera.");
+    expect(describeCameraError(new Error("boom"))).toBe("boom");
+  });
+});
+
 describe("syncRuntimeElementProps", () => {
   it("keeps runtime instances in sync after the user edits an input value", () => {
     const elements: AppElement[] = [
@@ -625,5 +668,15 @@ describe("componentApi", () => {
     expect(toggle?.methods).toContain("onChange(callback(value))");
     expect(label?.methods).not.toContain("onChange(callback(value))");
     expect(button?.methods).not.toContain("onChange(callback(value))");
+  });
+
+  it("lists Camera onReady / onError (Cmd+K)", () => {
+    const camera = findComponentApiSchemaByClassName("Camera");
+    const button = findComponentApiSchemaByClassName("Button");
+
+    expect(camera?.methods).toContain("onReady(callback)");
+    expect(camera?.methods).toContain("onError(callback(message))");
+    expect(camera?.codeExample).toContain("camera1.onReady(() => {");
+    expect(button?.methods).not.toContain("onReady(callback)");
   });
 });
