@@ -1,5 +1,7 @@
 import { ref, computed, watch } from 'vue'
 
+import { DEFAULT_APP_ICON, normalizeAppIcon, type AppIcon } from '../utils/appIcon'
+
 export type EditorMode = 'design' | 'block' | 'code'
 
 export interface Page {
@@ -35,6 +37,8 @@ export interface PaletteItem {
 export interface PersistedEditorState {
   projectId: string
   projectName: string
+  /** Home-screen icon for the APK (older saves don't have it) */
+  appIcon?: AppIcon
   shareLinkId: string | null
   elements: AppElement[]
   pages: Page[]
@@ -56,6 +60,7 @@ const selectedElementId = ref<string | null>(null)
 const elements = ref<AppElement[]>([])
 const projectId = ref<string>('')
 const projectName = ref<string>('Untitled Project')
+const appIcon = ref<AppIcon>({ ...DEFAULT_APP_ICON })
 const shareLinkId = ref<string | null>(null)
 
 const pages = ref<Page[]>([
@@ -86,8 +91,21 @@ const activePlatform = computed<'ios' | 'android'>(() =>
 
 // Per-type counter so IDs read like page1_button1, page1_toolbar1, etc.
 const typeCounters: Record<string, number> = {}
-const STORAGE_KEY = 'codecraft-current-project-v1'
+/** Creator mode workspace (kept for backward compatibility). */
+export const DEFAULT_WORKSPACE_KEY = 'codecraft-current-project-v1'
+/** Remembers which workspace (creator or a lesson) was open last. */
+const ACTIVE_WORKSPACE_KEY = 'codecraft-active-workspace'
+// Each lesson has its own saved project so switching never destroys work.
+const storageKey = ref<string>(DEFAULT_WORKSPACE_KEY)
 let persistenceInitialized = false
+
+function safeStorage(): Storage | null {
+  try {
+    return import.meta.client ? window.localStorage : null
+  } catch {
+    return null
+  }
+}
 
 function generateProjectId(timestamp = Date.now(), random = Math.random()): string {
   return `project_${timestamp.toString(36)}${Math.floor(random * 0xffffff).toString(36).padStart(5, '0')}`
@@ -139,8 +157,10 @@ function buildPersistedState(): PersistedEditorState {
   return {
     projectId: projectId.value,
     projectName: projectName.value,
+    appIcon: appIcon.value,
     shareLinkId: shareLinkId.value,
-    elements: elements.value,
+    // While Run mode is active, elements hold runtime values; save the design instead
+    elements: elementSnapshot.value ?? elements.value,
     pages: pages.value,
     currentPageId: currentPageId.value,
     activeDeviceId: activeDeviceId.value,
@@ -163,6 +183,7 @@ export function applyPersistedEditorState(state: Partial<PersistedEditorState>) 
   projectName.value = typeof state.projectName === 'string' && state.projectName
     ? state.projectName
     : 'Untitled Project'
+  appIcon.value = normalizeAppIcon(state.appIcon)
   shareLinkId.value = typeof state.shareLinkId === 'string' ? state.shareLinkId : null
   elements.value = state.elements
   pages.value = state.pages
@@ -190,8 +211,13 @@ export function resetEditorStoreForTests() {
 }
 
 function persistProject() {
-  if (!import.meta.client) return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(buildPersistedState()))
+  const ls = safeStorage()
+  if (!ls) return
+  try {
+    ls.setItem(storageKey.value, JSON.stringify(buildPersistedState()))
+  } catch {
+    // Quota / private mode — the editor keeps working in memory.
+  }
 }
 
 function createBlankProject(options?: { keepProjectId?: boolean }) {
@@ -201,6 +227,7 @@ function createBlankProject(options?: { keepProjectId?: boolean }) {
   selectedElementId.value = null
   projectId.value = nextProjectId
   projectName.value = 'Untitled Project'
+  appIcon.value = { ...DEFAULT_APP_ICON }
   shareLinkId.value = null
   pages.value = [{ id: 'page1', name: 'Page 1' }]
   currentPageId.value = 'page1'
@@ -214,8 +241,9 @@ function createBlankProject(options?: { keepProjectId?: boolean }) {
 }
 
 function loadPersistedProject() {
-  if (!import.meta.client) return false
-  const raw = localStorage.getItem(STORAGE_KEY)
+  const ls = safeStorage()
+  if (!ls) return false
+  const raw = ls.getItem(storageKey.value)
   if (!raw) return false
 
   try {
@@ -230,13 +258,16 @@ function initializePersistence() {
   if (!import.meta.client || persistenceInitialized) return
   persistenceInitialized = true
 
+  const savedKey = safeStorage()?.getItem(ACTIVE_WORKSPACE_KEY)
+  if (savedKey) storageKey.value = savedKey
+
   const loaded = loadPersistedProject()
   if (!loaded && elements.value.length === 0) {
     createBlankProject({ keepProjectId: false })
   }
 
   watch(
-    [projectId, projectName, shareLinkId, elements, pages, currentPageId, activeDeviceId, jsCodeByPage],
+    [projectId, projectName, appIcon, shareLinkId, elements, pages, currentPageId, activeDeviceId, jsCodeByPage],
     () => {
       persistProject()
     },
@@ -414,9 +445,11 @@ function updateElementProps(id: string, propsPatch: Record<string, unknown>) {
   const idx = elements.value.findIndex(el => el.id === id)
   if (idx !== -1) {
     const el = elements.value[idx]!
+    const { __height, ...rest } = propsPatch
     elements.value[idx] = {
       ...el,
-      props: { ...el.props, ...propsPatch },
+      ...(__height !== undefined ? { height: Number(__height) } : {}),
+      props: { ...el.props, ...rest },
     } as AppElement
   }
 }
@@ -482,6 +515,10 @@ function setProjectName(name: string) {
   projectName.value = name.trim() || 'Untitled Project'
 }
 
+function setAppIcon(icon: AppIcon) {
+  appIcon.value = normalizeAppIcon(icon)
+}
+
 function setShareLinkId(id: string | null) {
   shareLinkId.value = id
 }
@@ -493,6 +530,41 @@ function saveProject() {
 function newProject() {
   createBlankProject()
   persistProject()
+}
+
+/**
+ * Save the current project, then open another workspace (creator project or a
+ * lesson project). A workspace that was never opened starts blank.
+ */
+function switchWorkspace(key: string, options: { projectName?: string } = {}) {
+  if (key === storageKey.value) return
+  persistProject()
+  storageKey.value = key
+  try {
+    safeStorage()?.setItem(ACTIVE_WORKSPACE_KEY, key)
+  } catch {
+    // ignore
+  }
+  const loaded = loadPersistedProject()
+  if (!loaded) {
+    createBlankProject()
+    if (options.projectName) projectName.value = options.projectName
+  }
+  persistProject()
+}
+
+/** Throw away a workspace's saved project (used by "start lesson over"). */
+function resetWorkspace(key: string, options: { projectName?: string } = {}) {
+  try {
+    safeStorage()?.removeItem(key)
+  } catch {
+    // ignore
+  }
+  if (key === storageKey.value) {
+    createBlankProject()
+    if (options.projectName) projectName.value = options.projectName
+    persistProject()
+  }
 }
 
 function setJsCode(code: string) {
@@ -558,11 +630,14 @@ export function useEditorStore() {
     elements,
     projectId,
     projectName,
+    appIcon,
     shareLinkId,
     pages,
     currentPageId,
     isPreviewOpen,
     isRunning,
+    /** Design-time elements captured when Run started (null when not running) */
+    elementSnapshot,
     activeDeviceId,
     activePlatform,
     jsCode,
@@ -583,9 +658,13 @@ export function useEditorStore() {
     setRunning,
     setActiveDevice,
     setProjectName,
+    setAppIcon,
     setShareLinkId,
     saveProject,
     newProject,
+    switchWorkspace,
+    resetWorkspace,
+    storageKey,
     setJsCode,
     markJsCodeInitialized,
     addPage,

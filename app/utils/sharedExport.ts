@@ -7,6 +7,9 @@ export interface SharedExportPayload {
   jsCodeByPage: Record<string, string>;
   startPageId: string;
   activeDeviceId?: string;
+  iosDeviceId?: string;
+  androidDeviceId?: string;
+  fallbackDeviceId?: string;
   shareId?: string | null;
 }
 

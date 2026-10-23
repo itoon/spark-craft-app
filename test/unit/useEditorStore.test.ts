@@ -72,4 +72,14 @@ describe("useEditorStore project flow", () => {
       savedState.elements.map((element) => element.id)
     );
   });
+
+  it("stores a trimmed project name and falls back when blank", () => {
+    const store = useEditorStore();
+
+    store.setProjectName("  My Cool App  ");
+    expect(store.projectName.value).toBe("My Cool App");
+
+    store.setProjectName("   ");
+    expect(store.projectName.value).toBe("Untitled Project");
+  });
 });

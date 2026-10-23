@@ -2,24 +2,27 @@
   <!-- Outer workspace — dark background, scrollable when device is larger than available space -->
   <div
     ref="workspaceRef"
-    class="design-canvas-workspace flex-1 flex flex-col items-center overflow-auto bg-neutral-950 p-4 gap-4"
+    class="design-canvas-workspace @container flex-1 min-w-0 flex flex-col items-center overflow-auto bg-neutral-950 px-4 py-3 gap-3"
     @click.self="store.selectElement(null)"
   >
     <div
-      class="flex items-center gap-1 shrink-0 bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1.5"
+      class="flex items-center gap-1 shrink-0 bg-neutral-900 border border-neutral-700 rounded-lg px-1.5 py-1"
+      role="group"
+      aria-label="Preview device"
     >
       <button
         v-for="d in DEVICES"
         :key="d.id"
-        class="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-100"
+        class="flex shrink-0 items-center gap-1.5 whitespace-nowrap px-2.5 py-1 rounded-md text-[11px] font-medium transition-colors duration-100"
         :class="
           store.activeDeviceId.value === d.id
             ? 'bg-indigo-600 text-white'
             : 'text-neutral-400 hover:text-neutral-200 hover:bg-neutral-800'
         "
+        :aria-pressed="store.activeDeviceId.value === d.id"
         @click="store.setActiveDevice(d.id)"
       >
-        <UIcon :name="d.icon" class="size-3.5" />
+        <UIcon :name="d.icon" class="hidden size-3.5 shrink-0 @[300px]:inline-block" />
         {{ d.label }}
       </button>
     </div>
@@ -117,26 +120,14 @@
       />
     </div>
 
-    <!-- ─── Scale wrapper — keeps the frame inside the viewport ───────── -->
-    <div
-      v-if="isClientReady"
-      class="shrink-0"
-      :style="{
-        width: `${activeDevice.totalW}px`,
-        height: `${activeDevice.totalH}px`,
-        transform: `scale(${scale})`,
-        transformOrigin: 'top center',
-        // Counteract the space the scaled element would still occupy
-        marginBottom: `${activeDevice.totalH * scale - activeDevice.totalH}px`,
-      }"
-    >
+    <div v-if="isClientReady" class="shrink-0">
       <PreviewDeviceFrame
         :device="activeDevice"
-        :scale="1"
+        :scale="scale"
         @screen-click="store.selectElement(null)"
       >
         <div
-          class="absolute inset-0 overflow-y-auto overflow-x-hidden"
+          class="absolute inset-0 overflow-y-auto overflow-x-hidden phone-scroll"
           @click.self="store.selectElement(null)"
         >
           <EditorCanvasContent />
@@ -147,19 +138,13 @@
       v-else
       class="shrink-0 rounded-[36px] border border-neutral-800 bg-neutral-900/50"
       :style="{
-        width: `${activeDevice.totalW}px`,
-        height: `${activeDevice.totalH}px`,
+        width: `${Math.round(activeDevice.totalW * scale)}px`,
+        height: `${Math.round(activeDevice.totalH * scale)}px`,
       }"
     />
-    <!-- end scale wrapper -->
 
     <!-- Canvas size label -->
-    <div
-      class="text-[10px] text-neutral-600 font-mono shrink-0"
-      :style="{
-        marginTop: `${activeDevice.totalH * scale - activeDevice.totalH + 8}px`,
-      }"
-    >
+    <div class="text-[10px] text-neutral-500 font-mono shrink-0">
       {{ activeDevice.canvasW }} × {{ activeDevice.canvasH }} ·
       {{ activeDevice.label }}
     </div>
@@ -167,9 +152,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, onMounted, nextTick } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { PREVIEW_DEVICES } from "~/composables/usePreviewDevices";
+import { usePreviewDeviceScale } from "~/composables/usePreviewDeviceScale";
 
 const store = useEditorStore();
 
@@ -208,42 +194,21 @@ const activeDevice = computed(
   () => DEVICES.find((d) => d.id === store.activeDeviceId.value) ?? DEVICES[0],
 );
 
-// ─── Scale to fit ─────────────────────────────────────────────────────────
+// ─── Client-mount gate ────────────────────────────────────────────────────
 
 const workspaceRef = ref<HTMLElement | null>(null);
-const workspaceW = ref(800);
-const workspaceH = ref(700);
 const isClientReady = ref(false);
 
-const scale = computed(() => {
-  // Leave room for the device selector row (~56px) + label (~24px) + padding
-  const availH = workspaceH.value - 80 - 40;
-  const availW = workspaceW.value - 48;
-  const frameH = activeDevice.value.totalH;
-  const frameW = activeDevice.value.totalW;
-  return Math.min(1, Math.min(availW / frameW, availH / frameH));
+// Shrink the phone to fit short / narrow windows instead of clipping it.
+const { scale } = usePreviewDeviceScale(workspaceRef, activeDevice, {
+  widthPadding: 32,
+  heightPadding: 128,
+  minWidth: 160,
+  minHeight: 280,
+  maxScale: 1.3,
 });
-
-let resizeObserver: ResizeObserver | null = null;
 
 onMounted(() => {
   isClientReady.value = true;
-  if (!workspaceRef.value) return;
-  // Plain ResizeObserver — VueUse is not installed
-  resizeObserver = new ResizeObserver((entries) => {
-    const entry = entries[0];
-    if (entry) {
-      workspaceW.value = entry.contentRect.width;
-      workspaceH.value = entry.contentRect.height;
-    }
-  });
-  resizeObserver.observe(workspaceRef.value);
-  // Seed with initial size
-  workspaceW.value = workspaceRef.value.clientWidth;
-  workspaceH.value = workspaceRef.value.clientHeight;
-});
-
-onBeforeUnmount(() => {
-  resizeObserver?.disconnect();
 });
 </script>

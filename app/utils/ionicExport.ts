@@ -33,6 +33,7 @@ const ELEMENT_CLASS_MAP: Record<string, string> = {
   Chip: "Chip",
   Spinner: "Spinner",
   Image: "Image",
+  Camera: "Camera",
   Icon: "Icon",
   List: "List",
   Card: "Card",
@@ -206,6 +207,20 @@ function buildRuntimeFile(): string {
 export interface RuntimeInstance {
   __el: CodeCraftElement;
   __onClick: (() => void) | null;
+  __onBackClick?: (() => void) | null;
+  backButton?: {
+    onClick(cb: () => unknown): unknown;
+  };
+  open?(): RuntimeInstance;
+  close?(): RuntimeInstance;
+  show?(): RuntimeInstance;
+  hide?(): RuntimeInstance;
+  getVideoElement?(): HTMLVideoElement | null;
+  capture?(): Promise<{
+    dataUrl: string;
+    save(filename?: string): Promise<void>;
+    toString(): string;
+  }>;
   onClick(cb: () => void): RuntimeInstance;
 }
 
@@ -229,6 +244,61 @@ function updateProps(
   );
 }
 
+function getCameraVideoElement(id: string): HTMLVideoElement | null {
+  return document.querySelector(\`[data-codecraft-camera-video-id="\${id}"]\`) as HTMLVideoElement | null;
+}
+
+const CAMERA_FILTER_PRESETS: Record<string, string> = {
+  none:       'none',
+  grayscale:  'grayscale(100%)',
+  sepia:      'sepia(100%)',
+  invert:     'invert(100%)',
+  blur:       'blur(4px)',
+  brightness: 'brightness(160%)',
+  contrast:   'contrast(160%)',
+  saturate:   'saturate(200%)',
+  vintage:    'sepia(50%) contrast(120%) brightness(90%)',
+  warm:       'sepia(30%) saturate(140%) brightness(110%)',
+  cool:       'hue-rotate(180deg) saturate(150%)',
+};
+
+function resolveCameraFilter(filter: string | undefined | null): string {
+  if (!filter || filter === 'none') return 'none';
+  return CAMERA_FILTER_PRESETS[filter] ?? filter;
+}
+
+function waitForVideoReady(video: HTMLVideoElement) {
+  if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA && video.videoWidth > 0 && video.videoHeight > 0) {
+    return Promise.resolve();
+  }
+
+  return new Promise<void>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Camera preview timed out before a frame was available.'));
+    }, 4000);
+
+    const handleReady = () => {
+      cleanup();
+      resolve();
+    };
+    const handleError = () => {
+      cleanup();
+      reject(new Error('Camera preview is not ready yet.'));
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeoutId);
+      video.removeEventListener('loadeddata', handleReady);
+      video.removeEventListener('canplay', handleReady);
+      video.removeEventListener('error', handleError);
+    };
+
+    video.addEventListener('loadeddata', handleReady, { once: true });
+    video.addEventListener('canplay', handleReady, { once: true });
+    video.addEventListener('error', handleError, { once: true });
+  });
+}
+
 export function executeCode(
   code: string,
   allElements: CodeCraftElement[],
@@ -249,6 +319,7 @@ export function executeCode(
   class BaseElement implements RuntimeInstance {
     __el: CodeCraftElement;
     __onClick: (() => void) | null = null;
+    __onBackClick: (() => void) | null = null;
 
     constructor(id: string, className: string) {
       this.__el = getElement(id, className);
@@ -266,10 +337,125 @@ export function executeCode(
           enumerable: true,
         });
       }
+
+      if (className === 'Toolbar') {
+        const backButton = {
+          onClick: (cb: () => void) => {
+            this.__onBackClick = cb;
+            return backButton;
+          },
+        };
+        Object.defineProperty(this, 'backButton', {
+          value: backButton,
+          configurable: true,
+          enumerable: true,
+        });
+      }
     }
 
     onClick(cb: () => void) {
       this.__onClick = cb;
+      return this;
+    }
+
+    open() {
+      this.__el.props.open = true;
+      onUpdate(this.__el.id, { open: true });
+      return this;
+    }
+
+    close() {
+      this.__el.props.open = false;
+      onUpdate(this.__el.id, { open: false });
+      return this;
+    }
+
+    show() {
+      this.__el.props.show = true;
+      onUpdate(this.__el.id, { show: true });
+      return this;
+    }
+
+    hide() {
+      this.__el.props.show = false;
+      onUpdate(this.__el.id, { show: false });
+      return this;
+    }
+
+    getVideoElement() {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support getVideoElement()\`);
+      }
+      return getCameraVideoElement(this.__el.id);
+    }
+
+    async capture() {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support capture()\`);
+      }
+
+      const video = this.getVideoElement();
+      if (!video) {
+        throw new Error(\`Camera \${this.__el.id} is not ready. Add it to the page and call open() first.\`);
+      }
+
+      await waitForVideoReady(video);
+
+      const width = video.videoWidth || this.__el.width || 640;
+      const height = video.videoHeight || this.__el.height || 480;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+
+      if (!context) {
+        throw new Error('Unable to create a canvas for camera capture.');
+      }
+
+      const cssFilter = resolveCameraFilter(this.__el.props.filter as string | undefined);
+      if (cssFilter && cssFilter !== 'none') {
+        (context as CanvasRenderingContext2D & { filter: string }).filter = cssFilter;
+      }
+      context.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/png');
+      const elementId = this.__el.id;
+
+      // Freeze the camera display with the captured frame
+      this.__el.props.frozenFrame = dataUrl;
+      onUpdate(this.__el.id, { frozenFrame: dataUrl });
+
+      return {
+        dataUrl,
+        async save(filename?: string) {
+          const safeName = filename?.trim() || \`\${elementId}-\${Date.now()}.png\`;
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = safeName;
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+        },
+        toString() {
+          return dataUrl;
+        },
+      };
+    }
+
+    reset() {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support reset()\`);
+      }
+      this.__el.props.frozenFrame = null;
+      onUpdate(this.__el.id, { frozenFrame: null });
+      return this;
+    }
+
+    setFilter(filter: string) {
+      if (this.__el.type !== 'Camera') {
+        throw new Error(\`\${this.__el.type} does not support setFilter()\`);
+      }
+      this.__el.props.filter = filter;
+      onUpdate(this.__el.id, { filter });
       return this;
     }
   }
@@ -324,6 +510,7 @@ export function executeCode(
   const Chip = make('Chip');
   const Spinner = make('Spinner');
   const Image = make('Image');
+  const Camera = make('Camera');
   const Icon = make('Icon');
   const List = make('List');
   const Card = make('Card');
@@ -374,6 +561,7 @@ export function executeCode(
     'Chip',
     'Spinner',
     'Image',
+    'Camera',
     'Icon',
     'List',
     'Card',
@@ -402,6 +590,7 @@ export function executeCode(
     Chip,
     Spinner,
     Image,
+    Camera,
     Icon,
     List,
     Card,
@@ -443,7 +632,9 @@ function buildRendererFile(): string {
   </ion-card>
 
   <ion-list v-else-if="element.type === 'List'" inset>
-    <ion-item v-for="item in listItems" :key="item">{{ item }}</ion-item>
+    <ion-item v-for="(item, index) in listItems" :key="index">
+      {{ getListItemLabel(item) }}
+    </ion-item>
   </ion-list>
 
   <ion-segment
@@ -564,13 +755,64 @@ function buildRendererFile(): string {
     <ion-label>{{ element.props.label || 'Chip' }}</ion-label>
   </ion-chip>
 
-  <ion-spinner v-else-if="element.type === 'Spinner'" name="crescent" :style="colorStyle" />
+  <div
+    v-else-if="element.type === 'Spinner' && spinnerVisible"
+    class="spinner-inline"
+  >
+    <ion-spinner name="crescent" :style="colorStyle" />
+  </div>
 
   <ion-img
     v-else-if="element.type === 'Image'"
     :src="String(element.props.src || '')"
     :alt="String(element.props.alt || '')"
+    :style="imageStyle"
   />
+
+  <div
+    v-else-if="element.type === 'Camera'"
+    class="camera-plugin"
+    :style="cameraWrapStyle"
+  >
+    <div class="camera-toolbar">
+      <div class="camera-title">
+        <span>{{ element.props.title || 'Camera' }}</span>
+      </div>
+      <span class="camera-badge" :style="cameraStatusStyle">
+        {{ element.props.frozenFrame ? 'Frozen' : element.props.open ? 'Open' : 'Closed' }}
+      </span>
+    </div>
+
+    <div class="camera-stage">
+      <video
+        v-if="shouldUseLiveCamera && !cameraError"
+        ref="cameraVideoRef"
+        :data-codecraft-camera-video-id="element.id"
+        class="camera-video"
+        :style="{ filter: cameraFilterCss }"
+        autoplay
+        muted
+        playsinline
+      />
+
+      <!-- Frozen frame overlay shown after capture() until reset() is called -->
+      <img
+        v-if="element.props.frozenFrame"
+        :src="element.props.frozenFrame"
+        class="camera-frozen-frame"
+      />
+
+      <!-- Active filter badge -->
+      <span
+        v-if="element.props.filter && element.props.filter !== 'none'"
+        class="camera-filter-badge"
+      >{{ element.props.filter }}</span>
+
+      <div v-else-if="!shouldUseLiveCamera || cameraError" class="camera-fallback">
+        <div>{{ cameraError || (element.props.open ? 'Camera preview active' : 'Camera is closed') }}</div>
+      </div>
+    </div>
+  </div>
 
   <div v-else-if="element.type === 'Icon'" class="icon-wrapper" :style="colorStyle">
     <ion-icon :icon="resolvedIcon" />
@@ -582,7 +824,7 @@ function buildRendererFile(): string {
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import {
   IonBadge,
   IonButton,
@@ -628,8 +870,42 @@ const childElements = computed(() =>
     .filter((value): value is CodeCraftElement => Boolean(value)),
 );
 
+const CAMERA_FILTER_PRESETS: Record<string, string> = {
+  none:       'none',
+  grayscale:  'grayscale(100%)',
+  sepia:      'sepia(100%)',
+  invert:     'invert(100%)',
+  blur:       'blur(4px)',
+  brightness: 'brightness(160%)',
+  contrast:   'contrast(160%)',
+  saturate:   'saturate(200%)',
+  vintage:    'sepia(50%) contrast(120%) brightness(90%)',
+  warm:       'sepia(30%) saturate(140%) brightness(110%)',
+  cool:       'hue-rotate(180deg) saturate(150%)',
+};
+
+function normalizeListItems(value: unknown) {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (typeof item === 'string') return [item];
+    if (typeof item === 'number' || typeof item === 'boolean') return [String(item)];
+    if (item && typeof item === 'object' && ('key' in item || 'value' in item)) {
+      return [{
+        key: String((item as { key?: unknown }).key ?? ''),
+        value: String((item as { value?: unknown }).value ?? ''),
+      }];
+    }
+    return [];
+  });
+}
+
+function getListItemLabel(item: string | { key: string; value: string }) {
+  return typeof item === 'string' ? item : item.key || item.value || '';
+}
+
 const listItems = computed(() =>
-  Array.isArray(props.element.props.items) ? props.element.props.items as string[] : [],
+  normalizeListItems(props.element.props.content ?? props.element.props.items),
 );
 
 const segmentOptions = computed(() =>
@@ -661,6 +937,31 @@ const colorStyle = computed(() => ({
   color: String(props.element.props.color || '#3880ff'),
 }));
 
+const spinnerVisible = computed(() => props.element.type !== 'Spinner' || props.element.props.show !== false);
+const imageStyle = computed(() => ({
+  width: '100%',
+  height: Number(props.element.height || 0) > 0 ? \`\${Number(props.element.height)}px\` : 'auto',
+  objectFit: 'contain',
+  borderRadius: \`\${Number(props.element.props.borderRadius || 4)}px\`,
+}));
+const cameraWrapStyle = computed(() => ({
+  height: \`\${Math.max(Number(props.element.height || 0), 120)}px\`,
+}));
+const cameraStatusStyle = computed(() => ({
+  backgroundColor: props.element.props.frozenFrame
+    ? '#f59e0b'
+    : Boolean(props.element.props.open) ? '#22c55e' : '#475569',
+  color: '#ffffff',
+}));
+const cameraFilterCss = computed(() => {
+  const f = props.element.props.filter as string | undefined;
+  if (!f || f === 'none') return 'none';
+  return CAMERA_FILTER_PRESETS[f] ?? f;
+});
+const shouldUseLiveCamera = computed(() => props.element.type === 'Camera' && Boolean(props.element.props.open));
+const cameraVideoRef = ref<HTMLVideoElement | null>(null);
+const cameraError = ref('');
+
 const resolvedIcon = computed(() => {
   const iconName = String(props.element.props.name || props.element.props.icon || '');
   if (iconName.includes('calendar')) return calendar;
@@ -686,6 +987,68 @@ function handleSegmentChange(event: CustomEvent) {
 function emitInput(patch: Record<string, unknown>) {
   emit('run-input', props.element.id, patch);
 }
+
+async function startCameraPreview() {
+  if (props.element.type !== 'Camera' || !shouldUseLiveCamera.value) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    cameraError.value = 'This browser does not support live camera preview.';
+    return;
+  }
+
+  stopCameraPreview();
+  cameraError.value = '';
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' },
+      audio: false,
+    });
+
+    await nextTick();
+
+    if (!cameraVideoRef.value) {
+      for (const track of stream.getTracks()) track.stop();
+      return;
+    }
+
+    cameraVideoRef.value.srcObject = stream;
+    await cameraVideoRef.value.play().catch(() => undefined);
+  } catch (error) {
+    cameraError.value = error instanceof Error ? error.message : 'Unable to access the camera.';
+    stopCameraPreview();
+  }
+}
+
+function stopCameraPreview() {
+  const currentVideo = cameraVideoRef.value;
+  const stream = currentVideo?.srcObject instanceof MediaStream ? currentVideo.srcObject : null;
+
+  if (currentVideo) {
+    currentVideo.pause();
+    currentVideo.srcObject = null;
+  }
+
+  if (stream) {
+    for (const track of stream.getTracks()) track.stop();
+  }
+}
+
+watch(
+  shouldUseLiveCamera,
+  (enabled) => {
+    if (enabled) {
+      void startCameraPreview();
+      return;
+    }
+    stopCameraPreview();
+    cameraError.value = '';
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  stopCameraPreview();
+});
 </script>
 
 <style scoped>
@@ -698,6 +1061,92 @@ function emitInput(patch: Record<string, unknown>) {
   align-items: center;
   justify-content: center;
   font-size: 24px;
+}
+
+.spinner-inline {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-plugin {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #111827;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.camera-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.camera-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(135deg, #0f172a 0%, #475569 100%);
+}
+
+.camera-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.camera-frozen-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.camera-filter-badge {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.45);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.camera-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 12px;
 }
 
 .unsupported {
@@ -717,7 +1166,7 @@ function buildPageViewFile(): string {
     <ion-header v-if="toolbarElement">
       <ion-toolbar :style="toolbarStyle">
         <ion-buttons slot="start" v-if="toolbarElement.props.showBack">
-          <ion-back-button default-href="/" />
+          <ion-back-button default-href="/" @click.prevent="handleToolbarBackClick(toolbarElement.id)" />
         </ion-buttons>
         <ion-title>{{ toolbarElement.props.title || currentPage?.name || 'CodeCraft App' }}</ion-title>
       </ion-toolbar>
@@ -730,7 +1179,7 @@ function buildPageViewFile(): string {
         </ion-note>
 
         <CodeCraftRenderer
-          v-for="element in bodyElements"
+          v-for="element in visibleBodyElements"
           :key="element.id"
           :element="element"
           :elements-map="elementsMap"
@@ -747,7 +1196,7 @@ function buildPageViewFile(): string {
           :edge="Boolean(element.props.edge)"
         >
           <ion-fab-button
-            :style="{ '--background': String(element.props.backgroundColor || '#3880ff') }"
+            :style="fabButtonStyle(element)"
             @click="handleClick(element.id)"
           >
             <ion-icon :icon="add" />
@@ -793,6 +1242,7 @@ const router = useRouter();
 const runtimeElements = ref<CodeCraftElement[]>([]);
 const clickHandlers = ref<Record<string, () => void>>({});
 const runtimeError = ref('');
+const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton';
 
 const currentPage = computed(() => pages.find((page) => page.id === props.pageId));
 const pageElements = computed(() => elements.filter((element) => element.pageId === props.pageId));
@@ -802,11 +1252,50 @@ const toolbarElement = computed(
   () => runtimeElements.value.find((element) => element.type === 'Toolbar' && element.parentId === null) || null,
 );
 
+function buildToolbarBackButtonClickId(id: string) {
+  return \`\${id}\${TOOLBAR_BACK_BUTTON_CLICK_SUFFIX}\`;
+}
+
 const fabElements = computed(() =>
   runtimeElements.value.filter(
     (element) => element.type === 'FloatingActionButton' && element.parentId === null,
   ),
 );
+
+function isLightFabBackground(color: string) {
+  const normalized = color.trim().toLowerCase();
+  if (
+    normalized === '#fff' ||
+    normalized === '#ffffff' ||
+    normalized === 'white' ||
+    normalized === '#f0f0f0' ||
+    normalized === '#f1f5f9' ||
+    normalized === '#e5e7eb' ||
+    normalized === '#d1d5db' ||
+    normalized === 'gray' ||
+    normalized === 'grey'
+  ) {
+    return true;
+  }
+
+  const hex = normalized.match(/^#([0-9a-f]{6})$/i);
+  if (!hex) return false;
+
+  const value = hex[1];
+  const r = Number.parseInt(value.slice(0, 2), 16);
+  const g = Number.parseInt(value.slice(2, 4), 16);
+  const b = Number.parseInt(value.slice(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  return brightness >= 180;
+}
+
+function fabButtonStyle(element: CodeCraftElement) {
+  const bg = String(element.props.backgroundColor || '#3880ff');
+  return {
+    '--background': bg,
+    '--color': isLightFabBackground(bg) ? '#111827' : '#ffffff',
+  };
+}
 
 const bodyElements = computed(() =>
   runtimeElements.value.filter(
@@ -815,6 +1304,14 @@ const bodyElements = computed(() =>
       element.type !== 'Toolbar' &&
       element.type !== 'FloatingActionButton',
   ),
+);
+
+function isVisibleSpinner(element: CodeCraftElement) {
+  return element.type !== 'Spinner' || element.props.show !== false;
+}
+
+const visibleBodyElements = computed(() =>
+  bodyElements.value.filter((element) => isVisibleSpinner(element)),
 );
 
 const toolbarStyle = computed(() => ({
@@ -856,9 +1353,19 @@ function runPage() {
 
     runtimeElements.value = result.pageElements;
     clickHandlers.value = Object.fromEntries(
-      result.instances
-        .filter((instance) => Boolean(instance.__onClick))
-        .map((instance) => [instance.__el.id, instance.__onClick as () => void]),
+      result.instances.flatMap((instance) => {
+        const handlers: [string, () => void][] = [];
+        if (instance.__onClick) {
+          handlers.push([instance.__el.id, instance.__onClick as () => void]);
+        }
+        if (instance.__onBackClick) {
+          handlers.push([
+            buildToolbarBackButtonClickId(instance.__el.id),
+            instance.__onBackClick as () => void,
+          ]);
+        }
+        return handlers;
+      }),
     );
   } catch (error) {
     runtimeElements.value = baseElements;
@@ -869,6 +1376,15 @@ function runPage() {
 
 function handleClick(id: string) {
   clickHandlers.value[id]?.();
+}
+
+function handleToolbarBackClick(id: string) {
+  const handler = clickHandlers.value[buildToolbarBackButtonClickId(id)];
+  if (handler) {
+    handler();
+    return;
+  }
+  router.back();
 }
 
 function handleInput(id: string, patch: Record<string, unknown>) {

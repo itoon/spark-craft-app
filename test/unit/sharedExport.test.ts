@@ -20,6 +20,9 @@ describe("shared export helpers", () => {
       jsCodeByPage: { page1: "console.log('updated')" },
       startPageId: "page1",
       activeDeviceId: "iphone15",
+      iosDeviceId: "iphone15",
+      androidDeviceId: "android",
+      fallbackDeviceId: "iphone15",
       shareId: "ccexisting12345",
     };
 

@@ -15,7 +15,6 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
   FloatingActionButton: "FAB",
   Input: "Input",
   LabelledInput: "LabelledInput",
-  Searchbar: "Searchbar",
   RangeInput: "Range",
   DateTimePicker: "DatePicker",
   Checkbox: "Checkbox",
@@ -25,31 +24,42 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
   Heading: "Heading",
   Label: "Label",
   TextBox: "Textarea",
-  Badge: "Badge",
-  Chip: "Chip",
   Spinner: "Spinner",
   Image: "Image",
   Camera: "Camera",
   Link: "Link",
-  Video: "Video",
   List: "List",
-  Card: "Card",
-  Segment: "Segment",
   Separator: "Separator",
   Spacer: "Spacer",
-  Container: "Container",
+  Chart: "Chart",
+  Map: "Map",
 };
 
-const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {
-  Searchbar: { placeholder: "Search...", value: "", backgroundColor: "#ffffff" },
-  Segment: { options: ["Option 1", "Option 2"], selected: "Option 1", color: "#3880ff" },
-  Badge: { text: "Badge", color: "#3880ff" },
-  Chip: { label: "Chip", color: "#3880ff", outline: false },
-  Video: { src: "", title: "Video" },
-};
+const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {};
 
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
-const TOGGLE_OPEN_METHODS = ["open()", "close()"];
+const CAMERA_METHODS = [
+  "open()",
+  "close()",
+  "getVideoElement()",
+  "capture()",
+  "reset()",
+  "setFilter(filter)",
+];
+const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
+const SPINNER_METHODS = ["show()", "hide()"];
+const MAP_METHODS = [
+  "setCenter(lat, lng, zoom)",
+  "addMarker(lat, lng, text)",
+  "clearMarkers()",
+  "onClick(callback(lat, lng))",
+];
+const CHART_METHODS = [
+  "setData(labels, data)",
+  "setDatasets(datasets)",
+  "setType(type)",
+  "setTitle(title)",
+];
 
 function unique(items: string[]) {
   return Array.from(new Set(items));
@@ -93,7 +103,11 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
 
     const methods = unique([
       ...COMMON_ELEMENT_METHODS,
-      ...(designType === "Camera" ? TOGGLE_OPEN_METHODS : []),
+      ...(designType === "Camera" ? CAMERA_METHODS : []),
+      ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
+      ...(designType === "Spinner" ? SPINNER_METHODS : []),
+      ...(designType === "Chart" ? CHART_METHODS : []),
+      ...(designType === "Map" ? MAP_METHODS : []),
     ]);
 
     schemas.push({
@@ -105,6 +119,68 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       codeExample: [
         `var ${className.charAt(0).toLowerCase()}${className.slice(1)}1 = new ${className}('page1_${className.toLowerCase()}1');`,
         `page.add(${className.charAt(0).toLowerCase()}${className.slice(1)}1);`,
+        ...(designType === "Toolbar"
+          ? [
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.backButton.onClick(() => {`,
+              `  page.goTo('page1');`,
+              `});`,
+            ]
+          : []),
+        ...(designType === "Spinner"
+          ? [
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.show();`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.hide();`,
+            ]
+          : []),
+        ...(designType === "Chart"
+          ? [
+              `// Direct property assignment`,
+              `chart1.title      = 'Revenue Q1';`,
+              `chart1.chartType  = 'line';  // 'bar' | 'line' | 'pie' | 'doughnut'`,
+              `chart1.labels     = ['Jan', 'Feb', 'Mar', 'Apr', 'May'];`,
+              `chart1.data       = [30, 70, 45, 88, 60];`,
+              `chart1.color      = '#2dd36f';`,
+              `chart1.height     = 250;`,
+              ``,
+              `// Multi-series datasets`,
+              `chart1.setDatasets([`,
+              `  { label: 'Sales', data: [30, 70, 45], color: '#3880ff' },`,
+              `  { label: 'Cost',  data: [20, 40, 35], color: '#ff4961' },`,
+              `]);`,
+            ]
+          : []),
+        ...(designType === "Map"
+          ? [
+              `// Center on Bangkok and drop a pin`,
+              `map1.setCenter(13.7563, 100.5018, 14);`,
+              `map1.addMarker(13.7563, 100.5018, 'โรงเรียน');`,
+              ``,
+              `// Tap the map to add a pin where you tapped`,
+              `map1.onClick((lat, lng) => {`,
+              `  map1.addMarker(lat, lng, 'ที่นี่');`,
+              `});`,
+            ]
+          : []),
+        ...(designType === "Camera"
+          ? [
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.open();`,
+              ``,
+              `// Apply a filter: 'grayscale','sepia','vintage','warm','cool',`,
+              `//   'invert','blur','brightness','contrast','saturate'`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.setFilter('vintage');`,
+              ``,
+              `// Capture freezes the frame (filter is baked in); reset() resumes`,
+              `button1.onClick(async () => {`,
+              `  const photo = await ${className.charAt(0).toLowerCase()}${className.slice(1)}1.capture();`,
+              `  await photo.save('my-photo.png');`,
+              `});`,
+              ``,
+              `// Resume live camera after capture`,
+              `button2.onClick(() => {`,
+              `  ${className.charAt(0).toLowerCase()}${className.slice(1)}1.reset();`,
+              `});`,
+            ]
+          : []),
       ].join("\n"),
     });
   }

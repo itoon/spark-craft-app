@@ -8,15 +8,15 @@
   --color-brand-600: #4f46e5;
 
   /* Editor surface hierarchy */
-  --color-surface-base:   #030712;   /* neutral-950 — outermost bg */
-  --color-surface-panel:  #111827;   /* neutral-900 — panels */
-  --color-surface-raised: #1f2937;   /* neutral-800 — raised cards/items */
-  --color-surface-border: #374151;   /* neutral-700 — borders */
+  --color-surface-base: #030712; /* neutral-950 — outermost bg */
+  --color-surface-panel: #111827; /* neutral-900 — panels */
+  --color-surface-raised: #1f2937; /* neutral-800 — raised cards/items */
+  --color-surface-border: #374151; /* neutral-700 — borders */
 
   /* Semantic dataflow colours (used in Block mode) */
-  --color-flow-event:   #10b981;  /* emerald — input/event nodes */
-  --color-flow-process: #6366f1;  /* indigo  — logic/process nodes */
-  --color-flow-output:  #f59e0b;  /* amber   — output/UI nodes */
+  --color-flow-event: #10b981; /* emerald — input/event nodes */
+  --color-flow-process: #6366f1; /* indigo  — logic/process nodes */
+  --color-flow-output: #f59e0b; /* amber   — output/UI nodes */
 }
 
 /* ── Global resets for full-height editor layout ──────────────────────── */
@@ -46,6 +46,17 @@ body,
   border-radius: 9999px;
 }
 
+/* ── Phone screen scroll ─────────────────────────────────────────────────
+   Phones use overlay scrollbars (0px wide). Hide the desktop scrollbar inside
+   the device screen so Design, Run and the APK lay out at the same width. */
+.phone-scroll {
+  scrollbar-width: none;
+}
+
+.phone-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* ── Nuxt UI input override for dense property panel fields ──────────── */
 .prop-input input {
   height: 24px;
@@ -69,3 +80,64 @@ body,
   outline: 1px dashed rgba(99, 102, 241, 0.4);
   outline-offset: 1px;
 }
+
+.ion-datetime-button-overlay ion-datetime.datetime-grid {
+  width: auto !important;
+}
+
+/* ── Editor column widths ─────────────────────────────────────────────
+   Panels grow with the window (clamp) so the phone canvas, the element
+   palette and the side panels stay in proportion on laptops and on big
+   monitors. Learning mode gives part of the width to the lesson column. */
+.editor-root {
+  --cc-palette-w: clamp(272px, 22vw, 420px);
+  --cc-learn-w: clamp(320px, 23vw, 420px);
+  --cc-props-w: clamp(272px, 18vw, 340px);
+}
+.editor-root[data-app-mode="learn"] {
+  --cc-palette-w: clamp(248px, 18vw, 360px);
+  --cc-props-w: clamp(260px, 17vw, 320px);
+}
+/* Small laptops (≤1180px): four columns don't fit at full size, so the
+   side panels slim down and the phone canvas keeps its space. */
+@media (max-width: 1180px) {
+  .editor-root[data-app-mode="learn"] {
+    --cc-learn-w: 280px;
+    --cc-palette-w: 196px;
+    --cc-props-w: 236px;
+  }
+}
+
+/* Palette tiles: as many ~72px+ columns as fit (3 on laptops, 4 on wide screens) */
+.palette-grid {
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+}
+
+/* Ionic components use Roboto / Helvetica Neue, which have no Thai glyphs:
+   on a computer the browser then falls back to a mismatched Thai font (wide,
+   synthetic bold). Put the system UI font first so Thai looks the same as in
+   headings; real phones still get their native font (Roboto / SF). */
+:root {
+  --ion-font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans Thai", sans-serif;
+}
+
+/* Design canvas: element not passed to page.add() in the page code.
+   Only a small label (.cc-not-added-badge) — the element keeps its real
+   colours so the design never looks "off" or disabled. The wrapper is
+   already relative/sticky, so nothing else changes here. */
+.cc-not-added-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 25;
+  pointer-events: auto;
+  border-radius: 9999px;
+  background: rgb(245 158 11);
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+  color: white;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+}
+

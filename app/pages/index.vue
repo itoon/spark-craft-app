@@ -11,6 +11,7 @@
 </template>
 
 <script setup lang="ts">
-// Redirect immediately to the editor — the index route is just an entry point
-await navigateTo('/editor', { replace: true })
+// Entry point: the editor normally; the embedded app player inside the APK
+const config = useRuntimeConfig()
+await navigateTo(config.public.codecraftEmbedded ? '/app' : '/editor', { replace: true })
 </script>

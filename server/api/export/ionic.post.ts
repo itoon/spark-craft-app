@@ -1,7 +1,11 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-import { buildExportFolderName, buildIonicProjectFiles, type IonicExportPayload } from "../../../app/utils/ionicExport";
+import {
+  buildExportFolderName,
+  buildIonicProjectFiles,
+  type IonicExportPayload,
+} from "../../../app/utils/ionicExport";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<IonicExportPayload>(event);
