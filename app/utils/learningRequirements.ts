@@ -1,5 +1,6 @@
 import type { AppElement, Page } from "../composables/useEditorStore";
 import { executeCode } from "../composables/useRuntime";
+import { isOnPage } from "./componentApi";
 import type { ElementInstance } from "../composables/useRuntime";
 
 export interface LearningRequirementResult {
@@ -199,7 +200,7 @@ function codeForPage(context: LearningRequirementContext, pageId?: string): stri
 function scopedElements(context: LearningRequirementContext, pageId?: string) {
   const targetPageId = pageId ?? context.currentPageId;
   return context.elements.filter(
-    (element) => !targetPageId || element.pageId === targetPageId,
+    (element) => !targetPageId || isOnPage(element, targetPageId),
   );
 }
 
@@ -426,7 +427,7 @@ export function evaluateLearningRequirement(
     const count = context.elements.filter(
       (element) =>
         element.type === requirement.elementType &&
-        (!pageId || element.pageId === pageId),
+        (!pageId || isOnPage(element, pageId)),
     ).length;
 
     return {
@@ -442,7 +443,7 @@ export function evaluateLearningRequirement(
     const count = context.elements.filter(
       (element) =>
         element.type === requirement.elementType &&
-        (!pageId || element.pageId === pageId) &&
+        (!pageId || isOnPage(element, pageId)) &&
         matchesProps(element, requirement.props),
     ).length;
 
@@ -459,7 +460,7 @@ export function evaluateLearningRequirement(
     const count = context.elements.filter(
       (element) =>
         element.type === requirement.elementType &&
-        (!pageId || element.pageId === pageId) &&
+        (!pageId || isOnPage(element, pageId)) &&
         Object.entries(requirement.props).every(([key, pattern]) => {
           const regex = safeRegExp(pattern, requirement.flags);
           return regex ? regex.test(String(element.props[key] ?? "")) : false;

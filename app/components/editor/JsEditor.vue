@@ -149,6 +149,7 @@ import {
   getComponentApiSchemas,
 } from "~/utils/componentApi";
 import { RUNTIME_SERVICE_API } from "~/utils/runtimeServices";
+import { isOnPage } from "~/utils/componentApi";
 
 interface EditorCompletion extends Completion {
   metaKind?: "class" | "method" | "attr" | "global" | "variable";
@@ -222,7 +223,8 @@ const draculaHighlightStyle = HighlightStyle.define([
 
 const currentElements = computed(() =>
   store.elements.value.filter(
-    (el: AppElement) => el.pageId === store.currentPageId.value,
+    // This page's elements plus app-wide ones (Sound)
+    (el: AppElement) => isOnPage(el, store.currentPageId.value),
   ),
 );
 

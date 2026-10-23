@@ -1,5 +1,6 @@
 import type { AppElement } from './useEditorStore'
-import { CHANGE_EVENT_PROPS, getComponentClassMap, supportsClickEvent, supportsElementEvent } from '../utils/componentApi'
+import { CHANGE_EVENT_PROPS, getComponentClassMap, isNonVisualType, supportsClickEvent, supportsElementEvent } from '../utils/componentApi'
+import { findSound, playElementSound, stopElementSound } from '../utils/soundLibrary'
 import { usePaletteItems } from './usePaletteItems'
 import { createRuntimeServices } from '../utils/runtimeServices'
 import type { RuntimeServiceHost, RuntimeServices } from '../utils/runtimeServices'
@@ -40,6 +41,7 @@ export interface ElementInstance {
   __onLongPress?: (() => unknown) | null
   __onEnter?: ((text: string) => unknown) | null
   __onItemClick?: ((item: string, index: number) => unknown) | null
+  __onEnd?: (() => unknown) | null
   backButton?: {
     onClick(cb: () => void): unknown
   }
@@ -60,6 +62,9 @@ export interface ElementInstance {
   onLongPress?(cb: () => unknown): ElementInstance
   onEnter?(cb: (text: string) => unknown): ElementInstance
   onItemClick?(cb: (item: string, index: number) => unknown): ElementInstance
+  onEnd?(cb: () => unknown): ElementInstance
+  play?(): ElementInstance
+  stop?(): ElementInstance
   toString(): string
   valueOf(): unknown
 }
@@ -140,7 +145,8 @@ export function buildScaffold(elements: AppElement[]): string {
     const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type
     const varName = varNameFromId(el.id)
     lines.push(`var ${varName} = new ${cls}('${el.id}');`)
-    lines.push(`page.add(${varName});`)
+    // Off-screen elements (Sound) are used from code, never page.add()-ed
+    if (!isNonVisualType(el.type)) lines.push(`page.add(${varName});`)
     lines.push('')
   }
 
@@ -429,6 +435,10 @@ export function executeCode(
   // (page.add() skips repeats, so a second object would never be synced).
   const instanceById = new Map<string, BaseEl>()
 
+  // Sounds are app-wide and outlive this run; the checker (dryRun) stays silent
+  const soundMuted = Boolean(options.services?.dryRun)
+  let runDisposed = false
+
   class BaseEl implements ElementInstance {
     // set in the constructor unless it returns an existing instance
     __el!: AppElement
@@ -440,6 +450,7 @@ export function executeCode(
     __onLongPress: (() => unknown) | null = null
     __onEnter: ((text: string) => unknown) | null = null
     __onItemClick: ((item: string, index: number) => unknown) | null = null
+    __onEnd: (() => unknown) | null = null
 
     constructor(id: string, className: string) {
       const existing = instanceById.get(id)
@@ -640,6 +651,9 @@ export function executeCode(
     }
 
     onClick(cb: (...args: any[]) => void): this {
+      if (isNonVisualType(this.__el.type)) {
+        throw new Error(`${this.__el.type} is not on the screen, so it can't be tapped. Use a Button and call ${this.__el.type.toLowerCase()}.play() in its onClick.`)
+      }
       if (!supportsClickEvent(this.__el.type)) {
         throw new Error(`${this.__el.type} does not support onClick() — it only shows information. Use a Button instead.`)
       }
@@ -694,6 +708,51 @@ export function executeCode(
     onEnter(cb: (text: string) => unknown): this {
       this._requireEvent('onEnter')
       this.__onEnter = cb
+      return this
+    }
+
+    /** Sound: runs when the sound finishes on its own (not after stop()) */
+    onEnd(cb: () => unknown): this {
+      this._requireEvent('onEnd')
+      this.__onEnd = cb
+      return this
+    }
+
+    /** Sound: plays the chosen sound (restarts it if it is already playing) */
+    play(): this {
+      if (this.__el.type !== 'Sound') throw new Error(`${this.__el.type} does not support play()`)
+      const id = String(this.__el.props.sound ?? '')
+      const loop = Boolean(this.__el.props.loop)
+      pushEvent({ type: 'log', message: `${this.__el.id}.play() → ${id}${loop ? ' (loop)' : ''}`, elementId: this.__el.id, elementType: 'Sound' })
+      if (!findSound(id)) {
+        pushLog({ type: 'warn', message: `Sound '${id}' not found — pick one in Properties` })
+        return this
+      }
+      if (soundMuted) return this
+      // App-wide: a loop started on another page keeps playing
+      const handle = playElementSound(this.__el.id, id, { volume: Number(this.__el.props.volume ?? 80), loop })
+      handle?.ended.then(() => {
+        // This page's code is gone after page.goTo — its onEnd must not run
+        if (runDisposed) return
+        const onEnd = this.__onEnd
+        if (!onEnd) return
+        try {
+          const result = onEnd()
+          if (result && typeof (result as Promise<unknown>).catch === 'function') {
+            (result as Promise<unknown>).catch((err: unknown) => pushLog({ type: 'error', message: `onEnd: ${err instanceof Error ? err.message : String(err)}` }))
+          }
+        } catch (err) {
+          pushLog({ type: 'error', message: `onEnd: ${err instanceof Error ? err.message : String(err)}` })
+        }
+      })
+      return this
+    }
+
+    /** Sound: stops it (onEnd does not run) */
+    stop(): this {
+      if (this.__el.type !== 'Sound') throw new Error(`${this.__el.type} does not support stop()`)
+      if (!soundMuted) stopElementSound(this.__el.id)
+      pushEvent({ type: 'log', message: `${this.__el.id}.stop()`, elementId: this.__el.id, elementType: 'Sound' })
       return this
     }
 
@@ -957,6 +1016,7 @@ export function executeCode(
   const Container     = make('Container')
   const Chart         = make('Chart')
   const MapEl         = make('Map')
+  const Sound         = make('Sound')
 
   // ── page object ───────────────────────────────────────────────────────
   const pageHandlers: RuntimePageHandlers = { show: null, leave: null }
@@ -1036,6 +1096,8 @@ export function executeCode(
   services.dispose = () => {
     disposeServices()
     device.dispose()
+    // Sounds keep playing across pages; hosts call stopAllSounds() when Run ends
+    runDisposed = true
   }
 
   // ── Execute ───────────────────────────────────────────────────────────
@@ -1046,7 +1108,7 @@ export function executeCode(
       'Range','DatePicker','Checkbox','Radio','Toggle','Select',
       'Heading','Label','TextBox','Textarea','Badge','Chip','Spinner',
       'Image','Camera','Link','Video','List','Card','Segment',
-      'Separator','Spacer','Container','Chart','Map',
+      'Separator','Spacer','Container','Chart','Map','Sound',
       'page','console','notify','timer','storage','phone','location','motion','ble','alert',
       `"use strict";\n${code}`
     )(
@@ -1054,7 +1116,7 @@ export function executeCode(
       Range,DatePicker,Checkbox,Radio,Toggle,Select,
       Heading,Label,TextBox,Textarea,Badge,Chip,Spinner,
       Image,Camera,Link,Video,List,Card,Segment,
-      Separator,Spacer,Container,Chart,MapEl,
+      Separator,Spacer,Container,Chart,MapEl,Sound,
       page,console,notify,timer,storage,phone,location,motion,ble,
       // Plain alert() → in-app alert: the browser's alert() blocks repaint, so a
       // toggle tapped just before it still looks unchanged while the dialog is up

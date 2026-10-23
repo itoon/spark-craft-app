@@ -52,9 +52,22 @@
             class="text-[9px] font-semibold text-neutral-400 uppercase tracking-wider"
             >ID / Identification</span
           >
-          <span class="text-[11px] font-mono text-neutral-700 truncate">{{
+          <!-- App-level elements (Sound) are named by the learner: the name is the id -->
+          <input
+            v-if="isNonVisualType(selectedElement.type)"
+            :key="selectedElement.id"
+            :value="selectedElement.id"
+            class="w-full rounded border border-neutral-200 bg-white px-1.5 py-0.5 text-[11px] font-mono text-neutral-700 focus:border-indigo-400 focus:outline-none"
+            aria-label="Sound name"
+            spellcheck="false"
+            data-testid="element-rename"
+            @keydown.enter="($event.target as HTMLInputElement).blur()"
+            @change="(e) => renameSelected((e.target as HTMLInputElement))"
+          >
+          <span v-else class="text-[11px] font-mono text-neutral-700 truncate">{{
             selectedElement.id
           }}</span>
+          <span v-if="renameError" class="text-[10px] leading-snug text-red-600" role="alert">{{ renameError }}</span>
         </div>
         <button
           class="text-[10px] px-2 py-1 rounded bg-neutral-200 hover:bg-indigo-100 hover:text-indigo-700 text-neutral-600 font-medium transition-colors shrink-0"
@@ -159,6 +172,7 @@
           selectedElement.type !== 'Checkbox' &&
           selectedElement.type !== 'RadioButton' &&
           selectedElement.type !== 'Camera' &&
+          selectedElement.type !== 'Sound' &&
           selectedElement.type !== 'Image' &&
           selectedElement.type !== 'Toggle' &&
           selectedElement.type !== 'Select'
@@ -1303,6 +1317,104 @@
         </div>
       </EditorPropertiesSection>
 
+      <!-- ── Sound section: pick by listening ── -->
+      <EditorPropertiesSection
+        v-if="selectedElement.type === 'Sound'"
+        title="Sound"
+        icon="i-lucide-volume-2"
+      >
+        <div class="space-y-3">
+          <p class="text-[11px] leading-relaxed text-neutral-500">
+            Sound belongs to the whole app: every page can use it. Pick a sound, then in code:
+          </p>
+          <code class="block rounded bg-neutral-100 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-indigo-700">var {{ selectedElement.id }} = new Sound('{{ selectedElement.id }}');<br>{{ selectedElement.id }}.play();</code>
+
+          <div
+            v-for="group in soundGroups"
+            :key="group.id"
+            class="space-y-1"
+          >
+            <div class="px-0.5 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+              {{ group.label }}
+            </div>
+            <div class="overflow-hidden rounded-lg border border-neutral-200 divide-y divide-neutral-100">
+              <div
+                v-for="sound in group.sounds"
+                :key="sound.id"
+                class="flex items-center gap-2 px-1.5 py-1 cursor-pointer transition-colors duration-100"
+                :class="
+                  selectedElement.props.sound === sound.id
+                    ? 'bg-indigo-50'
+                    : 'hover:bg-neutral-50'
+                "
+                :data-testid="`sound-option-${sound.id}`"
+                @click="patchProps({ sound: sound.id })"
+              >
+                <button
+                  type="button"
+                  class="grid size-6 shrink-0 place-items-center rounded-full transition-colors duration-100"
+                  :class="
+                    previewingSoundId === sound.id
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-neutral-100 text-neutral-600 hover:bg-indigo-100 hover:text-indigo-600'
+                  "
+                  :aria-label="previewingSoundId === sound.id ? `Stop ${sound.label}` : `Listen to ${sound.label}`"
+                  @click.stop="togglePreview(sound.id)"
+                >
+                  <UIcon
+                    :name="previewingSoundId === sound.id ? 'i-lucide-square' : 'i-lucide-play'"
+                    class="size-3"
+                  />
+                </button>
+                <span class="min-w-0 flex-1 truncate text-xs text-neutral-700">{{ sound.label }}</span>
+                <code class="shrink-0 font-mono text-[10px] text-neutral-400">{{ sound.id }}</code>
+                <UIcon
+                  v-if="selectedElement.props.sound === sound.id"
+                  name="i-lucide-check"
+                  class="size-3.5 shrink-0 text-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+
+          <EditorPropField label="Volume">
+            <div class="flex items-center gap-2">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                class="sound-volume min-w-0 flex-1"
+                :value="Number(selectedElement.props.volume ?? 80)"
+                aria-label="Volume"
+                @input="(e) => patchProps({ volume: Number((e.target as HTMLInputElement).value) })"
+              >
+              <span class="w-8 shrink-0 text-right font-mono text-[11px] tabular-nums text-neutral-500">
+                {{ Number(selectedElement.props.volume ?? 80) }}
+              </span>
+            </div>
+          </EditorPropField>
+
+          <EditorPropField label="Loop">
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in BOOLEAN_OPTIONS"
+                :key="String(option)"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="
+                  Boolean(selectedElement.props.loop) === option
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                "
+                @click="patchProps({ loop: option })"
+              >
+                {{ String(option) }}
+              </button>
+            </div>
+          </EditorPropField>
+        </div>
+      </EditorPropertiesSection>
+
       <!-- ── Map section ── -->
       <EditorPropertiesSection
         v-if="selectedElement.type === 'Map'"
@@ -1414,25 +1526,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch, onBeforeUnmount } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { usePageAddStatus } from "~/composables/usePageAddStatus";
 import { findElementVariables } from "~/utils/pageAdds";
 import type { AppElement } from "~/composables/useEditorStore";
 import { ELEMENT_CLASS_MAP, buildScaffold } from "~/composables/useRuntime";
-import { getElementEvents } from "~/utils/componentApi";
+import { APP_PAGE_ID, getElementEvents, isNonVisualType, isOnPage } from "~/utils/componentApi";
+import { SOUND_GROUP_LABELS, SOUND_LIBRARY, playSound, type SoundGroup, type SoundHandle } from "~/utils/soundLibrary";
 
 const store = useEditorStore();
 const pageAdd = usePageAddStatus();
 
 // ── Events: show whether the selected element's onClick / onChange is used in code ──
-type ElementEvent = "onClick" | "onChange" | "onReady" | "onError" | "onLongPress" | "onEnter" | "onItemClick";
+type ElementEvent = "onClick" | "onChange" | "onReady" | "onError" | "onLongPress" | "onEnter" | "onItemClick" | "onEnd";
 // The variable the code already uses for this element (e.g. `var button = new Button('page1_button1')`),
 // else the default name the scaffold would give it.
+// App-level elements (Sound) are used from whichever page you are editing
+function codePageId(el: AppElement) {
+  return el.pageId === APP_PAGE_ID ? store.currentPageId.value : el.pageId;
+}
+
 const varName = computed(() => {
   const el = store.selectedElement.value;
   const id = el?.id ?? "";
-  const code = el ? store.jsCodeByPage.value[el.pageId] ?? "" : "";
+  const code = el ? store.jsCodeByPage.value[codePageId(el)] ?? "" : "";
   const existing = [...findElementVariables(code).entries()].find(([, elementId]) => elementId === id)?.[0];
   if (existing) return existing;
   const parts = id.split("_");
@@ -1447,7 +1565,7 @@ const elementEvents = computed<ElementEvent[]>(() => {
 function hasHandler(event: ElementEvent) {
   const el = store.selectedElement.value;
   if (!el) return false;
-  const code = store.jsCodeByPage.value[el.pageId] ?? "";
+  const code = store.jsCodeByPage.value[codePageId(el)] ?? "";
   const escaped = varName.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return new RegExp(`\\b${escaped}\\.${event}\\s*\\(`).test(code);
 }
@@ -1456,15 +1574,17 @@ function addHandler(event: ElementEvent) {
   const el = store.selectedElement.value;
   if (!el) return;
   const name = varName.value;
-  let current = store.jsCodeByPage.value[el.pageId] ?? "";
+  const pageId = codePageId(el);
+  let current = store.jsCodeByPage.value[pageId] ?? "";
   if (!current.trim()) {
-    current = buildScaffold(store.elements.value.filter((item) => item.pageId === el.pageId))
+    current = buildScaffold(store.elements.value.filter((item) => isOnPage(item, pageId)))
       // drop the sample handler; we add the real one below
       .replace(/\/\/ --- Add interactions ---[\s\S]*$/, "");
   }
   const declared = new RegExp(`\\b(?:var|let|const)\\s+${name}\\b`).test(current);
   const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
-  const declaration = declared ? "" : `\nvar ${name} = new ${cls}('${el.id}');\npage.add(${name});\n`;
+  const pageAdd = isNonVisualType(el.type) ? "" : `page.add(${name});\n`;
+  const declaration = declared ? "" : `\nvar ${name} = new ${cls}('${el.id}');\n${pageAdd}`;
   const snippets: Record<ElementEvent, string> = {
     onClick: `\n${name}.onClick(() => {\n  // what should happen when ${name} is clicked?\n});\n`,
     onChange: `\n${name}.onChange((value) => {\n  // what should happen when ${name} changes? value is the new value\n});\n`,
@@ -1473,13 +1593,59 @@ function addHandler(event: ElementEvent) {
     onLongPress: `\n${name}.onLongPress(() => {\n  // what should happen when ${name} is pressed and held?\n});\n`,
     onEnter: `\n${name}.onEnter((text) => {\n  // the user pressed Enter — text is what they typed\n});\n`,
     onItemClick: `\n${name}.onItemClick((item, index) => {\n  // item = the tapped row's text, index = its position (0, 1, 2...)\n});\n`,
+    onEnd: `\n${name}.onEnd(() => {\n  // the sound finished playing — what next?\n});\n`,
   };
   const snippet = snippets[event];
-  store.jsCodeByPage.value[el.pageId] = `${current.replace(/\s*$/, "")}\n${declaration}${snippet}`;
+  store.jsCodeByPage.value[pageId] = `${current.replace(/\s*$/, "")}\n${declaration}${snippet}`;
   store.markJsCodeInitialized();
   store.setMode("code");
 }
 const selectedElement = store.selectedElement;
+
+// ── Sound: grouped picker with ▶ preview ──
+const SOUND_GROUP_ORDER: SoundGroup[] = ["quiz", "game", "ui", "music"];
+const soundGroups = SOUND_GROUP_ORDER.map((id) => ({
+  id,
+  label: SOUND_GROUP_LABELS[id],
+  sounds: SOUND_LIBRARY.filter((sound) => sound.group === id),
+}));
+
+const previewingSoundId = ref("");
+let previewHandle: SoundHandle | null = null;
+
+function stopPreview() {
+  previewHandle?.stop();
+  previewHandle = null;
+  previewingSoundId.value = "";
+}
+
+function togglePreview(id: string) {
+  const wasPlaying = previewingSoundId.value === id;
+  stopPreview();
+  if (wasPlaying) return;
+  const handle = playSound(id, { volume: Number(selectedElement.value?.props.volume ?? 80) });
+  if (!handle) return;
+  previewHandle = handle;
+  previewingSoundId.value = id;
+  handle.ended.then(() => {
+    if (previewHandle === handle) stopPreview();
+  });
+}
+
+// Don't keep previewing after switching to another element
+watch(() => selectedElement.value?.id, stopPreview);
+onBeforeUnmount(stopPreview);
+
+// Rename an app-level element; code that uses the old name is updated too
+const renameError = ref("");
+function renameSelected(input: HTMLInputElement) {
+  const el = selectedElement.value;
+  if (!el) return;
+  const error = store.renameElement(el.id, input.value);
+  renameError.value = error ?? "";
+  if (error) input.value = el.id;
+}
+watch(() => selectedElement.value?.id, () => (renameError.value = ""));
 
 // Copy ID to clipboard
 const copied = ref(false);
@@ -1658,6 +1824,11 @@ function handleDelete() {
 </script>
 
 <style scoped>
+.sound-volume {
+  accent-color: var(--color-indigo-500, #6366f1);
+  cursor: pointer;
+}
+
 /* Checkered pattern for the "transparent" swatch */
 .checkerboard {
   background-image:

@@ -1,6 +1,7 @@
 import { computed, type ComputedRef, type Ref } from "vue";
 
 import type { AppElement } from "~/composables/useEditorStore";
+import { isNonVisualType } from "~/utils/componentApi";
 
 export const TOOLBAR_HEIGHT_IOS = 52;
 export const TOOLBAR_HEIGHT_MD = 52;
@@ -35,7 +36,7 @@ export function usePreviewPageLayout(
 
   const bodyElements = computed(() =>
     pageElements.value.filter((element) => {
-      if (element.type === "Toolbar") return false;
+      if (element.type === "Toolbar" || isNonVisualType(element.type)) return false;
       const parentIsPresent =
         element.parentId && runtimeElementIds.value.has(element.parentId);
       return !parentIsPresent;

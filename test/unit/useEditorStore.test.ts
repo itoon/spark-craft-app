@@ -7,6 +7,7 @@ import {
   useEditorStore,
 } from "../../app/composables/useEditorStore";
 import { usePaletteItems } from "../../app/composables/usePaletteItems";
+import { APP_PAGE_ID, isOnPage } from "../../app/utils/componentApi";
 
 describe("useEditorStore project flow", () => {
   beforeEach(() => {
@@ -81,5 +82,89 @@ describe("useEditorStore project flow", () => {
 
     store.setProjectName("   ");
     expect(store.projectName.value).toBe("Untitled Project");
+  });
+});
+
+describe("app-level Sound", () => {
+  beforeEach(() => {
+    resetEditorStoreForTests();
+  });
+
+  const soundItem = () => {
+    const item = usePaletteItems()
+      .flatMap((group) => group.items)
+      .find((candidate) => candidate.type === "Sound");
+    if (!item) throw new Error("Sound palette item not found");
+    return item;
+  };
+
+  it("belongs to the whole app with a short id that is also its variable name", () => {
+    const store = useEditorStore();
+    const first = store.addElement(soundItem());
+    store.addPage();
+    const second = store.addElement(soundItem());
+
+    expect(first.id).toBe("sound1");
+    expect(second.id).toBe("sound2");
+    expect(first.pageId).toBe(APP_PAGE_ID);
+    expect(first.parentId).toBeNull();
+    expect(isOnPage(first, "page1")).toBe(true);
+    expect(isOnPage(first, "page2")).toBe(true);
+  });
+
+  it("renames a sound and updates every page's code", () => {
+    const store = useEditorStore();
+    store.addElement(soundItem());
+    store.jsCodeByPage.value = {
+      page1: "var sound1 = new Sound('sound1'); sound1.play();",
+      page2: 'var s = new Sound("sound1");',
+    };
+
+    expect(store.renameElement("sound1", "soundWin")).toBeNull();
+    expect(store.elements.value.some((el) => el.id === "soundWin")).toBe(true);
+    expect(store.jsCodeByPage.value.page1).toBe("var sound1 = new Sound('soundWin'); sound1.play();");
+    expect(store.jsCodeByPage.value.page2).toBe('var s = new Sound("soundWin");');
+  });
+
+  it("rejects names that can't be used in code or are taken", () => {
+    const store = useEditorStore();
+    store.addElement(soundItem());
+    store.addElement(soundItem());
+
+    expect(store.renameElement("sound1", "2fast")).not.toBeNull();
+    expect(store.renameElement("sound1", "เสียง")).not.toBeNull();
+    expect(store.renameElement("sound1", "sound2")).toContain("sound2");
+    expect(store.elements.value.some((el) => el.id === "sound1")).toBe(true);
+  });
+
+  it("moves sounds saved on a page (older projects) to the app", () => {
+    const restored = applyPersistedEditorState({
+      projectId: "p",
+      projectName: "Old",
+      shareLinkId: null,
+      pages: [{ id: "page1", name: "Page 1" }],
+      currentPageId: "page1",
+      activeDeviceId: "iphone15",
+      jsCodeByPage: {},
+      elements: [
+        {
+          id: "page1_sound1",
+          pageId: "page1",
+          type: "Sound",
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          props: { sound: "coin" },
+          parentId: null,
+          children: [],
+        },
+      ],
+    });
+
+    expect(restored).not.toBe(false);
+    const store = useEditorStore();
+    expect(store.elements.value[0]?.pageId).toBe(APP_PAGE_ID);
+    expect(store.elements.value[0]?.id).toBe("page1_sound1");
   });
 });

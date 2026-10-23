@@ -1,6 +1,7 @@
 import { ref, computed, watch } from 'vue'
 
 import { DEFAULT_APP_ICON, normalizeAppIcon, type AppIcon } from '../utils/appIcon'
+import { APP_PAGE_ID, ELEMENT_NAME_PATTERN, isNonVisualType } from '../utils/componentApi'
 
 export type EditorMode = 'design' | 'block' | 'code'
 
@@ -185,7 +186,12 @@ export function applyPersistedEditorState(state: Partial<PersistedEditorState>) 
     : 'Untitled Project'
   appIcon.value = normalizeAppIcon(state.appIcon)
   shareLinkId.value = typeof state.shareLinkId === 'string' ? state.shareLinkId : null
-  elements.value = state.elements
+  // Off-screen elements (Sound) belong to the whole app; older saves had them on a page
+  elements.value = state.elements.map((el) =>
+    isNonVisualType(el.type) && el.pageId !== APP_PAGE_ID
+      ? { ...el, pageId: APP_PAGE_ID, parentId: null }
+      : el
+  )
   pages.value = state.pages
   currentPageId.value = state.currentPageId
   activeDeviceId.value =
@@ -281,6 +287,36 @@ function generateId(type: string): string {
   return `${currentPageId.value}_${key}${typeCounters[key]}`
 }
 
+/** First unused `${base}N` among all element ids, e.g. sound3 */
+function nextFreeName(base: string): string {
+  const taken = new Set(elements.value.map(el => el.id))
+  let n = 1
+  while (taken.has(`${base}${n}`)) n++
+  return `${base}${n}`
+}
+
+/**
+ * Rename an app-level element (Sound). The id is also how code finds it, so
+ * every `'old'` / `"old"` in page code becomes the new id. Returns an error
+ * message, or null when it worked.
+ */
+function renameElement(id: string, nextId: string): string | null {
+  const el = elements.value.find(e => e.id === id)
+  if (!el) return 'Element not found'
+  const name = nextId.trim()
+  if (name === id) return null
+  if (!ELEMENT_NAME_PATTERN.test(name)) return 'ใช้ตัวอักษรภาษาอังกฤษ ตัวเลข หรือ _ และห้ามขึ้นต้นด้วยตัวเลข'
+  if (elements.value.some(e => e.id === name)) return `มีชื่อ ${name} อยู่แล้ว`
+  el.id = name
+  if (selectedElementId.value === id) selectedElementId.value = name
+  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const quoted = new RegExp(`(['"\`])${escaped}\\1`, 'g')
+  for (const pageId of Object.keys(jsCodeByPage.value)) {
+    jsCodeByPage.value[pageId] = (jsCodeByPage.value[pageId] ?? '').replace(quoted, `$1${name}$1`)
+  }
+  return null
+}
+
 const selectedElement = computed(() =>
   elements.value.find(el => el.id === selectedElementId.value) ?? null
 )
@@ -353,6 +389,16 @@ function addElement(item: PaletteItem, targetId?: string): AppElement {
   // Ensure root container exists for the current page
   let rc = getRootContainer()
   if (!rc) rc = _createRootContainer()
+
+  // Off-screen elements (Sound) belong to the whole app, with a short id that
+  // is also the variable name: sound1, sound2…
+  if (isNonVisualType(item.type)) {
+    newEl.pageId = APP_PAGE_ID
+    newEl.id = nextFreeName(item.type.toLowerCase())
+    _addAtRoot(newEl)
+    selectedElementId.value = newEl.id
+    return newEl
+  }
 
   // Toolbar is always a singleton at root level per page — remove any existing one first
   if (item.type === 'Toolbar') {
@@ -654,6 +700,7 @@ export function useEditorStore() {
     updateElement,
     updateElementProps,
     deleteElement,
+    renameElement,
     togglePreview,
     setRunning,
     setActiveDevice,
