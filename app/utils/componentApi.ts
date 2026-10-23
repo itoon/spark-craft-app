@@ -32,6 +32,7 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
   Separator: "Separator",
   Spacer: "Spacer",
   Chart: "Chart",
+  Map: "Map",
 };
 
 const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {};
@@ -47,6 +48,12 @@ const CAMERA_METHODS = [
 ];
 const TOOLBAR_METHODS = ["backButton.onClick(callback)"];
 const SPINNER_METHODS = ["show()", "hide()"];
+const MAP_METHODS = [
+  "setCenter(lat, lng, zoom)",
+  "addMarker(lat, lng, text)",
+  "clearMarkers()",
+  "onClick(callback(lat, lng))",
+];
 const CHART_METHODS = [
   "setData(labels, data)",
   "setDatasets(datasets)",
@@ -100,6 +107,7 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
       ...(designType === "Spinner" ? SPINNER_METHODS : []),
       ...(designType === "Chart" ? CHART_METHODS : []),
+      ...(designType === "Map" ? MAP_METHODS : []),
     ]);
 
     schemas.push({
@@ -139,6 +147,18 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
               `  { label: 'Sales', data: [30, 70, 45], color: '#3880ff' },`,
               `  { label: 'Cost',  data: [20, 40, 35], color: '#ff4961' },`,
               `]);`,
+            ]
+          : []),
+        ...(designType === "Map"
+          ? [
+              `// Center on Bangkok and drop a pin`,
+              `map1.setCenter(13.7563, 100.5018, 14);`,
+              `map1.addMarker(13.7563, 100.5018, 'โรงเรียน');`,
+              ``,
+              `// Tap the map to add a pin where you tapped`,
+              `map1.onClick((lat, lng) => {`,
+              `  map1.addMarker(lat, lng, 'ที่นี่');`,
+              `});`,
             ]
           : []),
         ...(designType === "Camera"

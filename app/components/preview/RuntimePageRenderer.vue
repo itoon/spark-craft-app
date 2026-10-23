@@ -1,28 +1,30 @@
 <template>
   <ClientOnly class="absolute inset-0 flex flex-col overflow-hidden">
     <div
-      v-if="toolbarElement"
-      class="sticky top-0 z-10 w-full shrink-0"
-      :style="{ height: `${toolbarHeight}px` }"
-    >
-      <EditorCanvasElementRenderer
-        :element="toolbarElement"
-        is-run-mode
-        :platform-override="platformOverride"
-        :runtime-element-ids="Array.from(runtimeElementIds)"
-        :runtime-elements="pageElements"
-        @run-click="emit('run-click', $event)"
-        @run-input="(id, patch) => emit('run-input', id, patch)"
-      />
-    </div>
-
-    <div
-      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
+      class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden phone-scroll"
       :style="{
         paddingTop: `${bodyTopPadding}px`,
         paddingBottom: `${BODY_BOTTOM_PADDING}px`,
       }"
     >
+      <!-- Toolbar: "fixed" sticks to the top, "scroll" moves with the page -->
+      <div
+        v-if="toolbarElement"
+        class="z-10 w-full shrink-0"
+        :class="{ 'sticky top-0': toolbarFixed }"
+        :style="{ height: `${toolbarHeight}px` }"
+      >
+        <EditorCanvasElementRenderer
+          :element="toolbarElement"
+          is-run-mode
+          :platform-override="platformOverride"
+          :runtime-element-ids="Array.from(runtimeElementIds)"
+          :runtime-elements="pageElements"
+          @run-click="emit('run-click', $event)"
+          @run-input="(id, patch) => emit('run-input', id, patch)"
+        />
+      </div>
+
       <template v-for="element in visibleBodyElements" :key="element.id">
         <div
           class="w-full shrink-0"
@@ -77,6 +79,10 @@ const {
   pageElements,
   platform,
   computed(() => props.viewportHeight ?? 0),
+);
+
+const toolbarFixed = computed(
+  () => (toolbarElement.value?.props.position as string | undefined) !== "scroll",
 );
 
 function isVisibleSpinner(element: AppElement) {

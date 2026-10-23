@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="editor-palette flex flex-col h-full bg-neutral-50 border-r border-neutral-200 w-auto shrink-0 overflow-hidden"
+    class="editor-palette flex flex-col h-full bg-neutral-50 border-r border-neutral-200 w-(--cc-palette-w) shrink-0 overflow-hidden"
   >
     <!-- Panel header -->
     <div
@@ -8,7 +8,7 @@
     >
       <UIcon name="i-lucide-package" class="text-neutral-500 size-4" />
       <span
-        class="text-sm font-semibold text-neutral-700 uppercase tracking-widest"
+        class="text-xs font-semibold text-neutral-700 uppercase tracking-widest"
         >Elements</span
       >
     </div>
@@ -20,28 +20,28 @@
         <div class="flex items-center gap-2 px-1 mb-2">
           <UIcon :name="group.icon" class="text-neutral-400 size-3.5" />
           <span
-            class="text-sm font-semibold text-neutral-500 uppercase tracking-wider"
+            class="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider"
             >{{ group.label }}</span
           >
         </div>
 
-        <!-- Items grid: 3 columns -->
-        <div class="grid grid-cols-4 gap-2">
+        <!-- Items grid: 3 columns (fixed panel width keeps the canvas usable on laptops) -->
+        <div class="palette-grid grid gap-2">
           <button
             v-for="item in group.items"
             :key="item.type"
             draggable="true"
-            class="palette-item group flex flex-col items-center justify-center gap-0 min-h-[88px] p-2 rounded-xl bg-white border-2 border-neutral-200 hover:border-indigo-400 hover:bg-indigo-50 active:scale-95 transition-all duration-100 cursor-grab active:cursor-grabbing"
+            class="palette-item group flex flex-col items-center justify-center gap-0 min-h-[76px] px-1.5 py-2.5 rounded-xl bg-white border border-neutral-200 hover:border-indigo-400 hover:bg-indigo-50 focus-visible:outline-2 focus-visible:outline-indigo-500 active:scale-95 transition-all duration-100 cursor-grab active:cursor-grabbing"
             :title="`Add ${item.label}`"
             @click="handleAddElement(item)"
             @dragstart="onDragStart($event, item)"
           >
             <UIcon
               :name="item.icon"
-              class="text-neutral-500 group-hover:text-indigo-600 size-4 transition-colors duration-100"
+              class="text-neutral-500 group-hover:text-indigo-600 size-5 transition-colors duration-100"
             />
             <span
-              class="text-xs font-semibold text-neutral-600 group-hover:text-indigo-700 text-center mt-1 leading-tight transition-colors duration-100"
+              class="text-xs font-semibold text-neutral-600 group-hover:text-indigo-700 text-center mt-1.5 leading-tight transition-colors duration-100"
             >
               {{ item.label }}
             </span>
@@ -52,7 +52,7 @@
 
     <!-- Footer hint — shows context-aware tip based on selection -->
     <div class="px-3 py-2 border-t border-neutral-200 shrink-0">
-      <p class="text-[10px] text-neutral-500 leading-snug">
+      <p class="text-[11px] text-neutral-500 leading-snug">
         <template v-if="selectedElement && isContainerSelected">
           Adding inside
           <span class="text-indigo-500 font-semibold">{{

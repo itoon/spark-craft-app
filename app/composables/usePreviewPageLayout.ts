@@ -29,9 +29,9 @@ export function usePreviewPageLayout(
     platform?.value === "android" ? TOOLBAR_HEIGHT_MD : TOOLBAR_HEIGHT_IOS,
   );
 
-  const bodyTopPadding = computed(() =>
-    toolbarElement.value ? 0 : toolbarHeight.value,
-  );
+  // Same as the design canvas: content starts at the top when there is no
+  // toolbar (a real phone's browser bar / status bar is outside the page).
+  const bodyTopPadding = computed(() => BODY_TOP_PADDING);
 
   const bodyElements = computed(() =>
     pageElements.value.filter((element) => {
@@ -47,7 +47,7 @@ export function usePreviewPageLayout(
     if (element.type !== "Container" || element.parentId !== null)
       return element.height;
     const baseHeight = viewportHeight?.value ?? element.height;
-    const h = toolbarHeight.value;
+    const h = toolbarElement.value ? toolbarHeight.value : 0;
     return Math.max(
       baseHeight - h - BODY_TOP_PADDING - BODY_BOTTOM_PADDING,
       0,

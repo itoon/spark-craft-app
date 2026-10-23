@@ -1,6 +1,10 @@
 import type { AppElement } from './useEditorStore'
 import { getComponentClassMap } from '../utils/componentApi'
 import { usePaletteItems } from './usePaletteItems'
+import { createRuntimeServices } from '../utils/runtimeServices'
+import type { RuntimeServiceHost, RuntimeServices } from '../utils/runtimeServices'
+import { createDeviceServices } from '../utils/deviceServices'
+import type { DeviceServices, SensorSimulator } from '../utils/deviceServices'
 
 export interface ConsoleEntry {
   type: 'log' | 'error' | 'warn' | 'success'
@@ -54,6 +58,16 @@ export interface RuntimeResult {
   instances: ElementInstance[]
   logs: ConsoleEntry[]
   events: RuntimeExecutionEvent[]
+  /** notify / timer / storage / phone — call services.dispose() when the run ends */
+  services: RuntimeServices
+  /** location / motion / ble (disposed together with services) */
+  device: DeviceServices
+}
+
+export interface ExecuteCodeOptions {
+  services?: RuntimeServiceHost
+  /** Editor sensor simulator (GPS, shake/tilt, simulated BLE board) */
+  simulator?: SensorSimulator | null
 }
 
 export interface RuntimeState {
@@ -159,7 +173,8 @@ export function executeCode(
   onUpdate?: (id: string, props: Record<string, any>) => void,
   onNavigate?: (pageRef: string) => void,
   onLog?: (entry: ConsoleEntry) => void,
-  onEvent?: (event: RuntimeExecutionEvent) => void
+  onEvent?: (event: RuntimeExecutionEvent) => void,
+  options: ExecuteCodeOptions = {}
 ): RuntimeResult {
   // Work on a shallow copy so virtual elements don't pollute the store
   const allElements: AppElement[] = [...sourceElements]
@@ -336,12 +351,22 @@ export function executeCode(
   }
 
   // ── Base element class ────────────────────────────────────────────────
+  // One instance per element id: re-running `new Toggle('page1_toggle2')` hands
+  // back the same object, so every variable shares the live value and onClick
+  // (page.add() skips repeats, so a second object would never be synced).
+  const instanceById = new Map<string, BaseEl>()
+
   class BaseEl implements ElementInstance {
-    __el: AppElement
+    // set in the constructor unless it returns an existing instance
+    __el!: AppElement
     __onClick: (() => void) | null = null
     __onBackClick: (() => void) | null = null
 
     constructor(id: string, className: string) {
+      const existing = instanceById.get(id)
+      if (existing) return existing
+      instanceById.set(id, this)
+
       this.__el = getEl(id, className)
 
       for (const propName of Object.keys(this.__el.props)) {
@@ -395,7 +420,54 @@ export function executeCode(
         })
       }
 
+      // toggle1.value / toggle1.checked → on, checkbox1.value → checked
+      // (the generic 'value' mapping would otherwise return the label text)
+      const checkedProp = className === 'Toggle' ? 'on' : className === 'Checkbox' ? 'checked' : null
+      if (checkedProp) {
+        for (const alias of ['on', 'value', 'checked']) {
+          Object.defineProperty(this, alias, {
+            get: () => Boolean(this.__el.props[checkedProp]),
+            set: (val) => {
+              const next = Boolean(val)
+              this.__el.props[checkedProp] = next
+              pushEvent({
+                type: 'update',
+                message: `${this.__el.id}.${checkedProp} = ${next}`,
+                elementId: this.__el.id,
+                elementType: this.__el.type,
+                propName: checkedProp,
+                value: next,
+              })
+              onUpdate?.(this.__el.id, { [checkedProp]: next })
+            },
+            configurable: true,
+            enumerable: true,
+          })
+        }
+      }
+
       if (className === 'Toolbar') {
+        // toolbar1.position = 'fixed' | 'scroll' (older toolbars may lack the prop)
+        if (!Object.getOwnPropertyDescriptor(this, 'position')) {
+          Object.defineProperty(this, 'position', {
+            get: () => this.__el.props.position ?? 'fixed',
+            set: (val) => {
+              const next = val === 'scroll' ? 'scroll' : 'fixed'
+              this.__el.props.position = next
+              pushEvent({
+                type: 'update',
+                message: `${this.__el.id}.position = ${next}`,
+                elementId: this.__el.id,
+                elementType: this.__el.type,
+                propName: 'position',
+                value: next,
+              })
+              onUpdate?.(this.__el.id, { position: next })
+            },
+            configurable: true,
+            enumerable: true,
+          })
+        }
         const backButton = {
           onClick: (cb: () => void) => {
             this.__onBackClick = cb
@@ -479,6 +551,8 @@ export function executeCode(
       }
       if (prop === 'value') {
         if ('value' in p) return 'value'
+        // Textarea keeps its typed text in `content`
+        if (typeof p.content === 'string') return 'content'
         // Fallback to text properties for value access
         if ('text' in p) return 'text'
         if ('label' in p) return 'label'
@@ -486,8 +560,43 @@ export function executeCode(
       return prop
     }
 
-    onClick(cb: () => void): this {
+    onClick(cb: (...args: any[]) => void): this {
+      if (this.__el.type === 'Map') {
+        // Map: pass where the user tapped → onClick((lat, lng) => ...)
+        this.__onClick = () => {
+          const at = this.__el.props.lastClick as { lat: number; lng: number } | undefined
+          return cb(at?.lat, at?.lng)
+        }
+        return this
+      }
       this.__onClick = cb
+      return this
+    }
+
+    setCenter(lat: number, lng: number, zoom?: number): this {
+      if (this.__el.type !== 'Map') throw new Error(`${this.__el.type} does not support setCenter()`)
+      const patch: Record<string, unknown> = { lat: Number(lat), lng: Number(lng) }
+      if (zoom !== undefined) patch.zoom = Number(zoom)
+      Object.assign(this.__el.props, patch)
+      pushEvent({ type: 'update', message: `${this.__el.id}.setCenter(${lat}, ${lng}${zoom !== undefined ? `, ${zoom}` : ''})`, elementId: this.__el.id, elementType: 'Map', propName: 'lat', value: patch })
+      onUpdate?.(this.__el.id, patch)
+      return this
+    }
+
+    addMarker(lat: number, lng: number, text?: unknown): this {
+      if (this.__el.type !== 'Map') throw new Error(`${this.__el.type} does not support addMarker()`)
+      const markers = [...((this.__el.props.markers as unknown[]) ?? []), { lat: Number(lat), lng: Number(lng), text: text === undefined ? '' : String(text) }]
+      this.__el.props.markers = markers
+      pushEvent({ type: 'update', message: `${this.__el.id}.addMarker(${lat}, ${lng})`, elementId: this.__el.id, elementType: 'Map', propName: 'markers', value: markers })
+      onUpdate?.(this.__el.id, { markers })
+      return this
+    }
+
+    clearMarkers(): this {
+      if (this.__el.type !== 'Map') throw new Error(`${this.__el.type} does not support clearMarkers()`)
+      this.__el.props.markers = []
+      pushEvent({ type: 'update', message: `${this.__el.id}.clearMarkers()`, elementId: this.__el.id, elementType: 'Map', propName: 'markers', value: [] })
+      onUpdate?.(this.__el.id, { markers: [] })
       return this
     }
 
@@ -673,6 +782,8 @@ export function executeCode(
     /** Returns the element's most meaningful "value" for use in expressions */
     valueOf(): unknown {
       const p = this.__el.props
+      if (this.__el.type === 'Toggle') return Boolean(p.on)
+      if (this.__el.type === 'Checkbox') return Boolean(p.checked)
       return p.value ?? p.content ?? p.label ?? p.text ?? p.placeholder ?? `[${this.__el.type}]`
     }
 
@@ -714,6 +825,7 @@ export function executeCode(
   const Spacer        = make('Spacer')
   const Container     = make('Container')
   const Chart         = make('Chart')
+  const MapEl         = make('Map')
 
   // ── page object ───────────────────────────────────────────────────────
   const page = {
@@ -765,6 +877,25 @@ export function executeCode(
     error: (...a: unknown[]) => pushLog({ type: 'error',message: a.map(String).join(' ') }),
   }
 
+  // ── App Inventor-style services (Notifier, Clock, TinyDB, TextToSpeech) ──
+  const services = createRuntimeServices(options.services, (type, message) =>
+    pushLog({ type, message })
+  )
+  const { notify, timer, storage, phone } = services
+
+  // ── Phone hardware (App Inventor: LocationSensor, Accelerometer, BluetoothLE) ──
+  const device = createDeviceServices(
+    { dryRun: options.services?.dryRun, simulator: options.simulator ?? null },
+    (type, message) => pushLog({ type, message }),
+    (name) => services.calls.push(name)
+  )
+  const { location, motion, ble } = device
+  const disposeServices = services.dispose
+  services.dispose = () => {
+    disposeServices()
+    device.dispose()
+  }
+
   // ── Execute ───────────────────────────────────────────────────────────
   try {
     // eslint-disable-next-line no-new-func
@@ -773,21 +904,24 @@ export function executeCode(
       'Range','DatePicker','Checkbox','Radio','Toggle','Select',
       'Heading','Label','TextBox','Textarea','Badge','Chip','Spinner',
       'Image','Camera','Link','Video','List','Card','Segment',
-      'Separator','Spacer','Container','Chart',
-      'page','console',
+      'Separator','Spacer','Container','Chart','Map',
+      'page','console','notify','timer','storage','phone','location','motion','ble','alert',
       `"use strict";\n${code}`
     )(
       Toolbar,Button,FAB,Input,LabelledInput,Searchbar,
       Range,DatePicker,Checkbox,Radio,Toggle,Select,
       Heading,Label,TextBox,Textarea,Badge,Chip,Spinner,
       Image,Camera,Link,Video,List,Card,Segment,
-      Separator,Spacer,Container,Chart,
-      page,console
+      Separator,Spacer,Container,Chart,MapEl,
+      page,console,notify,timer,storage,phone,location,motion,ble,
+      // Plain alert() → in-app alert: the browser's alert() blocks repaint, so a
+      // toggle tapped just before it still looks unchanged while the dialog is up
+      (message: unknown) => notify.alert(message)
     )
     pushLog({ type: 'success', message: `Done — ${pageElements.length} element(s) on page` })
   } catch (err: unknown) {
     pushLog({ type: 'error', message: err instanceof Error ? err.message : String(err) })
   }
 
-  return { pageElements, instances, logs, events }
+  return { pageElements, instances, logs, events, services, device }
 }

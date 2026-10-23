@@ -22,6 +22,7 @@ export function usePaletteItems(): PaletteGroup[] {
           defaultProps: {
             title: "My App",
             showBack: false,
+            position: "fixed",
             ionicColor: "primary",
           },
         },
@@ -74,7 +75,7 @@ export function usePaletteItems(): PaletteGroup[] {
           label: "Button",
           icon: "i-lucide-square",
           defaultWidth: 112,
-          defaultHeight: 36,
+          defaultHeight: 44,
           defaultProps: {
             content: "Button",
             fill: "solid",
@@ -274,6 +275,19 @@ export function usePaletteItems(): PaletteGroup[] {
             open: false,
             title: "Camera",
             filter: "none",
+          },
+        },
+        {
+          type: "Map",
+          label: "Map",
+          icon: "i-lucide-map",
+          defaultWidth: 300,
+          defaultHeight: 240,
+          defaultProps: {
+            lat: 13.7563,
+            lng: 100.5018,
+            zoom: 13,
+            markers: [],
           },
         },
         {

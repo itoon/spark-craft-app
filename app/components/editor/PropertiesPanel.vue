@@ -1,6 +1,6 @@
 <template>
   <aside
-    class="flex flex-col h-full bg-white border-l border-neutral-200 w-80 shrink-0 overflow-hidden"
+    class="editor-properties flex flex-col h-full bg-white border-l border-neutral-200 w-(--cc-props-w) shrink-0 overflow-hidden"
   >
     <!-- Panel header -->
     <div
@@ -63,6 +63,33 @@
         >
           {{ copied ? "Copied!" : "Copy" }}
         </button>
+      </div>
+
+      <!-- ── Not passed to page.add() in the code ── -->
+      <div
+        v-if="pageAdd.isNotAdded(selectedElement)"
+        class="flex flex-col gap-2 border-b border-amber-200 bg-amber-50 px-3 py-2.5"
+        role="status"
+        data-testid="not-added-banner"
+      >
+        <p class="flex gap-2 text-[11px] leading-snug text-amber-900">
+          <UIcon name="i-lucide-eye-off" class="mt-0.5 size-3.5 shrink-0 text-amber-600" />
+          <span>
+            ยังไม่ได้ <code class="font-mono">page.add()</code> ในโค้ด
+            ชิ้นนี้จึงยังไม่โผล่ตอน Run / มือถือ / APK
+          </span>
+        </p>
+        <UButton
+          size="xs"
+          color="warning"
+          variant="solid"
+          icon="i-lucide-plus"
+          class="self-start"
+          data-testid="add-to-page-button"
+          @click="pageAdd.addToCode(selectedElement)"
+        >
+          เพิ่มเข้า page ในโค้ดให้
+        </UButton>
       </div>
 
       <!-- ── Container layout section (only for Container) ── -->
@@ -1062,6 +1089,29 @@
             </div>
           </EditorPropField>
 
+          <EditorPropField
+            v-if="selectedElement.type === 'Toolbar'"
+            label="Position"
+          >
+            <div class="flex gap-1 flex-wrap">
+              <button
+                v-for="option in TOOLBAR_POSITION_OPTIONS"
+                :key="option.value"
+                class="px-2 py-1 rounded text-xs font-medium transition-colors duration-100"
+                :class="
+                  ((selectedElement.props.position as string) ?? 'fixed') ===
+                  option.value
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
+                "
+                :title="option.hint"
+                @click="patchProps({ position: option.value })"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </EditorPropField>
+
           <EditorPropField v-if="selectedElement.type === 'Card'" label="Title">
             <UInput
               :model-value="(selectedElement.props.title as string) || ''"
@@ -1253,6 +1303,60 @@
         </div>
       </EditorPropertiesSection>
 
+      <!-- ── Map section ── -->
+      <EditorPropertiesSection
+        v-if="selectedElement.type === 'Map'"
+        title="Map"
+        icon="i-lucide-map"
+      >
+        <div class="space-y-2">
+          <EditorPropField label="Lat">
+            <UInput
+              :model-value="(selectedElement.props.lat as number) ?? 13.7563"
+              type="number"
+              step="0.0001"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ lat: Number(v) })"
+            />
+          </EditorPropField>
+          <EditorPropField label="Lng">
+            <UInput
+              :model-value="(selectedElement.props.lng as number) ?? 100.5018"
+              type="number"
+              step="0.0001"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ lng: Number(v) })"
+            />
+          </EditorPropField>
+          <EditorPropField label="Zoom">
+            <UInput
+              :model-value="(selectedElement.props.zoom as number) ?? 13"
+              type="number"
+              min="2"
+              max="19"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchProps({ zoom: Math.min(19, Math.max(2, Number(v))) })"
+            />
+          </EditorPropField>
+          <EditorPropField label="Height">
+            <UInput
+              :model-value="selectedElement.height"
+              type="number"
+              min="120"
+              size="xs"
+              class="prop-input"
+              @update:model-value="(v) => patchElement({ height: Math.max(120, Number(v)) })"
+            />
+          </EditorPropField>
+          <p class="px-1 text-[10px] leading-snug text-neutral-400">
+            ใส่หมุดจากโค้ด: map1.addMarker(lat, lng, 'ข้อความ')
+          </p>
+        </div>
+      </EditorPropertiesSection>
+
       <!-- ── Events section ── -->
       <EditorPropertiesSection title="Events" icon="i-lucide-zap">
         <div class="space-y-1.5">
@@ -1261,16 +1365,26 @@
           >
             <UIcon
               name="i-lucide-zap"
-              class="text-amber-400 size-3.5 shrink-0"
+              class="size-3.5 shrink-0"
+              :class="hasClickHandler ? 'text-amber-500' : 'text-neutral-300'"
             />
-            <span class="text-[10px] text-neutral-500 font-mono flex-1"
-              >onClick</span
+            <span class="text-[11px] text-neutral-600 font-mono flex-1"
+              >{{ varName }}.onClick</span
             >
-            <span class="text-[9px] text-neutral-400 italic">unassigned</span>
+            <span
+              class="text-[10px] font-medium"
+              :class="hasClickHandler ? 'text-emerald-600' : 'text-neutral-400'"
+              >{{ hasClickHandler ? "used in code" : "not used yet" }}</span
+            >
           </div>
-          <p class="text-[10px] text-neutral-400 px-1">
-            Logic binding via Block mode — coming soon.
-          </p>
+          <button
+            v-if="!hasClickHandler && selectedElement.type !== 'Container'"
+            type="button"
+            class="w-full rounded-md px-1 py-1 text-left text-[11px] text-indigo-600 hover:bg-indigo-50"
+            @click="addClickHandler"
+          >
+            + Add onClick in Code
+          </button>
         </div>
       </EditorPropertiesSection>
     </div>
@@ -1296,9 +1410,53 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
+import { usePageAddStatus } from "~/composables/usePageAddStatus";
+import { findElementVariables } from "~/utils/pageAdds";
 import type { AppElement } from "~/composables/useEditorStore";
+import { ELEMENT_CLASS_MAP, buildScaffold } from "~/composables/useRuntime";
 
 const store = useEditorStore();
+const pageAdd = usePageAddStatus();
+
+// ── Events: show whether the selected element's onClick is used in code ──
+// The variable the code already uses for this element (e.g. `var button = new Button('page1_button1')`),
+// else the default name the scaffold would give it.
+const varName = computed(() => {
+  const el = store.selectedElement.value;
+  const id = el?.id ?? "";
+  const code = el ? store.jsCodeByPage.value[el.pageId] ?? "" : "";
+  const existing = [...findElementVariables(code).entries()].find(([, elementId]) => elementId === id)?.[0];
+  if (existing) return existing;
+  const parts = id.split("_");
+  return parts[parts.length - 1] || id;
+});
+
+const hasClickHandler = computed(() => {
+  const el = store.selectedElement.value;
+  if (!el) return false;
+  const code = store.jsCodeByPage.value[el.pageId] ?? "";
+  const escaped = varName.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`\\b${escaped}\\.onClick\\s*\\(`).test(code);
+});
+
+function addClickHandler() {
+  const el = store.selectedElement.value;
+  if (!el) return;
+  const name = varName.value;
+  let current = store.jsCodeByPage.value[el.pageId] ?? "";
+  if (!current.trim()) {
+    current = buildScaffold(store.elements.value.filter((item) => item.pageId === el.pageId))
+      // drop the sample handler; we add the real one below
+      .replace(/\/\/ --- Add interactions ---[\s\S]*$/, "");
+  }
+  const declared = new RegExp(`\\b(?:var|let|const)\\s+${name}\\b`).test(current);
+  const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
+  const declaration = declared ? "" : `\nvar ${name} = new ${cls}('${el.id}');\npage.add(${name});\n`;
+  const snippet = `\n${name}.onClick(() => {\n  // what should happen when ${name} is clicked?\n});\n`;
+  store.jsCodeByPage.value[el.pageId] = `${current.replace(/\s*$/, "")}\n${declaration}${snippet}`;
+  store.markJsCodeInitialized();
+  store.setMode("code");
+}
 const selectedElement = store.selectedElement;
 
 // Copy ID to clipboard
@@ -1402,10 +1560,15 @@ const FAB_VERTICAL_OPTIONS = ["top", "center", "bottom"] as const;
 const FAB_EDGE_OPTIONS = [true, false] as const;
 const BUTTON_FILL_OPTIONS = ["solid", "outline", "clear"] as const;
 const BUTTON_SIZE_OPTIONS = ["small", "default", "large"] as const;
+const TOOLBAR_POSITION_OPTIONS = [
+  { value: "fixed", label: "fixed top", hint: "ติดอยู่ด้านบนตลอด แม้เลื่อนหน้าจอ" },
+  { value: "scroll", label: "scrolling", hint: "เลื่อนขึ้นไปพร้อมเนื้อหา" },
+] as const;
+// Keep in sync with BUTTON_SIZE_SPEC in CanvasElementRenderer.vue
 const BUTTON_SIZE_HEIGHT: Record<string, number> = {
-  small: 30,
-  default: 36,
-  large: 42,
+  small: 32,
+  default: 44,
+  large: 52,
 };
 // Ionic named colors with explicit hex so swatches render reliably in the editor
 const IONIC_COLORS = [
@@ -1449,7 +1612,7 @@ function patchProps(patch: Record<string, unknown>) {
 
 function changeButtonSize(size: string) {
   patchProps({ size });
-  patchElement({ height: BUTTON_SIZE_HEIGHT[size] ?? 36 });
+  patchElement({ height: BUTTON_SIZE_HEIGHT[size] ?? 44 });
 }
 
 function parseOptions(value: string): string[] {

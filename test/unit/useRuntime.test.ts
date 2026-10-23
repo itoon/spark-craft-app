@@ -230,6 +230,17 @@ describe("executeCode", () => {
     expect(updates).toHaveBeenCalledWith("page1_camera1", { open: true });
   });
 
+  it("routes a plain alert() to the in-app alert instead of the blocking browser one", () => {
+    const onNotify = vi.fn();
+    const result = executeCode("alert('hi')", [], undefined, undefined, undefined, undefined, {
+      services: { onNotify },
+    });
+
+    expect(result.logs.find((entry) => entry.type === "error")).toBeUndefined();
+    expect(onNotify).toHaveBeenCalledTimes(1);
+    expect(onNotify.mock.calls[0]![0]).toMatchObject({ kind: "alert", message: "hi" });
+  });
+
   it("streams console output through the live log callback", () => {
     const onLog = vi.fn();
 
@@ -350,6 +361,121 @@ describe("syncRuntimeElementProps", () => {
     expect(inputInstance.value).toBe("typed from runtime");
     expect(inputInstance.valueOf()).toBe("typed from runtime");
   });
+
+  it("reads a Toggle's on-state through on, value, and checked", () => {
+    const result = executeCode(
+      ["const toggle1 = new Toggle('page1_toggle1')", "page.add(toggle1)"].join("\n"),
+      [makeElement("page1_toggle1", "Toggle", { content: "Wifi", on: false })],
+    );
+
+    const synced = syncRuntimeElementProps(
+      { pageElements: result.pageElements, instances: result.instances },
+      "page1_toggle1",
+      { on: true },
+    );
+    const toggle = synced.instances[0] as ElementInstance & {
+      on: boolean;
+      value: boolean;
+      checked: boolean;
+    };
+
+    expect(toggle.on).toBe(true);
+    expect(toggle.value).toBe(true);
+    expect(toggle.checked).toBe(true);
+  });
+
+  it("writes a Toggle's on-state through value", () => {
+    const updates: Array<[string, Record<string, unknown>]> = [];
+    executeCode(
+      [
+        "const toggle1 = new Toggle('page1_toggle1')",
+        "toggle1.value = true",
+        "page.add(toggle1)",
+      ].join("\n"),
+      [makeElement("page1_toggle1", "Toggle", { content: "Wifi", on: false })],
+      (id, props) => updates.push([id, props]),
+    );
+
+    expect(updates).toContainEqual(["page1_toggle1", { on: true }]);
+  });
+
+  it("reads a Checkbox's checked-state through checked and value", () => {
+    const result = executeCode(
+      ["const checkbox1 = new Checkbox('page1_checkbox1')", "page.add(checkbox1)"].join("\n"),
+      [makeElement("page1_checkbox1", "Checkbox", { label: "Agree", checked: false })],
+    );
+
+    const synced = syncRuntimeElementProps(
+      { pageElements: result.pageElements, instances: result.instances },
+      "page1_checkbox1",
+      { checked: true },
+    );
+    const checkbox = synced.instances[0] as ElementInstance & {
+      checked: boolean;
+      value: boolean;
+      label: string;
+    };
+
+    expect(checkbox.checked).toBe(true);
+    expect(checkbox.value).toBe(true);
+    expect(checkbox.label).toBe("Agree");
+  });
+
+  it("keeps a re-declared element in sync with the one on the page", () => {
+    const result = executeCode(
+      [
+        "var toggle2 = new Toggle('page1_toggle2')",
+        "page.add(toggle2)",
+        "var toggle2 = new Toggle('page1_toggle2')",
+        "page.add(toggle2)",
+        "toggle2.onClick(() => console.log('t2=' + toggle2.value))",
+      ].join("\n"),
+      [makeElement("page1_toggle2", "Toggle", { content: "Topping", on: false })],
+    );
+
+    expect(result.instances).toHaveLength(1);
+    const synced = syncRuntimeElementProps(
+      { pageElements: result.pageElements, instances: result.instances },
+      "page1_toggle2",
+      { on: true },
+    );
+
+    // the onClick set through the second declaration runs and reads the live value
+    synced.instances[0]!.__onClick?.();
+    expect(result.logs.map((entry) => entry.message)).toContain("t2=true");
+  });
+
+  it("uses the checked-state when a Toggle or Checkbox is printed", () => {
+    const result = executeCode(
+      [
+        "const toggle1 = new Toggle('page1_toggle1')",
+        "const checkbox1 = new Checkbox('page1_checkbox1')",
+        "console.log(`${toggle1}|${checkbox1}`)",
+      ].join("\n"),
+      [
+        makeElement("page1_toggle1", "Toggle", { content: "Wifi", on: true }),
+        makeElement("page1_checkbox1", "Checkbox", { label: "Agree", checked: false }),
+      ],
+    );
+
+    expect(result.logs.map((entry) => entry.message)).toContain("true|false");
+  });
+
+  it("reads a Textarea's typed text through value", () => {
+    const result = executeCode(
+      ["const textarea1 = new Textarea('page1_textbox1')", "page.add(textarea1)"].join("\n"),
+      [makeElement("page1_textbox1", "TextBox", { placeholder: "Write", content: "" })],
+    );
+
+    const synced = syncRuntimeElementProps(
+      { pageElements: result.pageElements, instances: result.instances },
+      "page1_textbox1",
+      { content: "hello" },
+    );
+    const textarea = synced.instances[0] as ElementInstance & { value: string };
+
+    expect(textarea.value).toBe("hello");
+  });
 });
 
 describe("usePaletteItems", () => {
@@ -373,7 +499,7 @@ describe("usePaletteItems", () => {
     const heading = displayGroup?.items.find((item) => item.type === "Heading");
     const textBox = displayGroup?.items.find((item) => item.type === "TextBox");
 
-    expect(heading?.defaultProps.text).toBe("Heading");
+    expect(heading?.defaultProps.content).toBe("Heading");
     expect(heading?.defaultProps.level).toBe(2);
     expect(textBox?.defaultProps.placeholder).toBe("Write something...");
     expect(textBox?.defaultProps.textAlign).toBe("left");
@@ -427,7 +553,7 @@ describe("componentApi", () => {
     const fab = findComponentApiSchemaByClassName("FAB");
 
     expect(schemas.length).toBeGreaterThan(10);
-    expect(button?.props).toContain("backgroundColor");
+    expect(button?.props).toContain("ionicColor");
     expect(button?.props).toContain("fill");
     expect(button?.methods).toContain("onClick(callback)");
     expect(camera?.methods).toContain("open()");

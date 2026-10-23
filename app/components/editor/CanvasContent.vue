@@ -9,35 +9,45 @@
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
-    <!-- ── Toolbar — pinned sticky at the top of the canvas ──────────────── -->
-    <div
-      v-if="toolbarElement"
-      :key="`toolbar-${toolbarElement.id}-${store.activePlatform.value}`"
-      class="sticky top-0 z-20 w-full cursor-pointer shrink-0"
-      :class="{
-        'ring-2 ring-inset ring-indigo-500':
-          store.selectedElementId.value === toolbarElement.id,
-      }"
-      :style="{ height: `${toolbarHeight}px` }"
-      @click.stop="store.selectElement(toolbarElement.id)"
-    >
-      <!-- Selection badge -->
-      <div
-        v-if="store.selectedElementId.value === toolbarElement.id"
-        class="absolute -top-5 left-0 z-30 flex items-center gap-1 pointer-events-none"
-      >
-        <span
-          class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none"
-        >
-          Toolbar
-        </span>
-      </div>
-      <EditorCanvasElementRenderer :element="toolbarElement" />
-    </div>
-
     <!-- Empty state (only when no elements at all) -->
     <!-- Body containers stacked vertically -->
-    <div class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+    <div class="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden phone-scroll">
+      <!-- ── Toolbar — "fixed" sticks to the top, "scroll" moves with the page ── -->
+      <div
+        v-if="toolbarElement"
+        :key="`toolbar-${toolbarElement.id}-${store.activePlatform.value}`"
+        class="z-20 w-full cursor-pointer shrink-0"
+        :class="{
+          'sticky top-0': toolbarFixed,
+          relative: !toolbarFixed,
+          'ring-2 ring-inset ring-indigo-500':
+            store.selectedElementId.value === toolbarElement.id,
+          'cc-not-added': pageAdd.isNotAdded(toolbarElement),
+        }"
+        :style="{ height: `${toolbarHeight}px` }"
+        @click.stop="store.selectElement(toolbarElement.id)"
+      >
+        <!-- Selection badge -->
+        <div
+          v-if="store.selectedElementId.value === toolbarElement.id"
+          class="absolute -top-5 left-0 z-30 flex items-center gap-1 pointer-events-none"
+        >
+          <span
+            class="text-[9px] bg-indigo-500 text-white px-1.5 py-0.5 rounded font-mono leading-none"
+          >
+            Toolbar
+          </span>
+        </div>
+        <span
+          v-if="pageAdd.isNotAdded(toolbarElement)"
+          class="cc-not-added-badge"
+          :title="`${toolbarElement.id} ยังไม่ได้ page.add() ในโค้ด — จะไม่โผล่ตอน Run`"
+        >
+          ยังไม่ add
+        </span>
+        <EditorCanvasElementRenderer :element="toolbarElement" />
+      </div>
+
       <div
         v-if="bodyElements.length === 0"
         class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none"
@@ -96,6 +106,7 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
+import { usePageAddStatus } from "~/composables/usePageAddStatus";
 import { usePaletteItems } from "~/composables/usePaletteItems";
 import { getPreviewDevice } from "~/composables/usePreviewDevices";
 import type { AppElement } from "~/composables/useEditorStore";
@@ -105,6 +116,7 @@ import {
 } from "~/composables/usePreviewPageLayout";
 
 const store = useEditorStore();
+const pageAdd = usePageAddStatus();
 const paletteGroups = usePaletteItems();
 
 const currentPageElements = computed(() =>
@@ -118,6 +130,10 @@ const { toolbarElement, toolbarHeight, bodyTopPadding, bodyElements, bodyElement
     store.activePlatform,
     computed(() => activeDevice.value.canvasH),
   );
+
+const toolbarFixed = computed(
+  () => (toolbarElement.value?.props.position as string | undefined) !== "scroll",
+);
 
 function isVisibleSpinner(element: AppElement) {
   return element.type !== "Spinner" || element.props.show !== false;

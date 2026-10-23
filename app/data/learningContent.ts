@@ -17,6 +17,12 @@ export type LearningBlock =
       items: string[];
     }
   | {
+      /** Numbered "do this" instructions. */
+      id: string;
+      type: "steps";
+      items: string[];
+    }
+  | {
       id: string;
       type: "tags";
       items: string[];

@@ -7,6 +7,8 @@ interface ScaleOptions {
   heightPadding?: number
   minWidth?: number
   minHeight?: number
+  /** Allow growing past native size on big screens (default 1 = never grow) */
+  maxScale?: number
 }
 
 export function usePreviewDeviceScale(
@@ -35,7 +37,7 @@ export function usePreviewDeviceScale(
     )
 
     return Math.min(
-      1,
+      options.maxScale ?? 1,
       availableWidth / activeDevice.value.totalW,
       availableHeight / activeDevice.value.totalH
     )

@@ -39,8 +39,17 @@
               <span
                 v-for="(el, i) in currentElements"
                 :key="el.id"
-                class="inline-flex max-w-full rounded-md border border-amber-400/20 bg-amber-400/8 px-1.5 text-amber-300 cursor-pointer hover:text-amber-200 hover:border-amber-300/30 hover:bg-amber-300/10 transition-colors"
-                :title="`${el.type} — click to insert`"
+                class="inline-flex max-w-full rounded-md border px-1.5 cursor-pointer transition-colors"
+                :class="
+                  pageAdd.isNotAdded(el)
+                    ? 'border-dashed border-neutral-500/60 bg-transparent text-neutral-400 hover:border-amber-300/50 hover:text-amber-200'
+                    : 'border-amber-400/20 bg-amber-400/8 text-amber-300 hover:text-amber-200 hover:border-amber-300/30 hover:bg-amber-300/10'
+                "
+                :title="
+                  pageAdd.isNotAdded(el)
+                    ? `${el.type} — ยังไม่ได้ page.add() · กดเพื่อแทรกโค้ด`
+                    : `${el.type} — click to insert`
+                "
                 @click="insertIdSnippet(el)"
               >
                 {{ el.id
@@ -49,6 +58,13 @@
                   class="text-neutral-600"
                   >,</span
                 >
+              </span>
+              <span
+                v-if="pageAdd.notAddedOnCurrentPage.value.length"
+                class="inline-flex items-center gap-1 text-neutral-500"
+              >
+                <span class="inline-block h-2.5 w-4 rounded-sm border border-dashed border-neutral-500/70" />
+                = ยังไม่ได้ page.add()
               </span>
               <span
                 v-if="currentElements.length === 0"
@@ -118,6 +134,7 @@ import {
 import { javascript } from "@codemirror/lang-javascript";
 import { tags } from "@lezer/highlight";
 
+import { usePageAddStatus } from "~/composables/usePageAddStatus";
 import { useEditorStore } from "~/composables/useEditorStore";
 import {
   ELEMENT_CLASS_MAP,
@@ -131,6 +148,7 @@ import {
   findComponentApiSchemaByClassName,
   getComponentApiSchemas,
 } from "~/utils/componentApi";
+import { RUNTIME_SERVICE_API } from "~/utils/runtimeServices";
 
 interface EditorCompletion extends Completion {
   metaKind?: "class" | "method" | "attr" | "global" | "variable";
@@ -139,6 +157,7 @@ interface EditorCompletion extends Completion {
 }
 
 const store = useEditorStore();
+const pageAdd = usePageAddStatus();
 const editorHostRef = ref<HTMLDivElement | null>(null);
 const lineCount = ref(1);
 const componentSchemas = getComponentApiSchemas();
@@ -276,6 +295,11 @@ function buildGlobalCompletions(
       detail: "Debug console object",
       type: "constant" as const,
     },
+    ...Object.entries(RUNTIME_SERVICE_API).map(([label, api]) => ({
+      label,
+      detail: api.description,
+      type: "constant" as const,
+    })),
   ];
 
   for (const entry of globals) {
@@ -336,6 +360,20 @@ function buildObjectCompletions(
       metaDescription: "Console method",
       metaBadge: "METHOD",
     }));
+  }
+
+  const serviceApi = RUNTIME_SERVICE_API[objectName];
+  if (serviceApi) {
+    return serviceApi.methods
+      .filter((method) => !needle || method.toLowerCase().includes(needle))
+      .map((method) => ({
+        label: method,
+        type: "method" as const,
+        apply: method,
+        metaKind: "method" as const,
+        metaDescription: serviceApi.description,
+        metaBadge: "METHOD",
+      }));
   }
 
   const className = getVariableClassMap(code).get(objectName);

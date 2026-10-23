@@ -115,20 +115,31 @@
       </div>
 
       <!-- ── RIGHT: Device Viewer ── -->
-      <div ref="viewerRef" class="flex-1 flex flex-col items-center justify-center bg-neutral-900/50 p-6 overflow-auto">
-        <div class="flex flex-col items-center gap-6 w-full">
+      <div ref="viewerRef" class="flex-1 min-w-0 flex flex-col bg-neutral-900/50 p-6 overflow-auto">
+        <!-- m-auto (not justify-center) so a tall phone never gets clipped at the top -->
+        <div class="m-auto flex flex-col items-center gap-4">
           <PreviewDeviceFrame :device="activeDevice" :scale="scale">
             <div
               v-if="!hasRun || pageElements.length === 0"
               class="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-10 pointer-events-none"
             >
               <div class="size-16 rounded-full bg-neutral-100 flex items-center justify-center mb-2">
-                <UIcon name="i-lucide-activity" class="size-8 text-neutral-300 animate-pulse" />
+                <UIcon name="i-lucide-activity" class="size-8 text-neutral-300" :class="{ 'animate-pulse': !hasRun }" />
               </div>
-              <p class="text-sm font-medium text-neutral-600">Initializing Runtime...</p>
-              <p class="text-xs text-neutral-400 leading-relaxed">
-                Connecting to design elements and applying your logic.
-              </p>
+              <template v-if="!hasRun">
+                <p class="text-sm font-medium text-neutral-600">Starting your app…</p>
+                <p class="text-xs text-neutral-400 leading-relaxed">
+                  Connecting design elements and running your code.
+                </p>
+              </template>
+              <template v-else>
+                <p class="text-sm font-medium text-neutral-600">Nothing on screen yet</p>
+                <p class="text-xs text-neutral-500 leading-relaxed">
+                  Your code ran, but no element was added. Use
+                  <code class="rounded bg-neutral-100 px-1 font-mono text-[11px] text-indigo-600">page.add(button1)</code>
+                  in Code mode.
+                </p>
+              </template>
             </div>
 
             <PreviewRuntimePageRenderer
@@ -139,13 +150,19 @@
               @run-click="handleRunClick"
               @run-input="handleRunInput"
             />
+            <template #overlay>
+              <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" />
+            </template>
           </PreviewDeviceFrame>
 
-          <p class="text-[10px] font-mono text-neutral-600 tracking-widest uppercase">
+          <p class="text-[10px] font-mono text-neutral-500 tracking-widest uppercase">
             Preview · {{ activeDevice.label }} · {{ activeDevice.canvasW }} × {{ activeDevice.canvasH }}
           </p>
         </div>
       </div>
+
+      <!-- ── Phone simulator: only when the code uses GPS / motion / Bluetooth ── -->
+      <EditorSensorSimulatorPanel v-if="hardwareUse.any" :uses="hardwareUse" />
     </div>
   </div>
 </template>
@@ -154,6 +171,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useEditorStore } from '~/composables/useEditorStore'
 import {
+  buildScaffold,
   executeCode,
   getToolbarIdFromBackButtonClickId,
   isToolbarBackButtonClickId,
@@ -163,6 +181,9 @@ import type { ConsoleEntry, ElementInstance, RuntimeExecutionEvent } from '~/com
 import type { AppElement } from '~/composables/useEditorStore'
 import { PREVIEW_DEVICES } from '~/composables/usePreviewDevices'
 import { usePreviewDeviceScale } from '~/composables/usePreviewDeviceScale'
+import { useRuntimeNotifications } from '~/composables/useRuntimeNotifications'
+import { useSensorSimulator } from '~/composables/useSensorSimulator'
+import type { RuntimeServices } from '~/utils/runtimeServices'
 
 const store = useEditorStore()
 
@@ -172,6 +193,23 @@ const executionEvents = ref<RuntimeExecutionEvent[]>([])
 const pageElements = ref<AppElement[]>([])
 const instances = ref<ElementInstance[]>([])
 const hasRun = ref(false)
+const notifications = useRuntimeNotifications()
+const sensorSim = useSensorSimulator()
+
+// Which phone hardware the current page's code talks to
+const hardwareUse = computed(() => {
+  const code = store.jsCode.value || ''
+  const location = /\blocation\.(get|watch)\s*\(/.test(code)
+  const motion = /\bmotion\.(onShake|onTilt)\s*\(/.test(code)
+  const ble = /\bble\.\w+\s*\(/.test(code)
+  return { location, motion, ble, any: location || motion || ble }
+})
+let activeServices: RuntimeServices | null = null
+
+function disposeServices() {
+  activeServices?.dispose()
+  activeServices = null
+}
 const viewerRef = ref<HTMLElement | null>(null)
 const traceScrollerRef = ref<HTMLElement | null>(null)
 const activeDevice = computed(
@@ -179,7 +217,8 @@ const activeDevice = computed(
 )
 const { scale } = usePreviewDeviceScale(viewerRef, activeDevice, {
   widthPadding: 48,
-  heightPadding: 120,
+  heightPadding: 80,
+  maxScale: 1.3,
 })
 
 function scrollTraceToBottom() {
@@ -192,11 +231,16 @@ function scrollTraceToBottom() {
 
 // ── Run logic ─────────────────────────────────────────────────────────────
 function runCode() {
-  const code = store.jsCode.value || ''
+  // Stop timers / speech from the previous run before starting again
+  disposeServices()
+  notifications.clear()
   const runtimeLogs: ConsoleEntry[] = []
   const runtimeEvents: RuntimeExecutionEvent[] = []
   executionEvents.value = []
+  // No code yet (Code tab never opened): run the scaffold, which adds every element
+  let code = store.jsCode.value || ''
   if (!code.trim()) {
+    code = buildScaffold(store.elements.value.filter((el) => el.pageId === store.currentPageId.value))
     runtimeLogs.push({ type: 'warn', message: 'No code to run. Using default scaffold.' })
   }
 
@@ -217,8 +261,16 @@ function runCode() {
         runtimeEvents.push(event)
         executionEvents.value = [...runtimeEvents]
         scrollTraceToBottom()
+      },
+      {
+        services: {
+          storageNamespace: store.projectId.value,
+          onNotify: notifications.push,
+        },
+        simulator: sensorSim.simulator,
       }
     )
+    activeServices = result.services
     
     logs.value = [...runtimeLogs, ...result.logs]
     executionEvents.value = [...result.events]
@@ -257,9 +309,15 @@ function navigateToPage(pageRef: string) {
 
 function invokeRuntimeHandler(handler?: () => unknown) {
   if (!handler) return
-  Promise.resolve(handler()).catch((err: any) => {
-    logs.value.push({ type: 'error', message: `Event handler error: ${err?.message || String(err)}` })
-  })
+  const report = (err: any) => {
+    logs.value = [...logs.value, { type: 'error', message: `Event handler error: ${err?.message || String(err)}` }]
+  }
+  try {
+    // Sync errors (e.g. a typo inside onClick) must not escape as uncaught exceptions
+    Promise.resolve(handler()).catch(report)
+  } catch (err) {
+    report(err)
+  }
 }
 
 function handleRunClick(id: string) {
@@ -315,6 +373,8 @@ onMounted(() => {
 
 // Optional: clean up when leaving run mode
 onBeforeUnmount(() => {
+  disposeServices()
+  notifications.clear()
   hasRun.value = false
   executionEvents.value = []
 })

@@ -40,6 +40,7 @@
             draggingChildId !== childId,
           'opacity-40': !props.isRunMode && draggingChildId === childId,
           'cursor-pointer': !props.isRunMode,
+          'cc-not-added': !props.isRunMode && pageAdd.isNotAddedId(childId),
         }"
         :style="childStyle(childId)"
         @click.stop="onChildWrapperClick(childId)"
@@ -60,6 +61,14 @@
             >
           </div>
         </template>
+        <!-- Not in page.add() → won't appear in Run / Live / APK -->
+        <span
+          v-if="!props.isRunMode && pageAdd.isNotAddedId(childId)"
+          class="cc-not-added-badge"
+          :title="`${getElement(childId)?.id} ยังไม่ได้ page.add() ในโค้ด — จะไม่โผล่ตอน Run`"
+        >
+          ยังไม่ add
+        </span>
         <EditorCanvasElementRenderer
           v-if="getElement(childId)"
           :element="getElement(childId)!"
@@ -116,7 +125,7 @@
         </button>
       </IonButtons>
       <div
-        class="flex items-center h-full overflow-hidden px-1"
+        class="flex items-center h-full overflow-hidden"
         :class="platform == 'ios' ? 'justify-center' : 'justify-start'"
         :style="toolbarTitleStyle"
       >
@@ -130,9 +139,8 @@
   <IonButton
     v-else-if="element.type === 'Button'"
     :mode="isRunMode ? (platform == 'ios' ? 'ios' : 'md') : ionicMode"
-    expand="full"
+    expand="block"
     :fill="buttonFill"
-    :size="buttonSize"
     :disabled="Boolean(element.props.disabled)"
     :class="[
       'canvas-button select-none',
@@ -221,7 +229,7 @@
     v-else-if="element.type === 'LabelledInput'"
     class="p-0! w-full min-w-0"
   >
-    <IonItem :style="labelledInputItemStyle">
+    <IonItem :style="formItemStyle">
       <IonInput
         label-placement="floating"
         :mode="ionicMode"
@@ -238,7 +246,7 @@
        iOS  : rounded rect border
        Android: bottom-border only (Material underline) -->
   <IonList v-else-if="element.type === 'Input'" class="p-0! w-full">
-    <IonItem :style="inputItemStyle">
+    <IonItem :style="formItemStyle">
       <IonInput
         label-placement="stacked"
         :mode="ionicMode"
@@ -272,29 +280,32 @@
 
   <!-- ─── Select (ion-select) ───────────────────────────────────────────
            iOS  : right-aligned value + chevrons
-           Android: underline field + dropdown arrow                         -->
-  <IonList v-else-if="element.type === 'Select'" :mode="ionicMode">
-    <IonItem>
+           Android: underline field + dropdown arrow
+           interface="alert": a popover is placed from viewport coords and
+           lands off-target inside the CSS-scaled device frame.              -->
+  <IonList
+    v-else-if="element.type === 'Select'"
+    class="p-0! w-full"
+    :mode="ionicMode"
+  >
+    <IonItem :style="formItemStyle">
       <IonSelect
         class="w-full"
         :mode="ionicMode"
+        interface="alert"
+        :style="selectStyle"
         :value="(element.props.value as string) || ''"
         :placeholder="(element.props.placeholder as string) || 'Select...'"
         @click.stop="handleElementClick"
         @ionChange="handleSelectChange"
       >
-        <template v-if="selectContent">
-          <IonSelectOption
-            v-for="(item, idx) in selectContent"
-            :key="idx"
-            :value="getListItemValue(item)"
-          >
-            {{ getListItemLabel(item) }}
-          </IonSelectOption>
-        </template>
-        <template v-else>
-          <IonSelectOption> A </IonSelectOption>
-        </template>
+        <IonSelectOption
+          v-for="(item, idx) in selectContent"
+          :key="idx"
+          :value="getListItemValue(item)"
+        >
+          {{ getListItemLabel(item) }}
+        </IonSelectOption>
       </IonSelect>
     </IonItem>
   </IonList>
@@ -317,46 +328,60 @@
   <!-- ─── DateTimePicker (ion-datetime) ────────────────────────────────
            iOS  : wheel-style hint, rounded rect
            Android: text field style                                         -->
-  <template
+  <IonList
     v-else-if="element.type === 'DateTimePicker'"
-    @click.stop="handleElementClick"
+    class="p-0! w-full"
+    :mode="ionicMode"
   >
-    <ion-datetime-button
-      :mode="ionicMode"
-      datetime="datetime"
-    ></ion-datetime-button>
+    <IonItem :style="formItemStyle" @click.stop="handleElementClick">
+      <!-- host centres its buttons by default; pin left like the other rows -->
+      <ion-datetime-button
+        class="justify-start"
+        :mode="ionicMode"
+        :datetime="datetimeId"
+      ></ion-datetime-button>
+    </IonItem>
 
     <ion-modal :mode="ionicMode" :keep-contents-mounted="true">
-      <ion-datetime :mode="ionicMode" id="datetime"></ion-datetime>
+      <ion-datetime
+        :id="datetimeId"
+        :mode="ionicMode"
+        :value="(element.props.value as string) || undefined"
+        @ionChange="handleDatetimeChange"
+      ></ion-datetime>
     </ion-modal>
-  </template>
+  </IonList>
 
   <!-- ─── Checkbox (ion-checkbox) ───────────────────────────────────────
            iOS  : rounded-sm with checkmark, indigo fill
            Android: rounded-sm, Material style                               -->
-  <div
+  <IonList
     v-else-if="element.type === 'Checkbox'"
-    class="w-full h-full flex items-center gap-2"
-    @click.stop="handleElementClick"
+    class="p-0! w-full"
+    :mode="ionicMode"
   >
-    <IonCheckbox
-      :mode="ionicMode"
-      :label-placement="
-        (element.props.labelPlacement as string) === 'start' ? 'start' : 'end'
-      "
-      :checked="Boolean(element.props.checked)"
-      @ionChange="handleCheckboxChange"
-      class="text-gray-700"
-      >{{ (element.props.label as string) || "Checkbox" }}</IonCheckbox
-    >
-  </div>
+    <IonItem :style="formItemStyle" @click.stop="handleElementClick">
+      <IonCheckbox
+        :mode="ionicMode"
+        justify="start"
+        :label-placement="
+          (element.props.labelPlacement as string) === 'start' ? 'start' : 'end'
+        "
+        :checked="Boolean(element.props.checked)"
+        @ionChange="handleCheckboxChange"
+        class="text-gray-700"
+        >{{ (element.props.label as string) || "Checkbox" }}</IonCheckbox
+      >
+    </IonItem>
+  </IonList>
 
   <!-- ─── RadioButton (ion-radio) ───────────────────────────────────────
            iOS  : checkmark style (filled circle with inner check)
            Android: outer ring + filled inner circle                         -->
-  <div
+  <IonList
     v-else-if="element.type === 'RadioButton'"
-    class="w-full h-full"
+    class="p-0! w-full"
+    :mode="ionicMode"
     @click.stop="handleElementClick"
   >
     <IonRadioGroup
@@ -364,46 +389,50 @@
       :value="radioGroupValue"
       @ionChange="handleRadioChange"
     >
-      <IonItem v-if="isRunMode" v-for="(item, idx) in radioContent" :key="idx">
-        <IonRadio :value="getListItemValue(item)">{{
-          getListItemLabel(item)
-        }}</IonRadio>
-      </IonItem>
       <IonItem
-        v-else
-        v-for="item in ['Item 1', 'Item 2', 'Item 3']"
-        class="flex items-center gap-2"
+        v-for="(item, idx) in radioContent"
+        :key="idx"
+        :style="formItemStyle"
       >
-        <IonRadio :value="item"> {{ item }}</IonRadio>
+        <!-- iOS: label left + checkmark right (no circle when unchecked);
+             Android: circle left + label -->
+        <IonRadio
+          class="w-full"
+          :mode="ionicMode"
+          :justify="platform === 'ios' ? 'space-between' : 'start'"
+          :label-placement="platform === 'ios' ? 'start' : 'end'"
+          :value="getListItemValue(item)"
+          >{{ getListItemLabel(item) }}</IonRadio
+        >
       </IonItem>
     </IonRadioGroup>
-  </div>
+  </IonList>
 
   <!-- ─── Toggle (ion-toggle) ───────────────────────────────────────────
            iOS  : wide pill, green when on
            Android: narrower track, colored when on                          -->
-  <div
+  <IonList
     v-else-if="element.type === 'Toggle'"
-    class="w-full h-full flex items-center justify-between gap-4 border-b border-slate-200 px-3"
-    @click.stop="handleElementClick"
+    class="p-0! w-full"
+    :mode="ionicMode"
   >
-    <IonLabel
-      class="text-gray-700 truncate"
-      :style="{ fontSize: `${element.props.fontSize ?? 16}px` }"
-    >
-      {{
-        (element.props.content as string) ||
-        (element.props.label as string) ||
-        "Label"
-      }}
-    </IonLabel>
-    <IonToggle
-      :mode="ionicMode"
-      :checked="Boolean(element.props.on)"
-      :style="toggleStyle"
-      @ionChange="handleToggleChange"
-    />
-  </div>
+    <IonItem :style="formItemStyle" @click.stop="handleElementClick">
+      <IonToggle
+        class="w-full text-gray-700"
+        :mode="ionicMode"
+        justify="space-between"
+        label-placement="start"
+        :checked="Boolean(element.props.on)"
+        :style="toggleStyle"
+        @ionChange="handleToggleChange"
+        >{{
+          (element.props.content as string) ||
+          (element.props.label as string) ||
+          "Label"
+        }}</IonToggle
+      >
+    </IonItem>
+  </IonList>
   <!-- ─── Spinner (ion-spinner) ──────────────────────────
        iOS  : iOS activity spinner (lines)
        Android: Material circular progress -->
@@ -580,6 +609,25 @@
     </div>
   </div>
 
+  <!-- ─── Map (Leaflet + OpenStreetMap) ─────────────────────────────── -->
+  <div
+    v-else-if="element.type === 'Map'"
+    class="isolate w-full overflow-hidden rounded-xl border border-neutral-200 bg-white select-none"
+    :style="{ height: `${Math.max(Number(element.height) || 0, 120)}px` }"
+    @click.stop="!isRunMode && handleElementClick()"
+  >
+    <ClientOnly>
+      <EditorElementsMapRenderer
+        :lat="Number(element.props.lat ?? 13.7563)"
+        :lng="Number(element.props.lng ?? 100.5018)"
+        :zoom="Number(element.props.zoom ?? 13)"
+        :markers="(element.props.markers as MapMarker[]) || []"
+        :interactive="isRunMode"
+        @map-click="handleMapClick"
+      />
+    </ClientOnly>
+  </div>
+
   <!-- ─── Chart ─────────────────────────────────────────────────────── -->
   <div
     v-else-if="element.type === 'Chart'"
@@ -614,12 +662,19 @@ import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { buildToolbarBackButtonClickId } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
+import { usePageAddStatus } from "~/composables/usePageAddStatus";
 import {
   getListItemLabel,
   getListItemValue,
   resolveListContent,
 } from "~/utils/listContent";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
+
+interface MapMarker {
+  lat: number;
+  lng: number;
+  text?: string;
+}
 
 const props = defineProps<{
   element: AppElement;
@@ -635,6 +690,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useEditorStore();
+const pageAdd = usePageAddStatus();
 const cameraVideoRef = ref<HTMLVideoElement | null>(null);
 const cameraError = ref("");
 let cameraStream: MediaStream | null = null;
@@ -667,6 +723,13 @@ function handleElementClick() {
   } else {
     store.selectElement(props.element.id);
   }
+}
+
+// Map taps: store where the user tapped, then fire onClick (handler reads lastClick)
+function handleMapClick(lat: number, lng: number) {
+  if (!props.isRunMode) return;
+  emit("run-input", props.element.id, { lastClick: { lat, lng } });
+  emit("run-click", props.element.id);
 }
 
 function handleButtonClick() {
@@ -868,10 +931,21 @@ const buttonSize = computed(
       | "large",
 );
 
-const BUTTON_HEIGHT_PX: Record<"small" | "default" | "large", number> = {
-  small: 30,
-  default: 36,
-  large: 42,
+/**
+ * One size scale for buttons (we size them ourselves instead of using
+ * Ionic's size="small|large", which only changed the font and made text
+ * look cramped or tiny next to our fixed heights).
+ *  - small   32px: secondary actions inside a row / card
+ *  - default 44px: the minimum comfortable touch target on phones (iOS HIG)
+ *  - large   52px: the main call-to-action of a screen
+ */
+const BUTTON_SIZE_SPEC: Record<
+  "small" | "default" | "large",
+  { height: number; font: number; padX: number; radius: number }
+> = {
+  small: { height: 32, font: 13, padX: 12, radius: 8 },
+  default: { height: 44, font: 16, padX: 16, radius: 10 },
+  large: { height: 52, font: 18, padX: 20, radius: 12 },
 };
 
 const buttonIonicColor = computed(
@@ -911,14 +985,19 @@ const toolbarTitleStyle = computed(() => {
       flex: "1",
       textAlign: "center" as const,
       color: contrast,
+      paddingLeft: "16px",
+      paddingRight: "16px",
     };
   }
+  // Material: title starts 16px from the edge, or 8px after the back arrow
   return {
     fontWeight: "500",
     fontSize: "20px",
     flex: "1",
     textAlign: "left" as const,
     color: contrast,
+    paddingLeft: props.element.props.showBack ? "8px" : "16px",
+    paddingRight: "16px",
   };
 });
 
@@ -975,7 +1054,8 @@ function segmentItemStyle(idx: number) {
 const buttonStyle = computed(() => {
   const fill = (props.element.props.fill as string) || "solid";
   const isDisabled = Boolean(props.element.props.disabled);
-  const h = `${BUTTON_HEIGHT_PX[buttonSize.value]}px`;
+  const spec = BUTTON_SIZE_SPEC[buttonSize.value] ?? BUTTON_SIZE_SPEC.default;
+  const h = `${spec.height}px`;
   const ionicHex =
     (props.element.props.ionicColorHex as string) ||
     resolveIonicColor(buttonIonicColor.value).bg;
@@ -985,9 +1065,20 @@ const buttonStyle = computed(() => {
 
   const isMd = platform.value === "android";
 
+  // Material's 0.06em letter-spacing spreads Thai glyphs apart — keep it for Latin only
+  const hasThai = /[\u0E00-\u0E7F]/.test(String(props.element.props.content ?? props.element.props.text ?? ""));
+
   const sharedStyle = {
     height: h,
     minHeight: h,
+    fontSize: `${spec.font}px`,
+    fontWeight: "600",
+    "--padding-start": `${spec.padX}px`,
+    "--padding-end": `${spec.padX}px`,
+    "--padding-top": "0px",
+    "--padding-bottom": "0px",
+    // Material buttons stay a little squarer than iOS ones
+    "--border-radius": `${isMd ? Math.max(4, spec.radius - 4) : spec.radius}px`,
     opacity: isDisabled ? "0.58" : "1",
     cursor: props.isRunMode && !isDisabled ? "pointer" : "default",
     "--background": fill === "solid" ? ionicHex : "transparent",
@@ -1009,20 +1100,23 @@ const buttonStyle = computed(() => {
       ...sharedStyle,
       textTransform:
         platform.value === "android" ? ("uppercase" as const) : "none",
-      letterSpacing: platform.value === "android" ? "0.06em" : "-0.01em",
+      letterSpacing: hasThai ? "normal" : platform.value === "android" ? "0.06em" : "-0.01em",
       boxShadow: "none",
+      "--box-shadow": "none",
     };
   }
   if (platform.value === "ios") {
     return { ...sharedStyle };
   }
+  // Android (Material): flat filled button. The shadow used to sit on the
+  // square host element *and* Ionic added its own on the rounded inner button,
+  // which looked like a floating white box behind the button.
   return {
     ...sharedStyle,
     textTransform: "uppercase" as const,
-    letterSpacing: "0.06em",
-    boxShadow: isDisabled
-      ? "none"
-      : "0 2px 3px rgba(0,0,0,0.2), 0 1px 8px rgba(0,0,0,0.12)",
+    letterSpacing: hasThai ? "normal" : "0.06em",
+    boxShadow: "none",
+    "--box-shadow": "none",
   };
 });
 
@@ -1122,20 +1216,18 @@ const inputStyle = computed(() => {
   };
 });
 
-// Strip ion-item inset so the field matches canvas width (Ionic defaults ~16px).
-const labelledInputItemStyle = computed(() => ({
+// Strip ion-item inset (Ionic defaults ~16px) so every form row — Input,
+// Select, Toggle, Checkbox, Radio — shares the same left/right edges.
+const formItemStyle = computed(() => ({
   "--padding-start": "0",
   "--padding-end": "0",
   "--inner-padding-start": "0",
   "--inner-padding-end": "0",
+  "--background": "transparent",
 }));
 
-const inputItemStyle = computed(() => ({
-  "--padding-start": "0",
-  "--padding-end": "0",
-  "--inner-padding-start": "0",
-  "--inner-padding-end": "0",
-}));
+// Unique per element so two pickers on a page don't open each other's modal.
+const datetimeId = computed(() => `datetime-${props.element.id}`);
 
 const selectContent = computed(() => {
   const resolved = resolveListContent(props.element.props);
@@ -1144,14 +1236,6 @@ const selectContent = computed(() => {
     key: String(opt),
     value: String(opt),
   }));
-});
-
-const selectInterface = computed(() => {
-  const raw = String(props.element.props.interface || "popover");
-  const allowed = ["alert", "action-sheet", "popover", "modal"] as const;
-  return (
-    allowed.includes(raw as (typeof allowed)[number]) ? raw : "popover"
-  ) as (typeof allowed)[number];
 });
 
 const radioContent = computed(() => {
@@ -1242,8 +1326,8 @@ const selectStyle = computed(() => ({
   "--placeholder-color": INPUT_PLACEHOLDER,
   "--placeholder-opacity": "1",
   "--highlight-color-focused": ionColor.value,
-  "--padding-start": "10px",
-  "--padding-end": "10px",
+  "--padding-start": "0",
+  "--padding-end": "0",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
