@@ -84,6 +84,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue"
 import {
   buildScaffold,
   executeCode,
+  getRuntimeChangeValue,
   getToolbarIdFromBackButtonClickId,
   isToolbarBackButtonClickId,
   syncRuntimeElementProps,
@@ -274,6 +275,14 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
 
   pageElements.value = nextRuntime.pageElements;
   instances.value = nextRuntime.instances;
+
+  // Only user input arrives here (code assignments go through onUpdate), so onChange can't loop
+  const instance = instances.value.find((candidate) => candidate.__el.id === id);
+  const onChange = instance?.__onChange;
+  if (!instance || !onChange) return;
+  const value = getRuntimeChangeValue(instance.__el.type, propsPatch);
+  if (value === undefined) return;
+  invokeRuntimeHandler(() => onChange(value));
 }
 
 onBeforeUnmount(() => {

@@ -1359,31 +1359,31 @@
 
       <!-- ── Events section ── -->
       <EditorPropertiesSection title="Events" icon="i-lucide-zap">
-        <div class="space-y-1.5">
+        <div v-for="event in elementEvents" :key="event" class="space-y-1.5">
           <div
             class="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-200"
           >
             <UIcon
               name="i-lucide-zap"
               class="size-3.5 shrink-0"
-              :class="hasClickHandler ? 'text-amber-500' : 'text-neutral-300'"
+              :class="hasHandler(event) ? 'text-amber-500' : 'text-neutral-300'"
             />
             <span class="text-[11px] text-neutral-600 font-mono flex-1"
-              >{{ varName }}.onClick</span
+              >{{ varName }}.{{ event }}</span
             >
             <span
               class="text-[10px] font-medium"
-              :class="hasClickHandler ? 'text-emerald-600' : 'text-neutral-400'"
-              >{{ hasClickHandler ? "used in code" : "not used yet" }}</span
+              :class="hasHandler(event) ? 'text-emerald-600' : 'text-neutral-400'"
+              >{{ hasHandler(event) ? "used in code" : "not used yet" }}</span
             >
           </div>
           <button
-            v-if="!hasClickHandler && selectedElement.type !== 'Container'"
+            v-if="!hasHandler(event) && selectedElement.type !== 'Container'"
             type="button"
             class="w-full rounded-md px-1 py-1 text-left text-[11px] text-indigo-600 hover:bg-indigo-50"
-            @click="addClickHandler"
+            @click="addHandler(event)"
           >
-            + Add onClick in Code
+            + Add {{ event }} in Code
           </button>
         </div>
       </EditorPropertiesSection>
@@ -1414,11 +1414,13 @@ import { usePageAddStatus } from "~/composables/usePageAddStatus";
 import { findElementVariables } from "~/utils/pageAdds";
 import type { AppElement } from "~/composables/useEditorStore";
 import { ELEMENT_CLASS_MAP, buildScaffold } from "~/composables/useRuntime";
+import { supportsChangeEvent } from "~/utils/componentApi";
 
 const store = useEditorStore();
 const pageAdd = usePageAddStatus();
 
-// ── Events: show whether the selected element's onClick is used in code ──
+// ── Events: show whether the selected element's onClick / onChange is used in code ──
+type ElementEvent = "onClick" | "onChange";
 // The variable the code already uses for this element (e.g. `var button = new Button('page1_button1')`),
 // else the default name the scaffold would give it.
 const varName = computed(() => {
@@ -1431,15 +1433,20 @@ const varName = computed(() => {
   return parts[parts.length - 1] || id;
 });
 
-const hasClickHandler = computed(() => {
+const elementEvents = computed<ElementEvent[]>(() => {
+  const el = store.selectedElement.value;
+  return el && supportsChangeEvent(el.type) ? ["onClick", "onChange"] : ["onClick"];
+});
+
+function hasHandler(event: ElementEvent) {
   const el = store.selectedElement.value;
   if (!el) return false;
   const code = store.jsCodeByPage.value[el.pageId] ?? "";
   const escaped = varName.value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`\\b${escaped}\\.onClick\\s*\\(`).test(code);
-});
+  return new RegExp(`\\b${escaped}\\.${event}\\s*\\(`).test(code);
+}
 
-function addClickHandler() {
+function addHandler(event: ElementEvent) {
   const el = store.selectedElement.value;
   if (!el) return;
   const name = varName.value;
@@ -1452,7 +1459,10 @@ function addClickHandler() {
   const declared = new RegExp(`\\b(?:var|let|const)\\s+${name}\\b`).test(current);
   const cls = ELEMENT_CLASS_MAP[el.type] ?? el.type;
   const declaration = declared ? "" : `\nvar ${name} = new ${cls}('${el.id}');\npage.add(${name});\n`;
-  const snippet = `\n${name}.onClick(() => {\n  // what should happen when ${name} is clicked?\n});\n`;
+  const snippet =
+    event === "onChange"
+      ? `\n${name}.onChange((value) => {\n  // what should happen when ${name} changes? value is the new value\n});\n`
+      : `\n${name}.onClick(() => {\n  // what should happen when ${name} is clicked?\n});\n`;
   store.jsCodeByPage.value[el.pageId] = `${current.replace(/\s*$/, "")}\n${declaration}${snippet}`;
   store.markJsCodeInitialized();
   store.setMode("code");

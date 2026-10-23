@@ -173,6 +173,7 @@ import { useEditorStore } from '~/composables/useEditorStore'
 import {
   buildScaffold,
   executeCode,
+  getRuntimeChangeValue,
   getToolbarIdFromBackButtonClickId,
   isToolbarBackButtonClickId,
   syncRuntimeElementProps,
@@ -235,7 +236,6 @@ function runCode() {
   disposeServices()
   notifications.clear()
   const runtimeLogs: ConsoleEntry[] = []
-  const runtimeEvents: RuntimeExecutionEvent[] = []
   executionEvents.value = []
   // No code yet (Code tab never opened): run the scaffold, which adds every element
   let code = store.jsCode.value || ''
@@ -258,8 +258,11 @@ function runCode() {
         logs.value = [...logs.value, entry]
       },
       (event) => {
-        runtimeEvents.push(event)
-        executionEvents.value = [...runtimeEvents]
+        // Append (not replace) so Click / Change lines added by the UI stay in the trace
+        executionEvents.value = [
+          ...executionEvents.value,
+          { ...event, step: executionEvents.value.length + 1 },
+        ]
         scrollTraceToBottom()
       },
       {
@@ -359,6 +362,25 @@ function handleRunInput(id: string, propsPatch: Record<string, unknown>) {
   )
   pageElements.value = nextRuntime.pageElements
   instances.value = nextRuntime.instances
+
+  // Only user input arrives here (code assignments go through onUpdate), so onChange can't loop
+  const instance = instances.value.find(inst => inst.__el.id === id)
+  const onChange = instance?.__onChange
+  if (!instance || !onChange) return
+  const value = getRuntimeChangeValue(instance.__el.type, propsPatch)
+  if (value === undefined) return
+  executionEvents.value = [
+    ...executionEvents.value,
+    {
+      step: executionEvents.value.length + 1,
+      type: 'log',
+      message: `Change ${instance.__el.type} ${id} → ${String(value)}`,
+      elementId: id,
+      elementType: instance.__el.type,
+    },
+  ]
+  scrollTraceToBottom()
+  invokeRuntimeHandler(() => onChange(value))
 }
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────
