@@ -535,87 +535,28 @@
     </span>
   </div>
 
-  <!-- ─── Camera Plugin ──────────────────────────────────────────────── -->
-  <div
+  <!-- ─── Camera: phone-style viewfinder ─────────────────────────────── -->
+  <EditorElementsCameraViewfinder
     v-else-if="element.type === 'Camera'"
-    class="w-full h-full overflow-hidden rounded-2xl border border-slate-200 select-none"
-    :class="'flex flex-col'"
-    :style="cameraWrapStyle"
+    :status="cameraViewStatus"
+    :platform="platform"
+    :height="cameraHeight"
+    :filter-name="cameraFilterName"
+    :frozen-frame="(element.props.frozenFrame as string | null) ?? null"
+    :error="cameraError"
     @click.stop="handleElementClick"
   >
-    <div
-      class="flex items-center justify-between px-3 py-2 text-white"
-      :style="{
-        backgroundColor: platform === 'ios' ? '#111827' : '#1f2937',
-      }"
-    >
-      <div class="flex items-center gap-2">
-        <UIcon name="i-lucide-camera" class="size-4" />
-        <span class="text-xs font-semibold">
-          {{ (element.props.title as string) || "Camera" }}
-        </span>
-      </div>
-      <span
-        class="rounded-full px-2 py-0.5 text-[10px] font-medium"
-        :style="cameraStatusStyle"
-      >
-        {{
-          element.props.frozenFrame
-            ? "Frozen"
-            : element.props.open
-              ? "Open"
-              : "Closed"
-        }}
-      </span>
-    </div>
-    <div
-      class="relative flex-1 bg-gradient-to-br from-slate-900 via-slate-700 to-slate-500"
-    >
-      <video
-        v-if="shouldUseLiveCamera && !cameraError"
-        ref="cameraVideoRef"
-        :data-codecraft-camera-video-id="element.id"
-        class="h-full w-full object-cover"
-        :style="{ filter: cameraFilterCss }"
-        autoplay
-        muted
-        playsinline
-      />
-      <!-- Frozen frame overlay shown after capture() until reset() is called -->
-      <img
-        v-if="element.props.frozenFrame"
-        :src="element.props.frozenFrame as string"
-        class="absolute inset-0 h-full w-full object-cover"
-      />
-      <!-- Active filter badge -->
-      <span
-        v-if="element.props.filter && element.props.filter !== 'none'"
-        class="absolute bottom-1.5 right-1.5 rounded px-1.5 py-0.5 text-[9px] font-semibold text-white/90 backdrop-blur-sm"
-        style="background: rgba(0, 0, 0, 0.45)"
-      >
-        {{ element.props.filter }}
-      </span>
-      <div
-        v-if="!shouldUseLiveCamera || cameraError"
-        class="absolute inset-0 flex flex-col items-center justify-center gap-2 px-3 text-center text-white/90"
-      >
-        <UIcon name="i-lucide-aperture" class="size-10" />
-        <span class="text-xs font-medium">
-          {{
-            cameraError
-              ? cameraError
-              : element.props.open
-                ? "Camera preview active"
-                : "Camera is closed"
-          }}
-        </span>
-        <span v-if="cameraError" class="text-[10px] text-white/70">
-          Camera access usually needs permission and often requires HTTPS or
-          localhost.
-        </span>
-      </div>
-    </div>
-  </div>
+    <video
+      v-if="shouldUseLiveCamera && !cameraError"
+      ref="cameraVideoRef"
+      :data-codecraft-camera-video-id="element.id"
+      :style="{ filter: cameraFilterCss }"
+      autoplay
+      muted
+      playsinline
+      @playing="cameraLive = true"
+    />
+  </EditorElementsCameraViewfinder>
 
   <!-- ─── Map (Leaflet + OpenStreetMap) ─────────────────────────────── -->
   <div
@@ -668,6 +609,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { buildToolbarBackButtonClickId, describeCameraError } from "~/composables/useRuntime";
+import type { CameraViewStatus } from "~/components/editor/elements/CameraViewfinder.vue";
 import type { AppElement } from "~/composables/useEditorStore";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { usePageAddStatus } from "~/composables/usePageAddStatus";
@@ -814,9 +756,20 @@ const imageStyle = computed(() => ({
   borderRadius: `${props.element.props.borderRadius ?? 4}px`,
 }));
 
-const cameraWrapStyle = computed(() => ({
-  height: `${Math.max(Number(props.element.height) || 0, 120)}px`,
-}));
+const cameraHeight = computed(() => Math.max(Number(props.element.height) || 0, 120));
+// True once the first video frame plays (between open() and that: "starting")
+const cameraLive = ref(false);
+const cameraViewStatus = computed<CameraViewStatus>(() => {
+  if (!props.isRunMode) return "design";
+  if (cameraError.value) return "error";
+  if (props.element.props.frozenFrame) return "frozen";
+  if (!props.element.props.open) return "closed";
+  return cameraLive.value ? "live" : "starting";
+});
+const cameraFilterName = computed(() => {
+  const f = props.element.props.filter as string | undefined;
+  return f && f !== "none" ? f : "";
+});
 
 // Clicks that reach the container's child wrapper in design mode — fired
 // because the inner interactive element has `pointer-events: none` and lets
@@ -872,6 +825,7 @@ async function startCameraPreview() {
 }
 
 function stopCameraPreview() {
+  cameraLive.value = false;
   if (cameraVideoRef.value) {
     cameraVideoRef.value.pause();
     cameraVideoRef.value.srcObject = null;
@@ -1447,14 +1401,6 @@ const cameraFilterCss = computed(() => {
   return CAMERA_FILTER_PRESETS[f] ?? f;
 });
 
-const cameraStatusStyle = computed(() => ({
-  backgroundColor: props.element.props.frozenFrame
-    ? "#f59e0b"
-    : props.element.props.open
-      ? "#22c55e"
-      : "#475569",
-  color: "#ffffff",
-}));
 
 // ── Chart ─────────────────────────────────────────────────────────────────
 // ionicColorHex takes precedence over the stored dataset colour so that the

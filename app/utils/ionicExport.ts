@@ -902,48 +902,68 @@ function buildRendererFile(): string {
     :style="imageStyle"
   />
 
+  <!-- Camera: phone-style viewfinder (same design as the CodeCraft editor) -->
   <div
     v-else-if="element.type === 'Camera'"
-    class="camera-plugin"
-    :style="cameraWrapStyle"
+    class="cc-cam"
+    :class="'is-' + cameraViewStatus"
+    :style="{ height: cameraHeight + 'px' }"
   >
-    <div class="camera-toolbar">
-      <div class="camera-title">
-        <span>{{ element.props.title || 'Camera' }}</span>
-      </div>
-      <span class="camera-badge" :style="cameraStatusStyle">
-        {{ element.props.frozenFrame ? 'Frozen' : element.props.open ? 'Open' : 'Closed' }}
+    <video
+      v-if="shouldUseLiveCamera && !cameraError"
+      ref="cameraVideoRef"
+      :data-codecraft-camera-video-id="element.id"
+      :style="{ filter: cameraFilterCss }"
+      autoplay
+      muted
+      playsinline
+      @playing="cameraLive = true"
+    />
+    <img
+      v-if="element.props.frozenFrame"
+      :key="shotKey"
+      :src="element.props.frozenFrame"
+      class="cc-cam__shot"
+      alt="Captured photo"
+    />
+    <div v-if="element.props.frozenFrame" :key="'flash-' + shotKey" class="cc-cam__flash" aria-hidden="true" />
+
+    <template v-if="cameraViewStatus === 'live' || cameraViewStatus === 'frozen'">
+      <span class="cc-cam__frame" aria-hidden="true">
+        <i class="cc-cam__corner cc-cam__corner--tl" />
+        <i class="cc-cam__corner cc-cam__corner--tr" />
+        <i class="cc-cam__corner cc-cam__corner--br" />
+        <i class="cc-cam__corner cc-cam__corner--bl" />
       </span>
-    </div>
+      <span class="cc-cam__pill cc-cam__pill--status">
+        <template v-if="cameraViewStatus === 'live'">
+          <span class="cc-cam__rec" aria-hidden="true" />LIVE
+        </template>
+        <template v-else>
+          <svg viewBox="0 0 24 24" class="cc-cam__pill-icon" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7" /></svg>ถ่ายแล้ว
+        </template>
+      </span>
+      <span v-if="element.props.filter && element.props.filter !== 'none'" class="cc-cam__pill cc-cam__pill--filter">
+        {{ element.props.filter }}
+      </span>
+    </template>
 
-    <div class="camera-stage">
-      <video
-        v-if="shouldUseLiveCamera && !cameraError"
-        ref="cameraVideoRef"
-        :data-codecraft-camera-video-id="element.id"
-        class="camera-video"
-        :style="{ filter: cameraFilterCss }"
-        autoplay
-        muted
-        playsinline
-      />
-
-      <!-- Frozen frame overlay shown after capture() until reset() is called -->
-      <img
-        v-if="element.props.frozenFrame"
-        :src="element.props.frozenFrame"
-        class="camera-frozen-frame"
-      />
-
-      <!-- Active filter badge -->
-      <span
-        v-if="element.props.filter && element.props.filter !== 'none'"
-        class="camera-filter-badge"
-      >{{ element.props.filter }}</span>
-
-      <div v-else-if="!shouldUseLiveCamera || cameraError" class="camera-fallback">
-        <div>{{ cameraError || (element.props.open ? 'Camera preview active' : 'Camera is closed') }}</div>
-      </div>
+    <div v-else class="cc-cam__message" :role="cameraViewStatus === 'error' ? 'alert' : undefined">
+      <span class="cc-cam__glyph" aria-hidden="true">
+        <svg v-if="cameraViewStatus === 'starting'" viewBox="0 0 24 24">
+          <path d="M14.5 4h-5L8 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-3z" />
+          <circle cx="12" cy="12.5" r="3.5" />
+        </svg>
+        <svg v-else viewBox="0 0 24 24">
+          <path d="M3 3l18 18" />
+          <path d="M9.5 5H15l1.5 2H19a2 2 0 0 1 2 2v8.5M17 19H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1" />
+          <path d="M9.9 10.4a3 3 0 0 0 4.2 4.2" />
+        </svg>
+      </span>
+      <span class="cc-cam__title">
+        {{ cameraViewStatus === 'error' ? 'เปิดกล้องไม่ได้' : cameraViewStatus === 'starting' ? 'กำลังเปิดกล้อง…' : 'กล้องปิดอยู่' }}
+      </span>
+      <span v-if="cameraViewStatus === 'error'" class="cc-cam__detail">{{ cameraError || 'ลองใหม่อีกครั้ง' }}</span>
     </div>
   </div>
 
@@ -1079,15 +1099,23 @@ const imageStyle = computed(() => ({
   objectFit: 'contain',
   borderRadius: \`\${Number(props.element.props.borderRadius || 4)}px\`,
 }));
-const cameraWrapStyle = computed(() => ({
-  height: \`\${Math.max(Number(props.element.height || 0), 120)}px\`,
-}));
-const cameraStatusStyle = computed(() => ({
-  backgroundColor: props.element.props.frozenFrame
-    ? '#f59e0b'
-    : Boolean(props.element.props.open) ? '#22c55e' : '#475569',
-  color: '#ffffff',
-}));
+const cameraHeight = computed(() => Math.max(Number(props.element.height || 0), 120));
+// True once the first video frame plays (between open() and that: "starting")
+const cameraLive = ref(false);
+const cameraViewStatus = computed(() => {
+  if (cameraError.value) return 'error';
+  if (props.element.props.frozenFrame) return 'frozen';
+  if (!props.element.props.open) return 'closed';
+  return cameraLive.value ? 'live' : 'starting';
+});
+// Replays the shutter flash for every new capture
+const shotKey = ref(0);
+watch(
+  () => props.element.props.frozenFrame,
+  (next, prev) => {
+    if (next && next !== prev) shotKey.value += 1;
+  },
+);
 const cameraFilterCss = computed(() => {
   const f = props.element.props.filter as string | undefined;
   if (!f || f === 'none') return 'none';
@@ -1194,6 +1222,7 @@ function reportCameraError(message: string) {
 }
 
 function stopCameraPreview() {
+  cameraLive.value = false;
   const currentVideo = cameraVideoRef.value;
   const stream = currentVideo?.srcObject instanceof MediaStream ? currentVideo.srcObject : null;
 
@@ -1245,82 +1274,270 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-.camera-plugin {
+.cc-cam {
+  --cam-radius: 22px;
+  --cam-surface: #0d0d0f;
+  --cam-ink: rgb(255 255 255 / 0.92);
+  --cam-ink-soft: rgb(255 255 255 / 0.66);
+  --cam-scrim: rgb(0 0 0 / 0.4);
+  --cam-rec: #ff453a;
+  --cam-warn: #ffb340;
+  --cam-ease: cubic-bezier(0.16, 1, 0.3, 1);
+
+  position: relative;
+  isolation: isolate;
   width: 100%;
+  min-height: 120px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  background: #0f172a;
-  display: flex;
-  flex-direction: column;
+  border-radius: var(--cam-radius);
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgb(255 255 255 / 0.06), transparent 62%),
+    var(--cam-surface);
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.06),
+    0 10px 28px -16px rgb(0 0 0 / 0.55);
+  color: var(--cam-ink);
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-.camera-toolbar {
-  display: flex;
+/* Android (Ionic md mode) uses a tighter corner and Material red */
+:global(html.md) .cc-cam {
+  --cam-radius: 14px;
+  --cam-rec: #f44336;
+}
+
+.cc-cam video,
+.cc-cam__shot {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Fades the picture in instead of popping when the first frame arrives */
+.cc-cam video {
+  opacity: 0;
+  transition: opacity 360ms var(--cam-ease);
+}
+.cc-cam.is-live video,
+.cc-cam.is-frozen video {
+  opacity: 1;
+}
+
+.cc-cam__shot {
+  z-index: 1;
+  animation: cc-cam-settle 520ms var(--cam-ease) both;
+}
+
+.cc-cam__flash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: #fff;
+  pointer-events: none;
+  animation: cc-cam-flash 360ms var(--cam-ease) both;
+}
+
+.cc-cam__frame {
+  position: absolute;
+  inset: 12px;
+  z-index: 3;
+  pointer-events: none;
+  transition: opacity 240ms var(--cam-ease);
+}
+.cc-cam.is-frozen .cc-cam__frame {
+  opacity: 0;
+}
+
+/* Focus brackets: fixed 18px corners whatever the camera's size */
+.cc-cam__corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 0 solid rgb(255 255 255 / 0.8);
+}
+.cc-cam__corner--tl {
+  top: 0;
+  left: 0;
+  border-top-width: 2px;
+  border-left-width: 2px;
+  border-top-left-radius: 6px;
+}
+.cc-cam__corner--tr {
+  top: 0;
+  right: 0;
+  border-top-width: 2px;
+  border-right-width: 2px;
+  border-top-right-radius: 6px;
+}
+.cc-cam__corner--br {
+  right: 0;
+  bottom: 0;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+  border-bottom-right-radius: 6px;
+}
+.cc-cam__corner--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  border-bottom-left-radius: 6px;
+}
+
+.cc-cam__pill {
+  position: absolute;
+  top: 20px;
+  z-index: 4;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px;
-  background: #111827;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.camera-badge {
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
   border-radius: 999px;
-  padding: 2px 8px;
+  /* Blur keeps the label readable over any picture behind it */
+  background: var(--cam-scrim);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
   font-size: 10px;
   font-weight: 600;
-}
-
-.camera-stage {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  background: linear-gradient(135deg, #0f172a 0%, #475569 100%);
-}
-
-.camera-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.camera-frozen-frame {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.camera-filter-badge {
-  position: absolute;
-  bottom: 6px;
-  right: 6px;
-  background: rgba(0, 0, 0, 0.45);
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 9px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 4px;
-  backdrop-filter: blur(4px);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--cam-ink);
   pointer-events: none;
 }
+.cc-cam__pill--status {
+  left: 20px;
+}
+.cc-cam__pill--filter {
+  right: 20px;
+  letter-spacing: 0.02em;
+  font-weight: 500;
+}
 
-.camera-fallback {
+.cc-cam__rec {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cam-rec);
+  box-shadow: 0 0 0 2px rgb(255 69 58 / 0.25);
+  animation: cc-cam-rec 1.6s ease-in-out infinite;
+}
+
+.cc-cam__pill-icon {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.cc-cam__message {
   position: absolute;
   inset: 0;
+  z-index: 3;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  gap: 6px;
+  padding: 16px 20px;
   text-align: center;
-  color: rgba(255, 255, 255, 0.92);
-  font-size: 12px;
+}
+
+.cc-cam__glyph {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.07);
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.1);
+  color: var(--cam-ink-soft);
+}
+.cc-cam__glyph svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cc-cam.is-error .cc-cam__glyph {
+  color: var(--cam-warn);
+  background: rgb(255 179 64 / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(255 179 64 / 0.28);
+}
+.cc-cam.is-starting .cc-cam__glyph {
+  animation: cc-cam-breathe 1.4s ease-in-out infinite;
+}
+
+.cc-cam__title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cam-ink);
+}
+
+.cc-cam__detail {
+  max-width: 30ch;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--cam-ink-soft);
+  text-wrap: balance;
+}
+
+@keyframes cc-cam-flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes cc-cam-settle {
+  from {
+    transform: scale(1.04);
+    filter: brightness(1.18);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes cc-cam-rec {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes cc-cam-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-cam video,
+  .cc-cam__shot,
+  .cc-cam__flash,
+  .cc-cam__rec,
+  .cc-cam__glyph {
+    animation: none !important;
+    transition: none !important;
+  }
+  .cc-cam__flash {
+    display: none;
+  }
 }
 
 .unsupported {
