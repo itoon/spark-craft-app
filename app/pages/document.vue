@@ -158,14 +158,14 @@
                 <figure v-else-if="block.type === 'shot'" class="flex flex-col gap-3">
                   <figcaption v-if="block.title" class="text-sm font-semibold text-stone-500">{{ block.title }}</figcaption>
                   <a
-                    :href="block.src"
+                    :href="withBase(block.src)"
                     target="_blank"
                     rel="noopener"
                     class="group relative block overflow-hidden border border-stone-200 bg-stone-900 shadow-sm"
                     :class="block.phone ? 'mx-auto w-64 rounded-[2rem] border-[6px] border-stone-800' : 'rounded-xl'"
                     :aria-label="`ดูภาพใหญ่: ${block.alt}`"
                   >
-                    <img :src="block.src" :alt="block.alt" loading="lazy" decoding="async" class="block h-auto w-full" >
+                    <img :src="withBase(block.src)" :alt="block.alt" loading="lazy" decoding="async" class="block h-auto w-full" >
                     <span
                       v-if="!block.phone"
                       class="absolute right-2 top-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-1 text-[11px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
@@ -215,6 +215,13 @@ import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import { lessons } from "~/data/lessons";
 import { manualSections } from "~/data/manual";
+
+// Screenshots live in public/manual; prefix the site base (GitHub Pages serves
+// the app under /<repo>/)
+const baseURL = useRuntimeConfig().app.baseURL;
+function withBase(src: string) {
+  return src.startsWith("/") ? `${baseURL.replace(/\/$/, "")}${src}` : src;
+}
 
 useHead({ title: "คู่มือการใช้งาน — CodeCraft", htmlAttrs: { class: "motion-safe:scroll-smooth" } });
 

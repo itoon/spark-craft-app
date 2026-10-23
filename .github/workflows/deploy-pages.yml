@@ -1,0 +1,45 @@
+# Web edition of CodeCraft on GitHub Pages: https://<owner>.github.io/<repo>/
+# Static build (no server), so Build APK / Share / Live (มือถือ) are hidden —
+# those need the local edition (`bun run dev`).
+name: Deploy web edition (GitHub Pages)
+
+on:
+  push:
+    branches: [main, feat/ionic]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - name: Generate static site
+        run: bunx nuxi generate
+        env:
+          NITRO_PRESET: github_pages
+          NUXT_APP_BASE_URL: /${{ github.event.repository.name }}/
+          NUXT_PUBLIC_CODECRAFT_WEB: "1"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -11,7 +11,11 @@
 </template>
 
 <script setup lang="ts">
-// Entry point: the editor normally; the embedded app player inside the APK
-const config = useRuntimeConfig()
-await navigateTo(config.public.codecraftEmbedded ? '/app' : '/editor', { replace: true })
+// Entry point: the editor normally; the embedded app player inside the APK.
+// Redirect from route middleware: an awaited navigateTo() in setup never
+// finishes on the static GitHub Pages build.
+definePageMeta({
+  middleware: () =>
+    navigateTo(useRuntimeConfig().public.codecraftEmbedded ? '/app' : '/editor', { replace: true }),
+})
 </script>

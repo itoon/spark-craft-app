@@ -125,8 +125,17 @@
         @click="handleRun"
       />
 
+      <!-- Web edition (GitHub Pages): no server → no Live / Share / Export / APK -->
+      <span
+        v-if="edition.isWeb.value"
+        class="shrink-0 cursor-help rounded-md border border-neutral-700 px-2 py-1 text-[11px] text-neutral-400"
+        title="เวอร์ชันเว็บ: ออกแบบ เขียนโค้ด และ Run ได้ครบ — ส่วนทดสอบบนมือถือ แชร์ลิงก์ และ Build APK ใช้ได้ในเวอร์ชันลงเครื่อง"
+        data-testid="web-edition-badge"
+      >เวอร์ชันเว็บ</span>
+
       <!-- Live Companion: run on a real phone (App Inventor AI Companion style) -->
       <UButton
+        v-if="!edition.isWeb.value"
         icon="i-lucide-smartphone"
         :color="live.status.value === 'live' ? 'success' : 'neutral'"
         :variant="live.status.value === 'live' ? 'subtle' : 'outline'"
@@ -145,6 +154,7 @@
 
       <!-- Share Link button -->
       <UButton
+        v-if="!edition.isWeb.value"
         :loading="isCreatingShareLink"
         icon="i-lucide-share-2"
         color="primary"
@@ -160,6 +170,7 @@
 
       <!-- Export local button -->
       <UButton
+        v-if="!edition.isWeb.value"
         :loading="isExporting"
         icon="i-lucide-download"
         color="neutral"
@@ -175,6 +186,7 @@
 
       <!-- Build APK (App Inventor: Build → Android App) -->
       <UButton
+        v-if="!edition.isWeb.value"
         icon="i-lucide-package"
         color="neutral"
         variant="ghost"
@@ -374,6 +386,7 @@ import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import QRCode from "qrcode";
 
 import { useChangelog } from "~/composables/useChangelog";
+import { useEdition } from "~/composables/useEdition";
 import { useEditorStore } from "~/composables/useEditorStore";
 import type { EditorMode } from "~/composables/useEditorStore";
 import { useLiveCompanion } from "~/composables/useLiveCompanion";
@@ -385,6 +398,7 @@ useHead({
 
 const store = useEditorStore();
 const changelog = useChangelog();
+const edition = useEdition();
 const live = useLiveCompanion();
 const learning = useLearning();
 const isLiveDialogOpen = ref(false);

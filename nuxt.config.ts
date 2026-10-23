@@ -40,6 +40,9 @@ export default defineNuxtConfig({
       // Set NUXT_PUBLIC_CODECRAFT_EMBEDDED=1 when building the APK player
       // (scripts/build-apk.sh): the app then opens straight into /app.
       codecraftEmbedded: "",
+      // Set NUXT_PUBLIC_CODECRAFT_WEB=1 for the GitHub Pages build: no server,
+      // so APK / Share / Live (มือถือ) / Export are hidden (useEdition).
+      codecraftWeb: "",
     },
   },
   devServer: {
