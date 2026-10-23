@@ -5,7 +5,7 @@ import { normalizeAppIcon } from "../../app/utils/appIcon";
 // @ts-expect-error plain .mjs script without types
 import { patchMainActivity, setAppName } from "../../scripts/apply-app-identity.mjs";
 // @ts-expect-error plain .mjs script without types
-import { patchManifest } from "../../scripts/patch-android-manifest.mjs";
+import { detectFeatures, patchManifest } from "../../scripts/patch-android-manifest.mjs";
 
 const MANIFEST = `<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -76,13 +76,55 @@ public class MainActivity extends BridgeActivity {}
     });
   });
 
-  it("adds GPS and Bluetooth permissions to AndroidManifest.xml once", () => {
+  it("adds GPS, Bluetooth and camera permissions to AndroidManifest.xml once", () => {
     const patched = patchManifest(MANIFEST) as string;
     expect(patched).toContain("android.permission.ACCESS_FINE_LOCATION");
     expect(patched).toContain("android.permission.BLUETOOTH_CONNECT");
+    expect(patched).toContain("android.permission.CAMERA");
     expect(patched.indexOf("BLUETOOTH_SCAN")).toBeLessThan(patched.indexOf("</manifest>"));
     expect(patchManifest(patched)).toBe(patched);
     // keeps the INTERNET permission Capacitor already added (no duplicate)
     expect(patched.match(/android.permission.INTERNET/g)?.length).toBe(1);
+  });
+
+  it("asks only for the permissions the app's elements and code use", () => {
+    expect(detectFeatures({ elements: [{ type: "Button" }], jsCodeByPage: {} })).toEqual([]);
+    expect(
+      detectFeatures({
+        elements: [{ type: "Camera" }],
+        jsCodeByPage: {
+          page1: "location.get().then(show)\nble.connect()",
+          page2: "phone.vibrate(300)",
+        },
+      }),
+    ).toEqual(["camera", "location", "bluetooth", "vibrate"]);
+    // window.location is the browser URL, not GPS
+    expect(detectFeatures({ elements: [], jsCodeByPage: { page1: "window.location.reload()" } })).toEqual([]);
+
+    const cameraOnly = patchManifest(MANIFEST, ["camera"]) as string;
+    expect(cameraOnly).toContain('<uses-permission android:name="android.permission.CAMERA" />');
+    // the BLE plugin's manifest declares Bluetooth + location; strip them in the merge
+    expect(cameraOnly).toContain('<uses-permission android:name="android.permission.BLUETOOTH_SCAN" tools:node="remove" />');
+    expect(cameraOnly).toContain('<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" tools:node="remove" />');
+    expect(cameraOnly).toContain('xmlns:tools="http://schemas.android.com/tools"');
+    expect(patchManifest(cameraOnly, ["camera"])).toBe(cameraOnly);
+
+    // BLE scanning on old Android needs location, so Bluetooth keeps it
+    const bleOnly = patchManifest(MANIFEST, ["bluetooth"]) as string;
+    expect(bleOnly).not.toContain('android.permission.ACCESS_FINE_LOCATION" tools:node="remove"');
+  });
+
+  it("removes permissions an earlier build added when the app no longer needs them", () => {
+    const everything = patchManifest(MANIFEST) as string;
+    const gpsOnly = patchManifest(everything, ["location"]) as string;
+    expect(gpsOnly).toContain('<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />');
+    expect(gpsOnly).toContain('android.permission.CAMERA" tools:node="remove"');
+    expect(gpsOnly).toContain('android.permission.BLUETOOTH_CONNECT" tools:node="remove"');
+    expect(gpsOnly).not.toContain('<uses-permission android:name="android.permission.CAMERA" />');
+    expect(gpsOnly.match(/<!-- CodeCraft/g)?.length).toBe(2);
+    // all features again → back to the full list, no leftover removals
+    const backToAll = patchManifest(gpsOnly) as string;
+    expect(backToAll).not.toContain("tools:node");
+    expect(backToAll).toContain('<uses-permission android:name="android.permission.CAMERA" />');
   });
 });

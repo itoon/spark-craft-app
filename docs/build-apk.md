@@ -70,8 +70,21 @@ bun run build:apk <slug>
 
 ## ในแอป APK ทำอะไรได้บ้าง
 - GPS, การเขย่า/เอียง, เสียงพูด, การสั่น, storage — ใช้ได้ทันที (แอปจะขออนุญาตตำแหน่งตอนเรียก `location.get()` ครั้งแรก)
+- กล้อง (element Camera) — แอปขออนุญาตกล้องตอนกด `open()` ครั้งแรก
 - Bluetooth กับ ESP32 / micro:bit — ใช้ปลั๊กอิน `@capacitor-community/bluetooth-le` (แอปขออนุญาต “อุปกรณ์ใกล้เคียง” ครั้งแรก)
 - แผนที่ — ต้องต่ออินเทอร์เน็ต
+
+### สิทธิ์ (permission) ที่ APK ขอ
+ตอน build จะดูว่าแอปใช้อะไร แล้วใส่สิทธิ์ลง `AndroidManifest.xml` เฉพาะที่ใช้ (`scripts/patch-android-manifest.mjs`):
+
+| แอปใช้ | สิทธิ์ที่ขอ |
+|---|---|
+| element **Camera** | กล้อง (`CAMERA`) |
+| `location.get()` / `location.watch()` | ตำแหน่ง (`ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION`) |
+| `ble.connect()` ฯลฯ | อุปกรณ์ใกล้เคียง (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`) |
+| `phone.vibrate()` | สั่น (`VIBRATE`) |
+
+สิทธิ์ที่ไม่ได้ใส่ใน manifest จะถูกปฏิเสธทันทีโดยไม่มีหน้าต่างถาม เช่น กล้องขึ้น “permission denied” — ถ้าเพิ่ม element หรือโค้ดพวกนี้ ต้องกดปุ่ม APK แล้ว build ใหม่
 - APK ที่ได้เป็นแบบ **debug** ใช้ติดตั้งในห้องเรียนได้ ถ้าจะลง Play Store ต้องเซ็นด้วย keystore ของโรงเรียนเพิ่ม
 
 ## แก้ปัญหา
@@ -85,3 +98,5 @@ bun run build:apk <slug>
 | `ไม่พบ Android SDK` | เปิด Android Studio ครั้งแรกให้ติดตั้ง SDK หรือ `export ANDROID_HOME=~/Library/Android/sdk` |
 | Gradle ดาวน์โหลดนาน | ครั้งแรกใช้เวลา 5–10 นาที ครั้งต่อไปเร็วขึ้นมาก |
 | แก้แอปแล้ว | กดปุ่ม APK ใน editor ใหม่ แล้วรัน `bun run build:apk <slug>` อีกครั้ง |
+| กล้อง / GPS ขึ้น permission denied | build ใหม่ (สิทธิ์จะถูกใส่ตามที่แอปใช้) ถ้าเคยกด “ไม่อนุญาต” ไว้ ให้เปิดที่ ตั้งค่า → แอป → ชื่อแอป → การอนุญาต |
+| แอปขึ้น 2 icon (Samsung) | เกิดจาก Dual Messenger — build ใหม่ด้วย `--install` จะลงเฉพาะโปรไฟล์หลักและลบตัวซ้ำให้ |

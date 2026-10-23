@@ -131,7 +131,8 @@ if [ ! -d "$PROJECT/android" ]; then
 else
   echo "(มีอยู่แล้ว)"
 fi
-node "$ROOT/scripts/patch-android-manifest.mjs" "$PROJECT/android/app/src/main/AndroidManifest.xml"
+# Permissions for the elements / services this app uses (camera, GPS, Bluetooth, vibrate)
+node "$ROOT/scripts/patch-android-manifest.mjs" "$PROJECT/android/app/src/main/AndroidManifest.xml" "$APP_DIR/codecraft-app.json"
 # Name + icon from "แอปของฉัน" — every build, so a renamed app updates on the phone
 node "$ROOT/scripts/apply-app-identity.mjs" "$APP_DIR/meta.json" "$PROJECT/android"
 if [ -f "$APP_DIR/icon/icon-only.png" ]; then
@@ -159,11 +160,21 @@ echo "APK: $APP_DIR/$SLUG.apk"
 if [ "$INSTALL" = 1 ]; then
   say "7/$TOTAL ติดตั้งลงมือถือ"
   APP_ID="$(node -e "console.log(require('$APP_DIR/meta.json').appId)")"
-  "$ADB" install -r "$APP_DIR/$SLUG.apk" || {
+  # --user current: without it adb installs into every profile on the phone
+  # (Samsung Dual Messenger, work profile…) and the app shows up twice
+  "$ADB" install -r --user current "$APP_DIR/$SLUG.apk" || {
     echo "ติดตั้งทับไม่ได้ (อาจเคยลงจาก APK ที่เซ็นต่างกัน) — ลบของเก่าแล้วลงใหม่"
     "$ADB" uninstall "$APP_ID" >/dev/null 2>&1 || true
-    "$ADB" install "$APP_DIR/$SLUG.apk"
+    "$ADB" install --user current "$APP_DIR/$SLUG.apk"
   }
+  # Remove copies an older build put into other profiles (the second icon)
+  CURRENT_USER="$("$ADB" shell am get-current-user 2>/dev/null | tr -d '\r' || true)"
+  for uid in $("$ADB" shell pm list users 2>/dev/null | sed -n 's/.*UserInfo{\([0-9]*\):.*/\1/p'); do
+    [ "$uid" = "$CURRENT_USER" ] && continue
+    if "$ADB" shell pm list packages --user "$uid" 2>/dev/null | tr -d '\r' | grep -qx "package:$APP_ID"; then
+      "$ADB" shell pm uninstall --user "$uid" "$APP_ID" >/dev/null 2>&1 && echo "ลบแอปซ้ำในโปรไฟล์ $uid แล้ว"
+    fi
+  done
   "$ADB" shell monkey -p "$APP_ID" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
   echo "✓ ติดตั้งและเปิดแอปบนมือถือแล้ว"
 fi
