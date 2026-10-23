@@ -1,6 +1,6 @@
 /**
  * Runtime services inspired by MIT App Inventor's non-visible components:
- *   Notifier        → notify.toast / notify.alert
+ *   Notifier        → notify.toast / notify.alert / notify.confirm
  *   Clock (Timer)   → timer.every / timer.after / timer.stop / timer.stopAll
  *   TinyDB          → storage.set / storage.get / storage.remove / storage.keys
  *   TextToSpeech +
@@ -11,12 +11,14 @@
  * records what the code asked for instead of starting real timers or speech.
  */
 
-export type NotifyKind = "toast" | "alert";
+export type NotifyKind = "toast" | "alert" | "confirm";
 
 export interface RuntimeNotification {
   id: number;
   kind: NotifyKind;
   message: string;
+  /** confirm only: called once with the user's answer (OK → true, Cancel → false) */
+  respond?: (ok: boolean) => void;
 }
 
 export interface RuntimeServiceHost {
@@ -44,6 +46,8 @@ export interface RuntimeServices {
   notify: {
     toast(message: unknown): void;
     alert(message: unknown): void;
+    /** Ask OK / Cancel; resolves true when the user taps OK */
+    confirm(message: unknown): Promise<boolean>;
   };
   timer: {
     every(ms: number, callback: () => unknown): number;
@@ -136,6 +140,26 @@ export function createRuntimeServices(
     }
   }
 
+  function confirmWith(message: unknown): Promise<boolean> {
+    record("notify.confirm");
+    const text = String(message ?? "");
+    log("log", `Confirm: ${text}`);
+    // The checker can't tap buttons: treat it as OK so the code after confirm is checked too
+    if (dryRun) return Promise.resolve(true);
+    return new Promise<boolean>((resolve) => {
+      if (host.onNotify) {
+        host.onNotify({ id: ++notificationSeq, kind: "confirm", message: text, respond: resolve });
+      } else if (typeof window !== "undefined") {
+        resolve(window.confirm(text));
+      } else {
+        resolve(false);
+      }
+    }).then((ok) => {
+      log("log", `Confirm answer: ${ok ? "OK" : "Cancel"}`);
+      return ok;
+    });
+  }
+
   function addTimer(kind: "every" | "after", ms: number, callback: () => unknown) {
     record(`timer.${kind}`);
     if (typeof callback !== "function") {
@@ -183,6 +207,7 @@ export function createRuntimeServices(
     notify: {
       toast: (message) => notifyWith("toast", message),
       alert: (message) => notifyWith("alert", message),
+      confirm: (message) => confirmWith(message),
     },
     timer: {
       every: (ms, callback) => addTimer("every", ms, callback),
@@ -301,7 +326,7 @@ export function createRuntimeServices(
 export const RUNTIME_SERVICE_API: Record<string, { description: string; methods: string[] }> = {
   notify: {
     description: "Pop-up messages (App Inventor: Notifier)",
-    methods: ["toast(text)", "alert(text)"],
+    methods: ["toast(text)", "alert(text)", "confirm(text)"],
   },
   timer: {
     description: "Run code later or repeatedly (App Inventor: Clock)",

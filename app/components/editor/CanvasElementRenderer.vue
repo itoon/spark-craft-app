@@ -150,6 +150,11 @@
     ]"
     :style="buttonStyle"
     @click.stop="handleButtonClick"
+    @pointerdown="startLongPress"
+    @pointerup="cancelLongPress"
+    @pointerleave="cancelLongPress"
+    @pointercancel="cancelLongPress"
+    @contextmenu="onButtonContextMenu"
   >
     {{ (element.props.content as string) || "Button" }}
   </IonButton>
@@ -195,7 +200,7 @@
       :mode="ionicMode"
       lines="full"
       :style="listItemStyle(i)"
-      @click.stop="handleElementClick"
+      @click.stop="handleListItemClick(item, i)"
     >
       <IonLabel class="text-[12px] text-gray-700">
         {{ getListItemLabel(item) }}
@@ -239,6 +244,7 @@
         :label="(element.props.label as string) || 'Label'"
         @click.stop="handleElementClick"
         @ionInput="handleIonInput"
+        @keydown.enter="handleInputEnter"
       ></IonInput>
     </IonItem>
   </IonList>
@@ -256,6 +262,7 @@
         :label="(element.props.label as string) || 'Label'"
         @click.stop="handleElementClick"
         @ionInput="handleIonInput"
+        @keydown.enter="handleInputEnter"
       />
     </IonItem>
   </IonList>
@@ -668,6 +675,7 @@ import {
   getListItemLabel,
   getListItemValue,
   resolveListContent,
+  type ListContentValue,
 } from "~/utils/listContent";
 import { getVisibleRuntimeChildIds } from "~/utils/runtimeVisibility";
 
@@ -737,7 +745,54 @@ function handleMapClick(lat: number, lng: number) {
 
 function handleButtonClick() {
   if (props.isRunMode && props.element.props.disabled) return;
+  // The press already ran onLongPress — don't also count it as a tap
+  if (longPressFired) {
+    longPressFired = false;
+    return;
+  }
   handleElementClick();
+}
+
+// ── Button long press: hold ≥ LONG_PRESS_MS → run-event 'longpress' ─────
+const LONG_PRESS_MS = 600;
+let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+let longPressFired = false;
+
+function startLongPress() {
+  if (!props.isRunMode || props.element.props.disabled) return;
+  cancelLongPress();
+  longPressFired = false;
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null;
+    longPressFired = true;
+    emit("run-event", props.element.id, "longpress");
+  }, LONG_PRESS_MS);
+}
+
+function cancelLongPress() {
+  if (longPressTimer) clearTimeout(longPressTimer);
+  longPressTimer = null;
+}
+
+function onButtonContextMenu(event: Event) {
+  // Holding a button on a phone opens the browser menu; it's a long press here
+  if (props.isRunMode) event.preventDefault();
+}
+
+// ── List row tap: onItemClick(item, index), then the list's onClick ──────
+function handleListItemClick(item: ListContentValue, index: number) {
+  if (props.isRunMode) {
+    emit("run-event", props.element.id, "itemclick", { item: getListItemLabel(item), index });
+  }
+  handleElementClick();
+}
+
+// ── Input Enter: onEnter(text) ──────────────────────────────────────────
+function handleInputEnter(event: KeyboardEvent) {
+  if (!props.isRunMode || event.isComposing) return;
+  const target = event.target as HTMLInputElement | null;
+  const text = target?.value ?? String(props.element.props.value ?? "");
+  emit("run-event", props.element.id, "enter", text);
 }
 
 function handleToolbarBackClick() {
@@ -844,6 +899,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  cancelLongPress();
   stopCameraPreview();
 });
 

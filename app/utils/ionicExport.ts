@@ -1,5 +1,5 @@
 import type { AppElement, Page } from "../composables/useEditorStore";
-import { CHANGE_EVENT_PROPS } from "./componentApi";
+import { CHANGE_EVENT_PROPS, ELEMENT_EVENT_TYPES, NO_CLICK_TYPES } from "./componentApi";
 
 export interface IonicExportPayload {
   appName: string;
@@ -212,6 +212,9 @@ export interface RuntimeInstance {
   __onChange?: ((value: unknown) => unknown) | null;
   __onReady?: (() => unknown) | null;
   __onError?: ((message: string) => unknown) | null;
+  __onLongPress?: (() => unknown) | null;
+  __onEnter?: ((text: string) => unknown) | null;
+  __onItemClick?: ((item: string, index: number) => unknown) | null;
   backButton?: {
     onClick(cb: () => unknown): unknown;
   };
@@ -234,6 +237,32 @@ export interface RuntimeInstance {
 export interface RuntimeResult {
   pageElements: CodeCraftElement[];
   instances: RuntimeInstance[];
+  /** page.onShow / page.onLeave registered by this page's code */
+  pageHandlers: { show: (() => unknown) | null; leave: (() => unknown) | null };
+}
+
+/** Display-only elements have no onClick */
+const NO_CLICK_TYPES: string[] = ${JSON.stringify(NO_CLICK_TYPES)};
+
+/** Element events beyond onClick / onChange → the element types that have them */
+const ELEMENT_EVENT_TYPES: Record<string, string[]> = ${JSON.stringify(ELEMENT_EVENT_TYPES)};
+
+/** The handler for an element event from the renderer (longpress / enter / itemclick / ready / error) */
+export function getEventHandler(instance: RuntimeInstance, name: string): ((payload?: unknown) => unknown) | null {
+  if (name === 'longpress') return instance.__onLongPress ?? null;
+  if (name === 'ready') return instance.__onReady ?? null;
+  const onEnter = instance.__onEnter;
+  if (name === 'enter' && onEnter) return (payload) => onEnter(String(payload ?? ''));
+  const onError = instance.__onError;
+  if (name === 'error' && onError) return (payload) => onError(String(payload ?? ''));
+  const onItemClick = instance.__onItemClick;
+  if (name === 'itemclick' && onItemClick) {
+    return (payload) => {
+      const { item, index } = (payload ?? {}) as { item?: unknown; index?: unknown };
+      return onItemClick(String(item ?? ''), Number(index ?? 0));
+    };
+  }
+  return null;
 }
 
 /** Elements the user can change → props in an input patch that fire onChange */
@@ -353,6 +382,9 @@ export function executeCode(
     __onChange: ((value: unknown) => unknown) | null = null;
     __onReady: (() => unknown) | null = null;
     __onError: ((message: string) => unknown) | null = null;
+    __onLongPress: (() => unknown) | null = null;
+    __onEnter: ((text: string) => unknown) | null = null;
+    __onItemClick: ((item: string, index: number) => unknown) | null = null;
 
     constructor(id: string, className: string) {
       this.__el = getElement(id, className);
@@ -387,7 +419,34 @@ export function executeCode(
     }
 
     onClick(cb: () => void) {
+      if (NO_CLICK_TYPES.includes(this.__el.type)) {
+        throw new Error(\`\${this.__el.type} does not support onClick() — it only shows information. Use a Button instead.\`);
+      }
       this.__onClick = cb;
+      return this;
+    }
+
+    requireEvent(event: string) {
+      if (!ELEMENT_EVENT_TYPES[event]?.includes(this.__el.type)) {
+        throw new Error(\`\${this.__el.type} does not support \${event}()\`);
+      }
+    }
+
+    onLongPress(cb: () => unknown) {
+      this.requireEvent('onLongPress');
+      this.__onLongPress = cb;
+      return this;
+    }
+
+    onEnter(cb: (text: string) => unknown) {
+      this.requireEvent('onEnter');
+      this.__onEnter = cb;
+      return this;
+    }
+
+    onItemClick(cb: (item: string, index: number) => unknown) {
+      this.requireEvent('onItemClick');
+      this.__onItemClick = cb;
       return this;
     }
 
@@ -400,13 +459,13 @@ export function executeCode(
     }
 
     onReady(cb: () => unknown) {
-      if (this.__el.type !== 'Camera') throw new Error(\`\${this.__el.type} does not support onReady()\`);
+      this.requireEvent('onReady');
       this.__onReady = cb;
       return this;
     }
 
     onError(cb: (message: string) => unknown) {
-      if (this.__el.type !== 'Camera') throw new Error(\`\${this.__el.type} does not support onError()\`);
+      this.requireEvent('onError');
       this.__onError = cb;
       return this;
     }
@@ -570,7 +629,14 @@ export function executeCode(
   const Segment = make('Segment');
   const Container = make('Container');
 
+  const pageHandlers: RuntimeResult['pageHandlers'] = { show: null, leave: null };
   const page = {
+    onShow(cb: () => unknown) {
+      pageHandlers.show = cb;
+    },
+    onLeave(cb: () => unknown) {
+      pageHandlers.leave = cb;
+    },
     add(element: BaseElement) {
       if (!(element instanceof BaseElement)) {
         throw new TypeError('page.add expects an element created by new ClassName(id)');
@@ -654,6 +720,7 @@ export function executeCode(
   return {
     pageElements,
     instances,
+    pageHandlers,
   };
 }
 `;
@@ -686,7 +753,12 @@ function buildRendererFile(): string {
   </ion-card>
 
   <ion-list v-else-if="element.type === 'List'" inset>
-    <ion-item v-for="(item, index) in listItems" :key="index">
+    <ion-item
+      v-for="(item, index) in listItems"
+      :key="index"
+      button
+      @click="$emit('run-event', element.id, 'itemclick', { item: getListItemLabel(item), index }); $emit('run-click', element.id)"
+    >
       {{ getListItemLabel(item) }}
     </ion-item>
   </ion-list>
@@ -710,7 +782,12 @@ function buildRendererFile(): string {
     expand="block"
     :fill="buttonFill"
     :style="buttonStyle"
-    @click="$emit('run-click', element.id)"
+    @click="handleButtonClick"
+    @pointerdown="startLongPress"
+    @pointerup="cancelLongPress"
+    @pointerleave="cancelLongPress"
+    @pointercancel="cancelLongPress"
+    @contextmenu.prevent
   >
     {{ element.props.label || 'Button' }}
   </ion-button>
@@ -728,6 +805,7 @@ function buildRendererFile(): string {
       :value="String(element.props.value || '')"
       :placeholder="String(element.props.placeholder || '')"
       @ionInput="handleTextInput($event)"
+      @keydown.enter="handleInputEnter"
     />
   </ion-item>
 
@@ -737,6 +815,7 @@ function buildRendererFile(): string {
     :value="String(element.props.value || '')"
     :placeholder="String(element.props.placeholder || '')"
     @ionInput="handleTextInput($event)"
+    @keydown.enter="handleInputEnter"
   />
 
   <ion-select
@@ -1044,6 +1123,39 @@ function emitInput(patch: Record<string, unknown>) {
   emit('run-input', props.element.id, patch);
 }
 
+function handleInputEnter(event: KeyboardEvent) {
+  if (event.isComposing) return;
+  const target = event.target as HTMLInputElement | null;
+  emit('run-event', props.element.id, 'enter', target?.value ?? String(props.element.props.value ?? ''));
+}
+
+// Hold a Button ≥ 600 ms → onLongPress (and skip the click that follows)
+let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+let longPressFired = false;
+
+function startLongPress() {
+  cancelLongPress();
+  longPressFired = false;
+  longPressTimer = setTimeout(() => {
+    longPressTimer = null;
+    longPressFired = true;
+    emit('run-event', props.element.id, 'longpress');
+  }, 600);
+}
+
+function cancelLongPress() {
+  if (longPressTimer) clearTimeout(longPressTimer);
+  longPressTimer = null;
+}
+
+function handleButtonClick() {
+  if (longPressFired) {
+    longPressFired = false;
+    return;
+  }
+  emit('run-click', props.element.id);
+}
+
 async function startCameraPreview() {
   if (props.element.type !== 'Camera' || !shouldUseLiveCamera.value) return;
   if (!navigator.mediaDevices?.getUserMedia) {
@@ -1284,6 +1396,8 @@ import {
   IonPage,
   IonTitle,
   IonToolbar,
+  onIonViewDidEnter,
+  onIonViewWillLeave,
 } from '@ionic/vue';
 import { add } from 'ionicons/icons';
 import { useRouter } from 'vue-router';
@@ -1295,8 +1409,8 @@ import {
   pages,
   type CodeCraftElement,
 } from '../data/codecraft-app';
-import { executeCode, getChangeValue } from '../runtime/codecraft-runtime';
-import type { RuntimeInstance } from '../runtime/codecraft-runtime';
+import { executeCode, getChangeValue, getEventHandler } from '../runtime/codecraft-runtime';
+import type { RuntimeInstance, RuntimeResult } from '../runtime/codecraft-runtime';
 
 const props = defineProps<{
   pageId: string;
@@ -1307,6 +1421,15 @@ const runtimeElements = ref<CodeCraftElement[]>([]);
 const clickHandlers = ref<Record<string, () => void>>({});
 const changeInstances = ref<Record<string, RuntimeInstance>>({});
 const eventInstances = ref<Record<string, RuntimeInstance>>({});
+let pageHandlers: RuntimeResult['pageHandlers'] = { show: null, leave: null };
+
+// Ionic keeps visited pages alive, so use its view lifecycle for page.onShow / onLeave
+onIonViewDidEnter(() => {
+  pageHandlers.show?.();
+});
+onIonViewWillLeave(() => {
+  pageHandlers.leave?.();
+});
 const runtimeError = ref('');
 const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton';
 
@@ -1418,6 +1541,7 @@ function runPage() {
     );
 
     runtimeElements.value = result.pageElements;
+    pageHandlers = result.pageHandlers;
     clickHandlers.value = Object.fromEntries(
       result.instances.flatMap((instance) => {
         const handlers: [string, () => void][] = [];
@@ -1440,7 +1564,9 @@ function runPage() {
     );
     eventInstances.value = Object.fromEntries(
       result.instances
-        .filter((instance) => instance.__onReady || instance.__onError)
+        .filter((instance) =>
+          instance.__onReady || instance.__onError || instance.__onLongPress || instance.__onEnter || instance.__onItemClick,
+        )
         .map((instance) => [instance.__el.id, instance]),
     );
   } catch (error) {
@@ -1448,6 +1574,7 @@ function runPage() {
     clickHandlers.value = {};
     changeInstances.value = {};
     eventInstances.value = {};
+    pageHandlers = { show: null, leave: null };
     runtimeError.value = error instanceof Error ? error.message : 'Unknown runtime error';
   }
 }
@@ -1485,8 +1612,8 @@ function handleInput(id: string, patch: Record<string, unknown>) {
 
 function handleEvent(id: string, name: string, payload?: unknown) {
   const instance = eventInstances.value[id];
-  if (name === 'ready') instance?.__onReady?.();
-  if (name === 'error') instance?.__onError?.(String(payload ?? ''));
+  const handler = instance ? getEventHandler(instance, name) : null;
+  handler?.(payload);
 }
 </script>
 

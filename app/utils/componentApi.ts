@@ -72,7 +72,41 @@ const CHANGE_EXAMPLE_BY_TYPE: Record<string, [string, string]> = {
   Segment: ["index", "label1.text = 'แท็บที่ ' + index;"],
 };
 
+/** Display-only elements: tapping them should do nothing, so they have no onClick */
+export const NO_CLICK_TYPES = ["Heading", "Label", "Spinner", "Separator", "Spacer"];
+
+export function supportsClickEvent(designType: string) {
+  return !NO_CLICK_TYPES.includes(designType);
+}
+
+/** Element-only events beyond onClick / onChange → the designTypes that have them */
+export const ELEMENT_EVENT_TYPES: Record<string, string[]> = {
+  onLongPress: ["Button"],
+  onEnter: ["Input", "LabelledInput"],
+  onItemClick: ["List"],
+  onReady: ["Camera"],
+  onError: ["Camera"],
+};
+
+export function supportsElementEvent(event: string, designType: string) {
+  return Boolean(ELEMENT_EVENT_TYPES[event]?.includes(designType));
+}
+
+/** Events to show for an element in the Properties panel, most useful first */
+export function getElementEvents(designType: string): string[] {
+  if (designType === "Camera") return ["onReady", "onError"];
+  const events = supportsClickEvent(designType) ? ["onClick"] : [];
+  if (supportsChangeEvent(designType)) events.push("onChange");
+  for (const event of ["onLongPress", "onEnter", "onItemClick"]) {
+    if (supportsElementEvent(event, designType)) events.push(event);
+  }
+  return events;
+}
+
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
+const BUTTON_METHODS = ["onLongPress(callback)"];
+const INPUT_METHODS = ["onEnter(callback(text))"];
+const LIST_METHODS = ["onItemClick(callback(item, index))"];
 const CAMERA_METHODS = [
   "open()",
   "close()",
@@ -139,8 +173,11 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
     ]);
 
     const methods = unique([
-      ...COMMON_ELEMENT_METHODS,
+      ...(supportsClickEvent(designType) ? COMMON_ELEMENT_METHODS : []),
       ...(supportsChangeEvent(designType) ? [CHANGE_METHOD] : []),
+      ...(designType === "Button" ? BUTTON_METHODS : []),
+      ...(designType === "Input" || designType === "LabelledInput" ? INPUT_METHODS : []),
+      ...(designType === "List" ? LIST_METHODS : []),
       ...(designType === "Camera" ? CAMERA_METHODS : []),
       ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
       ...(designType === "Spinner" ? SPINNER_METHODS : []),
@@ -168,6 +205,38 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
                 `});`,
               ];
             })()
+          : []),
+        ...(designType === "Button"
+          ? [
+              ``,
+              `// Tap = onClick, press and hold = onLongPress`,
+              `button1.onClick(() => {`,
+              `  label1.text = 'แตะ';`,
+              `});`,
+              `button1.onLongPress(() => {`,
+              `  label1.text = 'กดค้าง ⏳';`,
+              `});`,
+            ]
+          : []),
+        ...(designType === "Input" || designType === "LabelledInput"
+          ? [
+              ``,
+              `// Runs when the user presses Enter`,
+              `${className.charAt(0).toLowerCase()}${className.slice(1)}1.onEnter((text) => {`,
+              `  label1.text = 'ส่งแล้ว: ' + text;`,
+              `  ${className.charAt(0).toLowerCase()}${className.slice(1)}1.value = '';`,
+              `});`,
+            ]
+          : []),
+        ...(designType === "List"
+          ? [
+              `list1.content = ['คณิต', 'วิทย์', 'อังกฤษ'];`,
+              ``,
+              `// item = the text of the row, index = its position (0, 1, 2...)`,
+              `list1.onItemClick((item, index) => {`,
+              `  label1.text = 'เลือกข้อ ' + (index + 1) + ': ' + item;`,
+              `});`,
+            ]
           : []),
         ...(designType === "Toolbar"
           ? [
@@ -252,5 +321,31 @@ export function findComponentApiSchemaByClassName(className: string) {
   return getComponentApiSchemas().find((schema) => schema.className === className);
 }
 
-export const PAGE_API_METHODS = ["add(element)", "goTo(pageIdOrName)"];
+export const PAGE_API_METHODS = ["add(element)", "goTo(pageIdOrName)", "onShow(callback)", "onLeave(callback)"];
+export const PAGE_API_EXAMPLE = [
+  "page.add(button1);",
+  "page.goTo('page2');",
+  "",
+  "// Runs every time this page appears (also after page.goTo back here)",
+  "page.onShow(() => {",
+  "  label1.text = 'คะแนน: ' + storage.get('score', 0);",
+  "});",
+  "",
+  "// Runs just before leaving this page",
+  "page.onLeave(() => {",
+  "  timer.stopAll();",
+  "});",
+].join("\n");
+export const NOTIFY_API_EXAMPLE = [
+  "notify.toast('บันทึกแล้ว ✅');",
+  "notify.alert('หมดเวลา!');",
+  "",
+  "// confirm waits for OK / Cancel → use await",
+  "button1.onClick(async () => {",
+  "  const ok = await notify.confirm('ลบงานทั้งหมดใช่ไหม?');",
+  "  if (ok) {",
+  "    label1.text = 'ลบแล้ว';",
+  "  }",
+  "});",
+].join("\n");
 export const CONSOLE_API_METHODS = ["log(...args)", "warn(...args)", "error(...args)"];

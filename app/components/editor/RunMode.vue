@@ -152,7 +152,7 @@
               @run-event="handleRunEvent"
             />
             <template #overlay>
-              <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" />
+              <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" @answer="notifications.answer" />
             </template>
           </PreviewDeviceFrame>
 
@@ -180,7 +180,7 @@ import {
   isToolbarBackButtonClickId,
   syncRuntimeElementProps,
 } from '~/composables/useRuntime'
-import type { ConsoleEntry, ElementInstance, RuntimeExecutionEvent } from '~/composables/useRuntime'
+import type { ConsoleEntry, ElementInstance, RuntimeExecutionEvent, RuntimePageHandlers } from '~/composables/useRuntime'
 import type { AppElement } from '~/composables/useEditorStore'
 import { PREVIEW_DEVICES } from '~/composables/usePreviewDevices'
 import { usePreviewDeviceScale } from '~/composables/usePreviewDeviceScale'
@@ -193,6 +193,8 @@ const store = useEditorStore()
 // ── Runtime State ─────────────────────────────────────────────────────────
 const logs = ref<ConsoleEntry[]>([])
 const executionEvents = ref<RuntimeExecutionEvent[]>([])
+// page.onShow / page.onLeave of the page that is showing now
+let pageHandlers: RuntimePageHandlers = { show: null, leave: null }
 const pageElements = ref<AppElement[]>([])
 const instances = ref<ElementInstance[]>([])
 const hasRun = ref(false)
@@ -236,6 +238,7 @@ function scrollTraceToBottom() {
 function runCode() {
   // Stop timers / speech from the previous run before starting again
   disposeServices()
+  pageHandlers = { show: null, leave: null }
   notifications.clear()
   const runtimeLogs: ConsoleEntry[] = []
   executionEvents.value = []
@@ -252,6 +255,15 @@ function runCode() {
       store.elements.value, 
       (id, props) => {
         store.updateElementProps(id, props)
+        // New element object so the screen re-renders (e.g. input1.value = '' after typing)
+        const { __height, ...propsPatch } = props
+        const next = syncRuntimeElementProps(
+          { pageElements: pageElements.value, instances: instances.value },
+          id,
+          propsPatch
+        )
+        pageElements.value = next.pageElements
+        instances.value = next.instances
       },
       (pageRef) => {
         navigateToPage(pageRef)
@@ -283,6 +295,9 @@ function runCode() {
     pageElements.value = result.pageElements
     instances.value = result.instances
     hasRun.value = true
+    pageHandlers = result.pageHandlers
+    const onShow = pageHandlers.show
+    if (onShow) nextTick(() => invokeRuntimeHandler(onShow))
   } catch (err: any) {
     logs.value.push({ type: 'error', message: `Runtime initialization failed: ${err.message}` })
   }
@@ -303,6 +318,11 @@ function navigateToPage(pageRef: string) {
     logs.value.push({ type: 'warn', message: `Already on ${targetPage.name}` })
     return
   }
+
+  // Run the old page's onLeave before its handlers are replaced
+  const onLeave = pageHandlers.leave
+  pageHandlers = { show: null, leave: null }
+  if (onLeave) invokeRuntimeHandler(onLeave)
 
   store.switchPage(targetPage.id)
   logs.value.push({ type: 'success', message: `Navigated to ${targetPage.name}` })
@@ -394,7 +414,7 @@ function handleRunEvent(id: string, name: string, payload?: unknown) {
     {
       step: executionEvents.value.length + 1,
       type: 'log',
-      message: `${instance.__el.type} ${id} ${name}${payload === undefined ? '' : ` → ${String(payload)}`}`,
+      message: `${instance.__el.type} ${id} ${name}${payload === undefined ? '' : ` → ${typeof payload === 'object' ? JSON.stringify(payload) : String(payload)}`}`,
       elementId: id,
       elementType: instance.__el.type,
     },

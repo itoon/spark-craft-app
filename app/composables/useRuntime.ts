@@ -1,5 +1,5 @@
 import type { AppElement } from './useEditorStore'
-import { CHANGE_EVENT_PROPS, getComponentClassMap } from '../utils/componentApi'
+import { CHANGE_EVENT_PROPS, getComponentClassMap, supportsClickEvent, supportsElementEvent } from '../utils/componentApi'
 import { usePaletteItems } from './usePaletteItems'
 import { createRuntimeServices } from '../utils/runtimeServices'
 import type { RuntimeServiceHost, RuntimeServices } from '../utils/runtimeServices'
@@ -37,6 +37,9 @@ export interface ElementInstance {
   __onChange?: ((value: unknown) => unknown) | null
   __onReady?: (() => unknown) | null
   __onError?: ((message: string) => unknown) | null
+  __onLongPress?: (() => unknown) | null
+  __onEnter?: ((text: string) => unknown) | null
+  __onItemClick?: ((item: string, index: number) => unknown) | null
   backButton?: {
     onClick(cb: () => void): unknown
   }
@@ -54,6 +57,9 @@ export interface ElementInstance {
   onChange?(cb: (value: unknown) => unknown): ElementInstance
   onReady?(cb: () => unknown): ElementInstance
   onError?(cb: (message: string) => unknown): ElementInstance
+  onLongPress?(cb: () => unknown): ElementInstance
+  onEnter?(cb: (text: string) => unknown): ElementInstance
+  onItemClick?(cb: (item: string, index: number) => unknown): ElementInstance
   toString(): string
   valueOf(): unknown
 }
@@ -68,6 +74,13 @@ export interface RuntimeResult {
   services: RuntimeServices
   /** location / motion / ble (disposed together with services) */
   device: DeviceServices
+  /** page.onShow / page.onLeave handlers registered by this page's code */
+  pageHandlers: RuntimePageHandlers
+}
+
+export interface RuntimePageHandlers {
+  show: (() => unknown) | null
+  leave: (() => unknown) | null
 }
 
 export interface ExecuteCodeOptions {
@@ -169,8 +182,24 @@ export function describeCameraError(error: unknown): string {
   return error instanceof Error && error.message ? error.message : 'Unable to start the camera.'
 }
 
-/** The handler for an element event (run-event) such as Camera 'ready' / 'error' */
+/**
+ * The handler for an element event (run-event): Camera 'ready' / 'error',
+ * Button 'longpress', Input 'enter' (payload = text), List 'itemclick' (payload = { item, index })
+ */
 export function getRuntimeEventHandler(instance: ElementInstance, name: string): ((payload?: unknown) => unknown) | null {
+  if (name === 'longpress') return instance.__onLongPress ?? null
+  if (name === 'enter') {
+    const onEnter = instance.__onEnter
+    return onEnter ? (payload?: unknown) => onEnter(String(payload ?? '')) : null
+  }
+  if (name === 'itemclick') {
+    const onItemClick = instance.__onItemClick
+    if (!onItemClick) return null
+    return (payload?: unknown) => {
+      const { item, index } = (payload ?? {}) as { item?: unknown; index?: unknown }
+      return onItemClick(String(item ?? ''), Number(index ?? 0))
+    }
+  }
   if (name === 'ready') return instance.__onReady ?? null
   if (name === 'error') {
     const onError = instance.__onError
@@ -193,10 +222,14 @@ export function syncRuntimeElementProps(
       : el
   )
 
+  // The instance must share the rendered element object: code like
+  // `input1.value = ''` after the user typed would otherwise change a copy
+  // the screen never shows
+  const rendered = pageElements.find((el) => el.id === id)
   const instances = runtime.instances.map((instance) => {
     if (instance.__el.id !== id) return instance
 
-    instance.__el = {
+    instance.__el = rendered ?? {
       ...instance.__el,
       props: { ...instance.__el.props, ...propsPatch },
     }
@@ -404,6 +437,9 @@ export function executeCode(
     __onChange: ((value: unknown) => unknown) | null = null
     __onReady: (() => unknown) | null = null
     __onError: ((message: string) => unknown) | null = null
+    __onLongPress: (() => unknown) | null = null
+    __onEnter: ((text: string) => unknown) | null = null
+    __onItemClick: ((item: string, index: number) => unknown) | null = null
 
     constructor(id: string, className: string) {
       const existing = instanceById.get(id)
@@ -604,6 +640,9 @@ export function executeCode(
     }
 
     onClick(cb: (...args: any[]) => void): this {
+      if (!supportsClickEvent(this.__el.type)) {
+        throw new Error(`${this.__el.type} does not support onClick() — it only shows information. Use a Button instead.`)
+      }
       if (this.__el.type === 'Map') {
         // Map: pass where the user tapped → onClick((lat, lng) => ...)
         this.__onClick = () => {
@@ -624,17 +663,44 @@ export function executeCode(
       return this
     }
 
+    _requireEvent(event: string) {
+      if (!supportsElementEvent(event, this.__el.type)) {
+        throw new Error(`${this.__el.type} does not support ${event}()`)
+      }
+    }
+
     /** Camera: runs once the live preview is showing (after open()) */
     onReady(cb: () => unknown): this {
-      if (this.__el.type !== 'Camera') throw new Error(`${this.__el.type} does not support onReady()`)
+      this._requireEvent('onReady')
       this.__onReady = cb
       return this
     }
 
     /** Camera: runs with a message when the camera can't start (no permission, no camera…) */
     onError(cb: (message: string) => unknown): this {
-      if (this.__el.type !== 'Camera') throw new Error(`${this.__el.type} does not support onError()`)
+      this._requireEvent('onError')
       this.__onError = cb
+      return this
+    }
+
+    /** Button: runs when the user presses and holds (a tap still runs onClick) */
+    onLongPress(cb: () => unknown): this {
+      this._requireEvent('onLongPress')
+      this.__onLongPress = cb
+      return this
+    }
+
+    /** Input / LabelledInput: runs with the typed text when the user presses Enter */
+    onEnter(cb: (text: string) => unknown): this {
+      this._requireEvent('onEnter')
+      this.__onEnter = cb
+      return this
+    }
+
+    /** List: runs with the tapped row's text and position (0, 1, 2...) */
+    onItemClick(cb: (item: string, index: number) => unknown): this {
+      this._requireEvent('onItemClick')
+      this.__onItemClick = cb
       return this
     }
 
@@ -893,7 +959,18 @@ export function executeCode(
   const MapEl         = make('Map')
 
   // ── page object ───────────────────────────────────────────────────────
+  const pageHandlers: RuntimePageHandlers = { show: null, leave: null }
   const page = {
+    /** Runs every time this page appears (after its code has run) */
+    onShow(cb: () => unknown) {
+      if (typeof cb !== 'function') throw new TypeError('page.onShow() expects a function')
+      pageHandlers.show = cb
+    },
+    /** Runs just before the app leaves this page */
+    onLeave(cb: () => unknown) {
+      if (typeof cb !== 'function') throw new TypeError('page.onLeave() expects a function')
+      pageHandlers.leave = cb
+    },
     add(el: BaseEl) {
       if (!(el instanceof BaseEl)) {
         throw new TypeError('page.add() expects an element created with new ClassName(id)')
@@ -988,5 +1065,5 @@ export function executeCode(
     pushLog({ type: 'error', message: err instanceof Error ? err.message : String(err) })
   }
 
-  return { pageElements, instances, logs, events, services, device }
+  return { pageElements, instances, logs, events, services, device, pageHandlers }
 }

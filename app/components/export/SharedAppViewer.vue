@@ -40,7 +40,7 @@
             @run-event="handleRunEvent"
           />
           <template #overlay>
-            <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" />
+            <PreviewRuntimeNotifications :items="notifications.items.value" @dismiss="notifications.dismiss" @answer="notifications.answer" />
           </template>
         </PreviewDeviceFrame>
 
@@ -73,6 +73,7 @@
             class="!fixed"
             :items="notifications.items.value"
             @dismiss="notifications.dismiss"
+            @answer="notifications.answer"
           />
         </div>
       </div>
@@ -93,7 +94,7 @@ import {
   syncRuntimeElementProps,
 } from "~/composables/useRuntime";
 import type { AppElement } from "~/composables/useEditorStore";
-import type { ElementInstance } from "~/composables/useRuntime";
+import type { ElementInstance, RuntimePageHandlers } from "~/composables/useRuntime";
 import type { SharedExportPayload } from "~/utils/sharedExport";
 import { getPreviewDevice } from "~/composables/usePreviewDevices";
 import { usePreviewDeviceScale } from "~/composables/usePreviewDeviceScale";
@@ -174,8 +175,12 @@ watch(
   { deep: true, immediate: true },
 );
 
+// page.onShow / page.onLeave of the page that is showing now
+let pageHandlers: RuntimePageHandlers = { show: null, leave: null };
+
 function runCode() {
   disposeServices();
+  pageHandlers = { show: null, leave: null };
   notifications.clear();
   runtimeError.value = "";
   const allElements = elementState.value.filter((element) => element.pageId === currentPageId.value);
@@ -198,6 +203,14 @@ function runCode() {
               }
             : element,
         );
+        // New element object so the screen re-renders (e.g. input1.value = '' after typing)
+        const next = syncRuntimeElementProps(
+          { pageElements: pageElements.value, instances: instances.value },
+          id,
+          propsPatch,
+        );
+        pageElements.value = next.pageElements;
+        instances.value = next.instances;
       },
       (pageRef) => navigateToPage(pageRef),
       (entry) => emit("log", entry),
@@ -213,6 +226,9 @@ function runCode() {
 
     pageElements.value = result.pageElements;
     instances.value = result.instances;
+    pageHandlers = result.pageHandlers;
+    const onShow = pageHandlers.show;
+    if (onShow) nextTick(() => invokeRuntimeHandler(onShow));
 
     const firstError = result.logs.find((entry) => entry.type === "error");
     if (firstError && result.pageElements.length === 0) {
@@ -236,6 +252,11 @@ function navigateToPage(pageRef: string) {
     runtimeError.value = `Navigation failed: page "${pageRef}" not found`;
     return;
   }
+
+  // Run the old page's onLeave before its handlers are replaced
+  const onLeave = pageHandlers.leave;
+  pageHandlers = { show: null, leave: null };
+  if (onLeave) invokeRuntimeHandler(onLeave);
 
   currentPageId.value = targetPage.id;
   nextTick(runCode);

@@ -107,7 +107,7 @@ export type LearningRequirement =
       type: "runtime-handler";
       elementType: string;
       pageId?: string;
-      event: "onClick" | "onChange" | "onReady" | "onError";
+      event: "onClick" | "onChange" | "onReady" | "onError" | "onLongPress" | "onEnter" | "onItemClick";
       minCount?: number;
       message: string;
     }
@@ -490,11 +490,8 @@ export function evaluateLearningRequirement(
     const count =
       runtime?.instances.filter((instance) => {
         if (instance.__el.type !== requirement.elementType) return false;
-        if (requirement.event === "onClick") return Boolean(instance.__onClick);
-        if (requirement.event === "onChange") return Boolean(instance.__onChange);
-        if (requirement.event === "onReady") return Boolean(instance.__onReady);
-        if (requirement.event === "onError") return Boolean(instance.__onError);
-        return false;
+        // every handler is stored as instance.__<event>, e.g. __onItemClick
+        return Boolean(instance[`__${requirement.event}` as keyof typeof instance]);
       }).length ?? 0;
 
     return {

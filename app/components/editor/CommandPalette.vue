@@ -188,10 +188,13 @@
 <script setup lang="ts">
 import {
   CONSOLE_API_METHODS,
+  NOTIFY_API_EXAMPLE,
+  PAGE_API_EXAMPLE,
   PAGE_API_METHODS,
   getComponentApiSchemas,
   type ComponentApiSchema,
 } from "~/utils/componentApi";
+import { RUNTIME_SERVICE_API } from "~/utils/runtimeServices";
 
 const props = defineProps<{
   open: boolean;
@@ -240,7 +243,15 @@ const entries = computed<PaletteEntry[]>(() => {
       title: "page",
       subtitle: "Page object",
       methods: PAGE_API_METHODS,
-      codeExample: ["page.add(button1);", "page.goTo('page2');"].join("\n"),
+      codeExample: PAGE_API_EXAMPLE,
+    },
+    {
+      key: "global:notify",
+      kind: "global",
+      title: "notify",
+      subtitle: RUNTIME_SERVICE_API.notify!.description,
+      methods: RUNTIME_SERVICE_API.notify!.methods,
+      codeExample: NOTIFY_API_EXAMPLE,
     },
     {
       key: "global:console",

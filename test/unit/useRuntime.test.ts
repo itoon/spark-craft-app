@@ -2,8 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import { usePaletteItems } from "../../app/composables/usePaletteItems";
 import {
+  PAGE_API_METHODS,
   findComponentApiSchemaByClassName,
   getComponentApiSchemas,
+  getElementEvents,
 } from "../../app/utils/componentApi";
 import {
   executeCode,
@@ -425,6 +427,86 @@ describe("Camera onReady / onError", () => {
   });
 });
 
+describe("display elements have no onClick", () => {
+  it.each(["Heading", "Label", "Spinner", "Separator", "Spacer"])("%s.onClick explains to use a Button", (type) => {
+    const cls = type;
+    const result = executeCode(
+      `var el = new ${cls}('page1_el1'); page.add(el); el.onClick(() => {});`,
+      [makeElement("page1_el1", type, { text: "Hi" })],
+    );
+
+    expect(
+      result.logs.some((log) => log.type === "error" && log.message.startsWith(`${type} does not support onClick()`)),
+    ).toBe(true);
+  });
+
+  it("keeps onClick on Button and Image", () => {
+    const result = executeCode(
+      "var b = new Button('page1_b'); var i = new Image('page1_i'); page.add(b); page.add(i); b.onClick(() => {}); i.onClick(() => {});",
+      [makeElement("page1_b", "Button"), makeElement("page1_i", "Image", { src: "" })],
+    );
+
+    expect(result.logs.some((log) => log.type === "error")).toBe(false);
+  });
+});
+
+describe("onLongPress / onEnter / onItemClick", () => {
+  it("passes the right values to each handler", () => {
+    const result = executeCode(
+      [
+        "var b = new Button('page1_b'); page.add(b);",
+        "var input1 = new Input('page1_in'); page.add(input1);",
+        "var list1 = new List('page1_list'); page.add(list1);",
+        "b.onLongPress(() => console.log('held'));",
+        "input1.onEnter((text) => console.log('enter ' + text));",
+        "list1.onItemClick((item, index) => console.log('item ' + index + ' ' + item));",
+      ].join("\n"),
+      [
+        makeElement("page1_b", "Button"),
+        makeElement("page1_in", "Input", { value: "" }),
+        makeElement("page1_list", "List", { content: ["A", "B"] }),
+      ],
+    );
+    const [button, input, list] = result.instances;
+
+    getRuntimeEventHandler(button!, "longpress")!();
+    getRuntimeEventHandler(input!, "enter")!("hello");
+    getRuntimeEventHandler(list!, "itemclick")!({ item: "B", index: 1 });
+
+    expect(result.logs.map((log) => log.message)).toEqual(
+      expect.arrayContaining(["held", "enter hello", "item 1 B"]),
+    );
+    expect(getRuntimeEventHandler(button!, "enter")).toBeNull();
+  });
+
+  it("explains which elements do not have these events", () => {
+    const result = executeCode(
+      "var t = new Toggle('page1_t'); page.add(t); t.onItemClick(() => {});",
+      [makeElement("page1_t", "Toggle", { on: false })],
+    );
+
+    expect(result.logs.some((log) => log.message === "Toggle does not support onItemClick()")).toBe(true);
+  });
+});
+
+describe("page.onShow / page.onLeave", () => {
+  it("returns the page handlers for the host to call", () => {
+    const result = executeCode(
+      "page.onShow(() => console.log('shown')); page.onLeave(() => console.log('left'));",
+      [],
+    );
+
+    result.pageHandlers.show!();
+    result.pageHandlers.leave!();
+    expect(result.logs.map((log) => log.message)).toEqual(expect.arrayContaining(["shown", "left"]));
+  });
+
+  it("has no handlers when the page does not register any", () => {
+    const result = executeCode("console.log('hi')", []);
+    expect(result.pageHandlers).toEqual({ show: null, leave: null });
+  });
+});
+
 describe("syncRuntimeElementProps", () => {
   it("keeps runtime instances in sync after the user edits an input value", () => {
     const elements: AppElement[] = [
@@ -456,6 +538,10 @@ describe("syncRuntimeElementProps", () => {
     expect(synced.pageElements[0]?.props.value).toBe("typed from runtime");
     expect(inputInstance.value).toBe("typed from runtime");
     expect(inputInstance.valueOf()).toBe("typed from runtime");
+
+    // Code clearing the input after the user typed must change what is rendered
+    inputInstance.value = "";
+    expect(synced.pageElements[0]?.props.value).toBe("");
   });
 
   it("reads a Toggle's on-state through on, value, and checked", () => {
@@ -668,6 +754,22 @@ describe("componentApi", () => {
     expect(toggle?.methods).toContain("onChange(callback(value))");
     expect(label?.methods).not.toContain("onChange(callback(value))");
     expect(button?.methods).not.toContain("onChange(callback(value))");
+  });
+
+  it("lists the new events and hides onClick on display elements (Cmd+K)", () => {
+    const label = findComponentApiSchemaByClassName("Label");
+    const button = findComponentApiSchemaByClassName("Button");
+    const input = findComponentApiSchemaByClassName("Input");
+    const list = findComponentApiSchemaByClassName("List");
+
+    expect(label?.methods).not.toContain("onClick(callback)");
+    expect(button?.methods).toContain("onLongPress(callback)");
+    expect(input?.methods).toContain("onEnter(callback(text))");
+    expect(list?.methods).toContain("onItemClick(callback(item, index))");
+    expect(PAGE_API_METHODS).toEqual(expect.arrayContaining(["onShow(callback)", "onLeave(callback)"]));
+    expect(getElementEvents("Label")).toEqual([]);
+    expect(getElementEvents("Button")).toEqual(["onClick", "onLongPress"]);
+    expect(getElementEvents("Input")).toEqual(["onClick", "onChange", "onEnter"]);
   });
 
   it("lists Camera onReady / onError (Cmd+K)", () => {

@@ -58,6 +58,28 @@ describe("runtime services (App Inventor style)", () => {
     expect(onNotify.mock.calls[1]![0].message).toBe("stop");
   });
 
+  it("asks OK / Cancel with notify.confirm and resolves with the answer", async () => {
+    const onNotify = vi.fn();
+    const services = createRuntimeServices({ onNotify });
+
+    const okAnswer = services.notify.confirm("Delete?");
+    const shown = onNotify.mock.calls[0]![0];
+    expect(shown.kind).toBe("confirm");
+    expect(shown.message).toBe("Delete?");
+    shown.respond(true);
+    await expect(okAnswer).resolves.toBe(true);
+
+    const cancelAnswer = services.notify.confirm("Sure?");
+    onNotify.mock.calls[1]![0].respond(false);
+    await expect(cancelAnswer).resolves.toBe(false);
+  });
+
+  it("treats notify.confirm as OK in the dry-run checker", async () => {
+    const services = createRuntimeServices({ dryRun: true });
+    await expect(services.notify.confirm("Delete?")).resolves.toBe(true);
+    expect(services.calls).toContain("notify.confirm");
+  });
+
   it("reports errors thrown inside timer callbacks instead of crashing", () => {
     const messages: string[] = [];
     const services = createRuntimeServices({ dryRun: true }, (type, message) => {

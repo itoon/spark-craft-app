@@ -1359,6 +1359,12 @@
 
       <!-- ── Events section ── -->
       <EditorPropertiesSection title="Events" icon="i-lucide-zap">
+        <p
+          v-if="elementEvents.length === 0 && selectedElement.type !== 'Container'"
+          class="px-1 text-[11px] leading-relaxed text-neutral-500"
+        >
+          {{ selectedElement.type }} only shows information, so it has no events. Use a Button for taps.
+        </p>
         <div v-for="event in elementEvents" :key="event" class="space-y-1.5">
           <div
             class="flex items-center gap-2 p-2 rounded-lg bg-neutral-50 border border-neutral-200"
@@ -1414,13 +1420,13 @@ import { usePageAddStatus } from "~/composables/usePageAddStatus";
 import { findElementVariables } from "~/utils/pageAdds";
 import type { AppElement } from "~/composables/useEditorStore";
 import { ELEMENT_CLASS_MAP, buildScaffold } from "~/composables/useRuntime";
-import { supportsChangeEvent } from "~/utils/componentApi";
+import { getElementEvents } from "~/utils/componentApi";
 
 const store = useEditorStore();
 const pageAdd = usePageAddStatus();
 
 // ── Events: show whether the selected element's onClick / onChange is used in code ──
-type ElementEvent = "onClick" | "onChange" | "onReady" | "onError";
+type ElementEvent = "onClick" | "onChange" | "onReady" | "onError" | "onLongPress" | "onEnter" | "onItemClick";
 // The variable the code already uses for this element (e.g. `var button = new Button('page1_button1')`),
 // else the default name the scaffold would give it.
 const varName = computed(() => {
@@ -1435,8 +1441,7 @@ const varName = computed(() => {
 
 const elementEvents = computed<ElementEvent[]>(() => {
   const el = store.selectedElement.value;
-  if (el?.type === "Camera") return ["onReady", "onError"];
-  return el && supportsChangeEvent(el.type) ? ["onClick", "onChange"] : ["onClick"];
+  return el ? (getElementEvents(el.type) as ElementEvent[]) : [];
 });
 
 function hasHandler(event: ElementEvent) {
@@ -1465,6 +1470,9 @@ function addHandler(event: ElementEvent) {
     onChange: `\n${name}.onChange((value) => {\n  // what should happen when ${name} changes? value is the new value\n});\n`,
     onReady: `\n${name}.onReady(() => {\n  // the camera is showing — what should happen now?\n});\n`,
     onError: `\n${name}.onError((message) => {\n  // the camera could not start — message says why\n});\n`,
+    onLongPress: `\n${name}.onLongPress(() => {\n  // what should happen when ${name} is pressed and held?\n});\n`,
+    onEnter: `\n${name}.onEnter((text) => {\n  // the user pressed Enter — text is what they typed\n});\n`,
+    onItemClick: `\n${name}.onItemClick((item, index) => {\n  // item = the tapped row's text, index = its position (0, 1, 2...)\n});\n`,
   };
   const snippet = snippets[event];
   store.jsCodeByPage.value[el.pageId] = `${current.replace(/\s*$/, "")}\n${declaration}${snippet}`;

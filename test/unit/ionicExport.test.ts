@@ -88,6 +88,12 @@ describe("ionic export generator", () => {
     expect(runtimeFile?.content).not.toContain("from '../runtime/codecraft-runtime'");
     const rendererFile = files.find((file) => file.path === "src/components/CodeCraftRenderer.vue");
     expect(rendererFile?.content).toContain("emit('run-event', props.element.id, 'ready')");
+    expect(rendererFile?.content).toContain("emit('run-event', props.element.id, 'longpress')");
+    expect(rendererFile?.content).toContain("'itemclick'");
+    expect(runtimeFile?.content).toContain('const NO_CLICK_TYPES: string[] = ["Heading","Label","Spinner","Separator","Spacer"]');
+    expect(runtimeFile?.content).toContain("onShow(cb: () => unknown)");
+    const pageFile = files.find((file) => file.path === "src/views/CodeCraftPage.vue");
+    expect(pageFile?.content).toContain("onIonViewWillLeave(() => {");
   });
 
   it("creates a stable export folder name", () => {
