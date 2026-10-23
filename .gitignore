@@ -27,3 +27,6 @@ logs
 exports/apk/*/android-project/
 exports/apk/*/*.apk
 .nuxt-apk
+
+# GitHub Pages build (web edition)
+.nuxt-pages
