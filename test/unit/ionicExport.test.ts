@@ -80,6 +80,9 @@ describe("ionic export generator", () => {
     expect(runtimeFile?.content).toContain("goTo(pageId: string)");
     expect(runtimeFile?.content).toContain("function collectTree(rootId: string)");
     expect(runtimeFile?.content).toContain("function collectContainerAncestors(element: CodeCraftElement)");
+    expect(runtimeFile?.content).toContain("onChange(cb: (value: unknown) => unknown)");
+    expect(runtimeFile?.content).toContain('"RangeInput":["value"]');
+    expect(runtimeFile?.content).toContain("export function getChangeValue(");
   });
 
   it("creates a stable export folder name", () => {

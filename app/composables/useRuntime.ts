@@ -1,5 +1,5 @@
 import type { AppElement } from './useEditorStore'
-import { getComponentClassMap } from '../utils/componentApi'
+import { CHANGE_EVENT_PROPS, getComponentClassMap } from '../utils/componentApi'
 import { usePaletteItems } from './usePaletteItems'
 import { createRuntimeServices } from '../utils/runtimeServices'
 import type { RuntimeServiceHost, RuntimeServices } from '../utils/runtimeServices'
@@ -34,6 +34,7 @@ export interface ElementInstance {
   __el: AppElement
   __onClick: (() => void) | null
   __onBackClick?: (() => void) | null
+  __onChange?: ((value: unknown) => unknown) | null
   backButton?: {
     onClick(cb: () => void): unknown
   }
@@ -48,6 +49,7 @@ export interface ElementInstance {
   setType?(type: string): ElementInstance
   setTitle?(title: string): ElementInstance
   onClick(cb: () => void): ElementInstance
+  onChange?(cb: (value: unknown) => unknown): ElementInstance
   toString(): string
   valueOf(): unknown
 }
@@ -137,6 +139,20 @@ export function buildScaffold(elements: AppElement[]): string {
   }
 
   return lines.join('\n')
+}
+
+/**
+ * The value an onChange handler receives for a run-input patch, typed for the
+ * element (Range → number, Toggle/Checkbox → boolean). undefined when the patch
+ * is not a value change (e.g. Map lastClick) or the element has no onChange.
+ */
+export function getRuntimeChangeValue(type: string, propsPatch: Record<string, unknown>): unknown {
+  const prop = CHANGE_EVENT_PROPS[type]?.find(name => name in propsPatch)
+  if (!prop) return undefined
+  const raw = propsPatch[prop]
+  if (type === 'RangeInput' || type === 'Segment') return Number(raw)
+  if (type === 'Toggle' || type === 'Checkbox' || typeof raw === 'boolean') return Boolean(raw)
+  return String(raw ?? '')
 }
 
 export function syncRuntimeElementProps(
@@ -361,6 +377,7 @@ export function executeCode(
     __el!: AppElement
     __onClick: (() => void) | null = null
     __onBackClick: (() => void) | null = null
+    __onChange: ((value: unknown) => unknown) | null = null
 
     constructor(id: string, className: string) {
       const existing = instanceById.get(id)
@@ -570,6 +587,14 @@ export function executeCode(
         return this
       }
       this.__onClick = cb
+      return this
+    }
+
+    onChange(cb: (value: unknown) => unknown): this {
+      if (!CHANGE_EVENT_PROPS[this.__el.type]) {
+        throw new Error(`${this.__el.type} does not support onChange()`)
+      }
+      this.__onChange = cb
       return this
     }
 

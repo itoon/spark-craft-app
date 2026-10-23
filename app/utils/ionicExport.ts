@@ -1,4 +1,5 @@
 import type { AppElement, Page } from "../composables/useEditorStore";
+import { CHANGE_EVENT_PROPS } from "./componentApi";
 
 export interface IonicExportPayload {
   appName: string;
@@ -208,6 +209,7 @@ export interface RuntimeInstance {
   __el: CodeCraftElement;
   __onClick: (() => void) | null;
   __onBackClick?: (() => void) | null;
+  __onChange?: ((value: unknown) => unknown) | null;
   backButton?: {
     onClick(cb: () => unknown): unknown;
   };
@@ -222,11 +224,25 @@ export interface RuntimeInstance {
     toString(): string;
   }>;
   onClick(cb: () => void): RuntimeInstance;
+  onChange?(cb: (value: unknown) => unknown): RuntimeInstance;
 }
 
 export interface RuntimeResult {
   pageElements: CodeCraftElement[];
   instances: RuntimeInstance[];
+}
+
+/** Elements the user can change → props in an input patch that fire onChange */
+const CHANGE_EVENT_PROPS: Record<string, string[]> = ${JSON.stringify(CHANGE_EVENT_PROPS)};
+
+/** Typed value for onChange, or undefined when the patch is not a value change */
+export function getChangeValue(type: string, patch: Record<string, unknown>): unknown {
+  const prop = CHANGE_EVENT_PROPS[type]?.find((name) => name in patch);
+  if (!prop) return undefined;
+  const raw = patch[prop];
+  if (type === 'RangeInput' || type === 'Segment') return Number(raw);
+  if (type === 'Toggle' || type === 'Checkbox' || typeof raw === 'boolean') return Boolean(raw);
+  return String(raw ?? '');
 }
 
 function updateProps(
@@ -320,6 +336,7 @@ export function executeCode(
     __el: CodeCraftElement;
     __onClick: (() => void) | null = null;
     __onBackClick: (() => void) | null = null;
+    __onChange: ((value: unknown) => unknown) | null = null;
 
     constructor(id: string, className: string) {
       this.__el = getElement(id, className);
@@ -355,6 +372,14 @@ export function executeCode(
 
     onClick(cb: () => void) {
       this.__onClick = cb;
+      return this;
+    }
+
+    onChange(cb: (value: unknown) => unknown) {
+      if (!CHANGE_EVENT_PROPS[this.__el.type]) {
+        throw new Error(\`\${this.__el.type} does not support onChange()\`);
+      }
+      this.__onChange = cb;
       return this;
     }
 
@@ -1232,7 +1257,8 @@ import {
   pages,
   type CodeCraftElement,
 } from '../data/codecraft-app';
-import { executeCode } from '../runtime/codecraft-runtime';
+import { executeCode, getChangeValue } from '../runtime/codecraft-runtime';
+import type { RuntimeInstance } from '../runtime/codecraft-runtime';
 
 const props = defineProps<{
   pageId: string;
@@ -1241,6 +1267,7 @@ const props = defineProps<{
 const router = useRouter();
 const runtimeElements = ref<CodeCraftElement[]>([]);
 const clickHandlers = ref<Record<string, () => void>>({});
+const changeInstances = ref<Record<string, RuntimeInstance>>({});
 const runtimeError = ref('');
 const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton';
 
@@ -1367,9 +1394,15 @@ function runPage() {
         return handlers;
       }),
     );
+    changeInstances.value = Object.fromEntries(
+      result.instances
+        .filter((instance) => instance.__onChange)
+        .map((instance) => [instance.__el.id, instance]),
+    );
   } catch (error) {
     runtimeElements.value = baseElements;
     clickHandlers.value = {};
+    changeInstances.value = {};
     runtimeError.value = error instanceof Error ? error.message : 'Unknown runtime error';
   }
 }
@@ -1396,6 +1429,13 @@ function handleInput(id: string, patch: Record<string, unknown>) {
         }
       : element,
   );
+
+  // Only user input arrives here, so onChange can't loop on code assignments
+  const instance = changeInstances.value[id];
+  if (!instance?.__onChange) return;
+  Object.assign(instance.__el.props, patch);
+  const value = getChangeValue(instance.__el.type, patch);
+  if (value !== undefined) instance.__onChange(value);
 }
 </script>
 

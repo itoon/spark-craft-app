@@ -37,6 +37,41 @@ const COMPONENT_CLASS_NAME_BY_TYPE: Record<string, string> = {
 
 const EXTRA_DEFAULT_PROPS: Record<string, Record<string, unknown>> = {};
 
+/**
+ * Elements the user can change in Run mode → the props in a run-input patch
+ * that count as "the value changed" (and fire onChange).
+ */
+export const CHANGE_EVENT_PROPS: Record<string, string[]> = {
+  Input: ["value"],
+  LabelledInput: ["value"],
+  Searchbar: ["value"],
+  Select: ["value"],
+  DateTimePicker: ["value"],
+  TextBox: ["content"],
+  RangeInput: ["value"],
+  Toggle: ["on"],
+  Checkbox: ["checked"],
+  RadioButton: ["value", "selected"],
+  Segment: ["selected"],
+};
+
+export function supportsChangeEvent(designType: string) {
+  return designType in CHANGE_EVENT_PROPS;
+}
+
+const CHANGE_METHOD = "onChange(callback(value))";
+
+// onChange example per element: [callback param, body]
+const CHANGE_EXAMPLE_BY_TYPE: Record<string, [string, string]> = {
+  RangeInput: ["value", "label1.text = 'ค่า: ' + value;"],
+  Toggle: ["on", "label1.text = on ? 'เปิด' : 'ปิด';"],
+  Checkbox: ["checked", "label1.text = checked ? 'ติ๊กแล้ว ✅' : 'ยังไม่ติ๊ก';"],
+  Select: ["choice", "label1.text = 'เลือก: ' + choice;"],
+  RadioButton: ["choice", "label1.text = 'ตอบ: ' + choice;"],
+  DateTimePicker: ["date", "label1.text = 'วันที่: ' + date;"],
+  Segment: ["index", "label1.text = 'แท็บที่ ' + index;"],
+};
+
 const COMMON_ELEMENT_METHODS = ["onClick(callback)"];
 const CAMERA_METHODS = [
   "open()",
@@ -103,6 +138,7 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
 
     const methods = unique([
       ...COMMON_ELEMENT_METHODS,
+      ...(supportsChangeEvent(designType) ? [CHANGE_METHOD] : []),
       ...(designType === "Camera" ? CAMERA_METHODS : []),
       ...(designType === "Toolbar" ? TOOLBAR_METHODS : []),
       ...(designType === "Spinner" ? SPINNER_METHODS : []),
@@ -119,6 +155,18 @@ export function getComponentApiSchemas(): ComponentApiSchema[] {
       codeExample: [
         `var ${className.charAt(0).toLowerCase()}${className.slice(1)}1 = new ${className}('page1_${className.toLowerCase()}1');`,
         `page.add(${className.charAt(0).toLowerCase()}${className.slice(1)}1);`,
+        ...(supportsChangeEvent(designType)
+          ? (() => {
+              const [param, body] = CHANGE_EXAMPLE_BY_TYPE[designType] ?? ["text", "label1.text = text;"];
+              return [
+                ``,
+                `// Runs every time the user changes the value`,
+                `${className.charAt(0).toLowerCase()}${className.slice(1)}1.onChange((${param}) => {`,
+                `  ${body}`,
+                `});`,
+              ];
+            })()
+          : []),
         ...(designType === "Toolbar"
           ? [
               `${className.charAt(0).toLowerCase()}${className.slice(1)}1.backButton.onClick(() => {`,

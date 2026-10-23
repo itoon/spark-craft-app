@@ -7,6 +7,7 @@ import {
 } from "../../app/utils/componentApi";
 import {
   executeCode,
+  getRuntimeChangeValue,
   syncRuntimeElementProps,
   type ElementInstance,
   type RuntimeExecutionEvent,
@@ -329,6 +330,58 @@ describe("executeCode", () => {
   });
 });
 
+describe("onChange", () => {
+  it("registers onChange on elements the user can change", () => {
+    const elements: AppElement[] = [
+      makeElement("page1_range1", "RangeInput", { value: 5 }),
+      makeElement("page1_toggle1", "Toggle", { on: false }),
+      makeElement("page1_input1", "Input", { value: "" }),
+    ];
+    const result = executeCode(
+      [
+        "var range1 = new Range('page1_range1'); page.add(range1);",
+        "var toggle1 = new Toggle('page1_toggle1'); page.add(toggle1);",
+        "var input1 = new Input('page1_input1'); page.add(input1);",
+        "range1.onChange((v) => console.log('range ' + v));",
+        "toggle1.onChange((on) => console.log('toggle ' + on));",
+        "input1.onChange((t) => console.log('input ' + t));",
+      ].join("\n"),
+      elements,
+    );
+
+    expect(result.logs.some((log) => log.type === "error")).toBe(false);
+    for (const instance of result.instances) {
+      expect(typeof instance.__onChange).toBe("function");
+    }
+
+    const range = result.instances.find((i) => i.__el.id === "page1_range1")!;
+    range.__onChange!(7);
+    expect(result.logs.some((log) => log.message === "range 7")).toBe(true);
+  });
+
+  it("explains that display elements have no onChange", () => {
+    const result = executeCode(
+      "var label1 = new Label('page1_label1'); page.add(label1); label1.onChange(() => {});",
+      [makeElement("page1_label1", "Label", { text: "Hi" })],
+    );
+
+    expect(result.logs.some((log) => log.type === "error" && log.message === "Label does not support onChange()")).toBe(true);
+  });
+
+  it("types the value passed to onChange from a run-input patch", () => {
+    expect(getRuntimeChangeValue("RangeInput", { value: "42" })).toBe(42);
+    expect(getRuntimeChangeValue("Toggle", { on: 1 })).toBe(true);
+    expect(getRuntimeChangeValue("Checkbox", { checked: false })).toBe(false);
+    expect(getRuntimeChangeValue("Input", { value: "hello" })).toBe("hello");
+    expect(getRuntimeChangeValue("TextBox", { content: "diary" })).toBe("diary");
+    expect(getRuntimeChangeValue("RadioButton", { value: "B" })).toBe("B");
+    expect(getRuntimeChangeValue("RadioButton", { selected: true })).toBe(true);
+    expect(getRuntimeChangeValue("Segment", { selected: "2" })).toBe(2);
+    expect(getRuntimeChangeValue("Map", { lastClick: { lat: 1, lng: 2 } })).toBeUndefined();
+    expect(getRuntimeChangeValue("Input", { placeholder: "x" })).toBeUndefined();
+  });
+});
+
 describe("syncRuntimeElementProps", () => {
   it("keeps runtime instances in sync after the user edits an input value", () => {
     const elements: AppElement[] = [
@@ -559,5 +612,18 @@ describe("componentApi", () => {
     expect(camera?.methods).toContain("open()");
     expect(camera?.methods).toContain("close()");
     expect(fab?.designType).toBe("FloatingActionButton");
+  });
+
+  it("lists onChange only for elements the user can change (Cmd+K)", () => {
+    const range = findComponentApiSchemaByClassName("Range");
+    const toggle = findComponentApiSchemaByClassName("Toggle");
+    const label = findComponentApiSchemaByClassName("Label");
+    const button = findComponentApiSchemaByClassName("Button");
+
+    expect(range?.methods).toContain("onChange(callback(value))");
+    expect(range?.codeExample).toContain("range1.onChange((value) => {");
+    expect(toggle?.methods).toContain("onChange(callback(value))");
+    expect(label?.methods).not.toContain("onChange(callback(value))");
+    expect(button?.methods).not.toContain("onChange(callback(value))");
   });
 });

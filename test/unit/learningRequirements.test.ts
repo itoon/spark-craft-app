@@ -135,6 +135,28 @@ describe("learning requirements", () => {
     expect(handlerResult.met).toBe(true);
   });
 
+  it("supports onChange runtime-handler checks", () => {
+    const elements = [makeElement("page1_range1", "RangeInput")];
+    const requirement = {
+      id: "range-change",
+      type: "runtime-handler" as const,
+      elementType: "RangeInput",
+      pageId: "page1",
+      event: "onChange" as const,
+      minCount: 1,
+      message: "Attach onChange.",
+    };
+    const base = "const range1 = new Range('page1_range1')\npage.add(range1)";
+
+    expect(evaluateLearningRequirement(requirement, makeContext(elements, base)).met).toBe(false);
+    expect(
+      evaluateLearningRequirement(
+        requirement,
+        makeContext(elements, `${base}\nrange1.onChange((value) => console.log(value))`),
+      ).met,
+    ).toBe(true);
+  });
+
   it("supports source code pattern checks", () => {
     const result = evaluateLearningRequirement(
       {
