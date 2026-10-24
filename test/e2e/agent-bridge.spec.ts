@@ -41,17 +41,35 @@ async function waitFor<T>(
 beforeAll(async () => {
   const port = await freePort();
   base = `http://localhost:${port}`;
+  // Own process group: `bunx` is a wrapper, so killing only its pid would
+  // leave `nuxt dev` running after the test.
   server = spawn("bunx", ["nuxt", "dev", "--port", String(port)], {
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
+    detached: true,
     env: { ...process.env, NUXT_PUBLIC_CODECRAFT_WEB: "" },
   });
-  await waitFor(async () => (await fetch(base)).ok, 40_000);
+  let stderr = "";
+  server.stderr?.on("data", (chunk) => {
+    stderr += String(chunk);
+  });
+  try {
+    await waitFor(async () => (await fetch(base)).ok, 40_000);
+  } catch (error) {
+    console.error(`nuxt dev did not start. stderr:\n${stderr}`);
+    throw error;
+  }
   browser = await chromium.launch();
 }, 60_000);
 
 afterAll(async () => {
   await browser?.close();
-  server?.kill("SIGTERM");
+  if (server?.pid) {
+    try {
+      process.kill(-server.pid, "SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  }
 });
 
 it("an AI op shows up live in the open editor", async () => {
