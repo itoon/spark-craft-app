@@ -30,3 +30,10 @@ exports/apk/*/*.apk
 
 # GitHub Pages build (web edition)
 .nuxt-pages
+
+# Classroom HTTPS certificates (scripts/lan-cert.mjs) — the CA key stays on this computer
+.certs
+
+# LAN server build (scripts/serve-lan.mjs)
+.nuxt-lan
+.output-lan

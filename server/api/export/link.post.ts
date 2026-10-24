@@ -1,12 +1,14 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { getRequestHost, getRequestProtocol } from "h3";
 
 import { buildShareId, type SharedExportPayload, type SharedExportRecord } from "../../../app/utils/sharedExport";
+import { decodePngDataUrl } from "../../utils/apkIcon";
+import { SHARE_ID } from "../../utils/pwaApp";
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<SharedExportPayload>(event);
+  const body = await readBody<SharedExportPayload & { icon?: unknown }>(event);
 
   const payload: SharedExportPayload = {
     appName: body.appName?.trim() || "CodeCraft App",
@@ -21,7 +23,8 @@ export default defineEventHandler(async (event) => {
     shareId: body.shareId || null,
   };
 
-  const id = payload.shareId?.trim() || buildShareId();
+  const requestedId = payload.shareId?.trim();
+  const id = requestedId && SHARE_ID.test(requestedId) ? requestedId : buildShareId();
   const directory = join(process.cwd(), "exports", "shared-links");
   const filePath = join(directory, `${id}.json`);
   await mkdir(directory, { recursive: true });
@@ -43,6 +46,12 @@ export default defineEventHandler(async (event) => {
   };
 
   await writeFile(filePath, JSON.stringify(record, null, 2), "utf8");
+
+  // Home-screen icon for /pwa/<id> (Add to Home Screen on iPhone)
+  const iconPath = join(directory, `${id}.png`);
+  const icon = decodePngDataUrl(body.icon);
+  if (icon) await writeFile(iconPath, icon);
+  else await rm(iconPath, { force: true });
 
   const protocol = getRequestProtocol(event, { xForwardedProto: true });
   const host = getRequestHost(event, { xForwardedHost: true });
