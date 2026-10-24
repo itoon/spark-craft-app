@@ -24,8 +24,9 @@ export function listLanAddresses(
   const addresses: LanAddress[] = [];
   for (const [name, entries] of Object.entries(interfaces)) {
     for (const entry of entries ?? []) {
-      const family = typeof entry.family === "string" ? entry.family : `IPv${entry.family}`;
-      if (family !== "IPv4" || entry.internal) continue;
+      // Some Node versions report the family as the number 4
+      const isIPv4 = entry.family === "IPv4" || String(entry.family) === "4";
+      if (!isIPv4 || entry.internal) continue;
       addresses.push({ name, address: entry.address });
     }
   }
