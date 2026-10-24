@@ -153,7 +153,7 @@ describe('purity and summaries', () => {
 
   it('listComponentTypes exposes events and container flag', () => {
     const types = listComponentTypes()
-    expect(types.find(t => t.type === 'Button')!.events).toContain('click')
+    expect(types.find(t => t.type === 'Button')!.events).toContain('onClick')
     expect(types.find(t => t.type === 'Container')!.isContainer).toBe(true)
   })
 

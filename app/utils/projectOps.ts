@@ -319,8 +319,7 @@ export function listComponentTypes(): ComponentTypeInfo[] {
     type: item.type,
     label: item.label,
     defaultProps: structuredClone(item.defaultProps),
-    // getElementEvents returns code names (onClick); expose the bare event (click)
-    events: getElementEvents(item.type).map(e => e.replace(/^on/, '').replace(/^./, c => c.toLowerCase())),
+    events: getElementEvents(item.type),
     isContainer: isContainerType(item.type),
   }))
 }
