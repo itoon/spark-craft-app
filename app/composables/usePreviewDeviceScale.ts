@@ -1,10 +1,11 @@
-import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef, type Ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, unref, type ComputedRef, type Ref } from 'vue'
 
 import type { PreviewDeviceDef } from '~/composables/usePreviewDevices'
 
 interface ScaleOptions {
   widthPadding?: number
-  heightPadding?: number
+  /** Space kept free below/above the phone; reactive when the space changes */
+  heightPadding?: number | Ref<number> | ComputedRef<number>
   minWidth?: number
   minHeight?: number
   /** Allow growing past native size on big screens (default 1 = never grow) */
@@ -33,7 +34,7 @@ export function usePreviewDeviceScale(
     )
     const availableHeight = Math.max(
       options.minHeight ?? 420,
-      containerHeight.value - (options.heightPadding ?? 120)
+      containerHeight.value - (unref(options.heightPadding) ?? 120)
     )
 
     return Math.min(

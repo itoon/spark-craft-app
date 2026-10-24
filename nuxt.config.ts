@@ -22,11 +22,20 @@ export default defineNuxtConfig({
   // scripts/build-apk.sh builds into its own folder so a running dev server
   // is never disturbed
   buildDir: process.env.CODECRAFT_BUILD_DIR || ".nuxt",
+  // scripts/serve-lan.mjs builds into .output-lan, which an APK build
+  // (it clears .output/public) can't wipe while the classroom server runs
+  ...(process.env.CODECRAFT_OUTPUT_DIR ? { nitro: { output: { dir: process.env.CODECRAFT_OUTPUT_DIR } } } : {}),
   // Disable Ionic's basic CSS (normalize + structure + typography) globally —
   // those rules override Tailwind's resets on html/body/headings and break the
   // editor layout.  core.css is safe (only sets ion-* CSS variables).
   // Basic CSS is loaded only on the /ionic-test page via layouts/ionic.vue.
   css: ["~/assets/css/main.css"],
+  // Icons ship with the app (classroom Wi-Fi may have no internet, and shared
+  // apps must work offline) instead of loading from api.iconify.design
+  icon: {
+    serverBundle: { collections: ["lucide"] },
+    clientBundle: { scan: true },
+  },
   ionic: {
     css: {
       core: true,

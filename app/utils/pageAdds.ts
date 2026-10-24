@@ -7,6 +7,8 @@
  * functions with computed ids can't be seen, so the UI words it as a hint.
  */
 
+import { isNonVisualType } from "./componentApi";
+
 const IDENT = "[A-Za-z_$][\\w$]*";
 /** A quoted id; `quoteGroup` is the capture-group number of the opening quote. */
 const quotedId = (quoteGroup: number) => `(['"\`])([^'"\`\\n]+)\\${quoteGroup}`;
@@ -42,7 +44,8 @@ export function findAddedIds(code: string): Set<string> {
 
 /** Elements that never need page.add() themselves (added with their children). */
 export function needsPageAdd(type: string): boolean {
-  return type !== "Container";
+  // Containers come along with their children; off-screen elements (Sound) are never shown
+  return type !== "Container" && !isNonVisualType(type);
 }
 
 /**

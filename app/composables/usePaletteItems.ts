@@ -306,6 +306,19 @@ export function usePaletteItems(): PaletteGroup[] {
             ionicColorContrast: "#ffffff",
           },
         },
+        {
+          // Off-screen: lives in the tray under the phone, no page.add()
+          type: "Sound",
+          label: "Sound",
+          icon: "i-lucide-volume-2",
+          defaultWidth: 0,
+          defaultHeight: 0,
+          defaultProps: {
+            sound: "coin",
+            volume: 80,
+            loop: false,
+          },
+        },
       ],
     },
   ];

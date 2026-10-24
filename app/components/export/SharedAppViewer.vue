@@ -96,6 +96,8 @@ import {
 import type { AppElement } from "~/composables/useEditorStore";
 import type { ElementInstance, RuntimePageHandlers } from "~/composables/useRuntime";
 import type { SharedExportPayload } from "~/utils/sharedExport";
+import { stopAllSounds } from "~/utils/soundLibrary";
+import { isOnPage } from "~/utils/componentApi";
 import { getPreviewDevice } from "~/composables/usePreviewDevices";
 import { usePreviewDeviceScale } from "~/composables/usePreviewDeviceScale";
 import { useRuntimeNotifications } from "~/composables/useRuntimeNotifications";
@@ -165,6 +167,10 @@ const { scale: desktopScale } = usePreviewDeviceScale(desktopPreviewRef, activeD
   heightPadding: 96,
 })
 
+// page.onShow / page.onLeave of the page that is showing now.
+// Declared before the immediate watcher below, which calls runCode() right away.
+let pageHandlers: RuntimePageHandlers = { show: null, leave: null };
+
 watch(
   () => [props.payload.startPageId, props.payload.elements, props.payload.jsCodeByPage],
   () => {
@@ -175,15 +181,13 @@ watch(
   { deep: true, immediate: true },
 );
 
-// page.onShow / page.onLeave of the page that is showing now
-let pageHandlers: RuntimePageHandlers = { show: null, leave: null };
-
 function runCode() {
   disposeServices();
   pageHandlers = { show: null, leave: null };
   notifications.clear();
   runtimeError.value = "";
-  const allElements = elementState.value.filter((element) => element.pageId === currentPageId.value);
+  // This page's elements plus app-wide ones (Sound)
+  const allElements = elementState.value.filter((element) => isOnPage(element, currentPageId.value));
   // Page without code (Code tab never opened): same scaffold the editor's Run uses
   const savedCode = props.payload.jsCodeByPage[currentPageId.value] || "";
   const code = savedCode.trim() ? savedCode : buildScaffold(allElements);
@@ -317,6 +321,7 @@ function handleRunEvent(id: string, name: string, payload?: unknown) {
 
 onBeforeUnmount(() => {
   disposeServices();
+  stopAllSounds();
   notifications.clear();
   desktopQuery?.removeEventListener("change", onDesktopQueryChange);
 });

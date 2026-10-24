@@ -1,16 +1,18 @@
 {
   "name": "codecraftapp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "private": true,
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
-    "dev:https": "nuxt dev --https --host 0.0.0.0",
+    "dev:https": "node scripts/lan-cert.mjs && nuxt dev --host 0.0.0.0 --https.cert .certs/lan.pem --https.key .certs/lan-key.pem",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "build:apk": "bash scripts/build-apk.sh"
+    "build:apk": "bash scripts/build-apk.sh",
+    "serve:lan": "node scripts/serve-lan.mjs",
+    "mcp": "bun mcp/server.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
@@ -20,6 +22,7 @@
     "@codemirror/search": "^6.6.0",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.0",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@nuxt/ui": "^4.6.0",
     "@nuxtjs/ionic": "^1.0.2",
     "@types/qrcode": "^1.5.6",
@@ -28,9 +31,11 @@
     "qrcode": "^1.5.4",
     "tailwindcss": "^4.2.2",
     "vue": "^3.5.31",
-    "vue-router": "^5.0.4"
+    "vue-router": "^5.0.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@iconify-json/lucide": "^1.2.147",
     "@nuxt/test-utils": "^4.0.0",
     "@playwright/test": "^1.59.1",
     "@vue/test-utils": "^2.4.6",

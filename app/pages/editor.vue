@@ -152,6 +152,16 @@
         >{{ live.connectedCount.value }}</span>
       </UButton>
 
+      <!-- AI (MCP server) is editing this tab's project -->
+      <UBadge
+        v-if="agent.connected.value"
+        color="success"
+        variant="subtle"
+        icon="i-lucide-bot"
+        class="shrink-0"
+        data-testid="agent-badge"
+      >AI เชื่อมต่อแล้ว</UBadge>
+
       <!-- Share Link button -->
       <UButton
         v-if="!edition.isWeb.value"
@@ -357,6 +367,16 @@
             class="size-48 rounded-lg bg-white p-2"
           />
           <p class="text-xs text-neutral-400 text-center break-all select-all font-mono">{{ shareLinkOverlay.url }}</p>
+          <!-- Offline install needs a certificate the phone trusts (bun run serve:lan) -->
+          <p
+            v-if="shareLinkOverlay.url.startsWith('https://')"
+            class="text-xs text-neutral-400 text-center"
+            data-testid="share-cert-hint"
+          >
+            มือถือเครื่องใหม่: เปิด
+            <span class="font-mono text-neutral-200 select-all">{{ shareCertUrl }}</span>
+            ครั้งแรกก่อน แล้วแอปจะติดตั้งลงหน้าจอโฮมและใช้ออฟไลน์ได้
+          </p>
           <div class="flex items-center gap-2 w-full">
             <UButton
               :label="shareLinkOverlay.copied ? 'Copied!' : 'Copy URL'"
@@ -382,15 +402,17 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import QRCode from "qrcode";
 
+import { useAgentBridge } from "~/composables/useAgentBridge";
 import { useChangelog } from "~/composables/useChangelog";
 import { useEdition } from "~/composables/useEdition";
 import { useEditorStore } from "~/composables/useEditorStore";
 import type { EditorMode } from "~/composables/useEditorStore";
 import { useLiveCompanion } from "~/composables/useLiveCompanion";
 import { useLearning, type AppMode } from "~/composables/useLearning";
+import { renderAppIconPngs } from "~/utils/renderAppIcon";
 
 useHead({
   title: "Editor — CodeCraft",
@@ -400,6 +422,7 @@ const store = useEditorStore();
 const changelog = useChangelog();
 const edition = useEdition();
 const live = useLiveCompanion();
+const agent = useAgentBridge();
 const learning = useLearning();
 const isLiveDialogOpen = ref(false);
 const isApkDialogOpen = ref(false);
@@ -415,6 +438,14 @@ const isCreatingShareLink = ref(false);
 const isCommandPaletteOpen = ref(false);
 const isAppSettingsOpen = ref(false);
 
+// Page that walks a phone through trusting the classroom certificate
+const shareCertUrl = computed(() => {
+  try {
+    return `${new URL(shareLinkOverlay.url).origin}/cert`;
+  } catch {
+    return "";
+  }
+});
 const shareLinkOverlay = reactive({
   visible: false,
   url: "",
@@ -455,11 +486,14 @@ onMounted(() => {
   window.addEventListener("keydown", onWindowKeydown);
   // Open the workspace that belongs to the saved mode / lesson
   learning.syncWorkspace();
+  // Let an AI (MCP server) edit this project — needs the local server
+  if (!edition.isWeb.value) agent.start();
   isClientReady.value = true;
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onWindowKeydown);
+  agent.stop();
 });
 
 async function copyToClipboard(text: string): Promise<boolean> {
@@ -571,7 +605,14 @@ async function handleCreateShareLink() {
     }>("/api/export/link", {
       method: "POST",
       body: {
-        appName: store.projectName.value || "CodeCraft Shared App",
+        // Name + icon from "แอปของฉัน" — shown when the app is added to a home screen
+        appName:
+          !store.projectName.value || store.projectName.value === "Untitled Project"
+            ? "แอปของฉัน"
+            : store.projectName.value,
+        icon: await renderAppIconPngs(store.appIcon.value, 512)
+          .then((pngs) => pngs.full)
+          .catch(() => null),
         pages: store.pages.value,
         elements: store.elements.value,
         jsCodeByPage: store.jsCodeByPage.value,

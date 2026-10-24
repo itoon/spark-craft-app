@@ -18,7 +18,7 @@
           color="neutral"
           variant="subtle"
           size="xs"
-          @click="runCode"
+          @click="restartSession"
         />
         <UButton
           label="Back to Design"
@@ -186,6 +186,8 @@ import { PREVIEW_DEVICES } from '~/composables/usePreviewDevices'
 import { usePreviewDeviceScale } from '~/composables/usePreviewDeviceScale'
 import { useRuntimeNotifications } from '~/composables/useRuntimeNotifications'
 import { useSensorSimulator } from '~/composables/useSensorSimulator'
+import { stopAllSounds } from '~/utils/soundLibrary'
+import { isOnPage } from '~/utils/componentApi'
 import type { RuntimeServices } from '~/utils/runtimeServices'
 
 const store = useEditorStore()
@@ -245,7 +247,7 @@ function runCode() {
   // No code yet (Code tab never opened): run the scaffold, which adds every element
   let code = store.jsCode.value || ''
   if (!code.trim()) {
-    code = buildScaffold(store.elements.value.filter((el) => el.pageId === store.currentPageId.value))
+    code = buildScaffold(store.elements.value.filter((el) => isOnPage(el, store.currentPageId.value)))
     runtimeLogs.push({ type: 'warn', message: 'No code to run. Using default scaffold.' })
   }
 
@@ -434,8 +436,15 @@ onMounted(() => {
 })
 
 // Optional: clean up when leaving run mode
+// Sounds are app-wide (they keep playing across page.goTo), so only these stop them
+function restartSession() {
+  stopAllSounds()
+  runCode()
+}
+
 onBeforeUnmount(() => {
   disposeServices()
+  stopAllSounds()
   notifications.clear()
   hasRun.value = false
   executionEvents.value = []

@@ -143,6 +143,35 @@
       }"
     />
 
+    <!-- Off-screen elements (Sound): App Inventor's "non-visible components" -->
+    <div
+      v-if="offScreenElements.length"
+      class="flex max-w-full shrink-0 flex-col items-center gap-1.5"
+      data-testid="offscreen-tray"
+    >
+      <span class="text-[10px] font-medium text-neutral-500">เสียงของแอป · ใช้ได้ทุกหน้า</span>
+      <div class="flex max-w-[360px] flex-wrap justify-center gap-1.5">
+        <button
+          v-for="el in offScreenElements"
+          :key="el.id"
+          type="button"
+          class="flex items-center gap-1.5 rounded-full border py-1 pl-1.5 pr-2.5 text-[11px] transition-colors duration-100"
+          :class="
+            store.selectedElementId.value === el.id
+              ? 'border-indigo-400 bg-indigo-500/15 text-indigo-200'
+              : 'border-neutral-700 bg-neutral-800/70 text-neutral-300 hover:border-neutral-500'
+          "
+          @click="store.selectElement(el.id)"
+        >
+          <span class="grid size-5 place-items-center rounded-full bg-neutral-700/80">
+            <UIcon name="i-lucide-volume-2" class="size-3" />
+          </span>
+          <span class="font-mono">{{ el.id }}</span>
+          <span class="text-neutral-500">{{ el.props.sound }}</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Canvas size label -->
     <div class="text-[10px] text-neutral-500 font-mono shrink-0">
       {{ activeDevice.canvasW }} × {{ activeDevice.canvasH }} ·
@@ -156,8 +185,15 @@ import { ref, computed, onMounted, nextTick } from "vue";
 import { useEditorStore } from "~/composables/useEditorStore";
 import { PREVIEW_DEVICES } from "~/composables/usePreviewDevices";
 import { usePreviewDeviceScale } from "~/composables/usePreviewDeviceScale";
+import { APP_PAGE_ID, isNonVisualType } from "~/utils/componentApi";
 
 const store = useEditorStore();
+
+const offScreenElements = computed(() =>
+  store.elements.value.filter(
+    (el) => el.pageId === APP_PAGE_ID && isNonVisualType(el.type),
+  ),
+);
 
 // ─── Page Name Editing ────────────────────────────────────────────────────
 
@@ -202,7 +238,8 @@ const isClientReady = ref(false);
 // Shrink the phone to fit short / narrow windows instead of clipping it.
 const { scale } = usePreviewDeviceScale(workspaceRef, activeDevice, {
   widthPadding: 32,
-  heightPadding: 128,
+  // Leave room for the off-screen tray (Sound) under the phone
+  heightPadding: computed(() => 128 + (offScreenElements.value.length ? 64 : 0)),
   minWidth: 160,
   minHeight: 280,
   maxScale: 1.3,

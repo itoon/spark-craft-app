@@ -6,8 +6,11 @@ import {
   findComponentApiSchemaByClassName,
   getComponentApiSchemas,
   getElementEvents,
+  isNonVisualType,
 } from "../../app/utils/componentApi";
+import { SOUND_LIBRARY, hasSoundRecipe } from "../../app/utils/soundLibrary";
 import {
+  buildScaffold,
   executeCode,
   describeCameraError,
   getRuntimeChangeValue,
@@ -504,6 +507,71 @@ describe("page.onShow / page.onLeave", () => {
   it("has no handlers when the page does not register any", () => {
     const result = executeCode("console.log('hi')", []);
     expect(result.pageHandlers).toEqual({ show: null, leave: null });
+  });
+});
+
+describe("Sound (off-screen plugin)", () => {
+  it("works without page.add and records play / stop in the trace", () => {
+    const result = executeCode(
+      [
+        "var sound1 = new Sound('page1_sound1');",
+        "sound1.play();",
+        "sound1.volume = 40;",
+        "sound1.stop();",
+      ].join("\n"),
+      [makeElement("page1_sound1", "Sound", { sound: "win", volume: 80, loop: false })],
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { services: { dryRun: true } },
+    );
+
+    expect(result.logs.some((log) => log.type === "error")).toBe(false);
+    expect(result.pageElements).toEqual([]);
+    expect(result.events.map((event) => event.message)).toEqual(
+      expect.arrayContaining(["page1_sound1.play() → win", "page1_sound1.volume = 40", "page1_sound1.stop()"]),
+    );
+  });
+
+  it("explains that a Sound can't be tapped", () => {
+    const result = executeCode(
+      "var s = new Sound('page1_sound1'); s.onClick(() => {});",
+      [makeElement("page1_sound1", "Sound", { sound: "coin" })],
+    );
+
+    expect(result.logs.some((log) => log.message.startsWith("Sound is not on the screen"))).toBe(true);
+  });
+
+  it("only Sound has play / stop / onEnd", () => {
+    const result = executeCode(
+      "var b = new Button('page1_b'); page.add(b); b.play();",
+      [makeElement("page1_b", "Button")],
+    );
+
+    expect(result.logs.some((log) => log.message === "Button does not support play()")).toBe(true);
+  });
+
+  it("scaffolds Sound without page.add", () => {
+    const code = buildScaffold([makeElement("page1_sound1", "Sound", { sound: "coin" })]);
+    expect(code).toContain("var sound1 = new Sound('page1_sound1');");
+    expect(code).not.toContain("page.add(sound1)");
+  });
+
+  it("every built-in sound can play and has a Thai name", () => {
+    for (const sound of SOUND_LIBRARY) {
+      expect(hasSoundRecipe(sound.id)).toBe(true);
+      expect(sound.label.length).toBeGreaterThan(0);
+    }
+    expect(new Set(SOUND_LIBRARY.map((sound) => sound.id)).size).toBe(SOUND_LIBRARY.length);
+  });
+
+  it("lists Sound in Cmd+K as off-screen with play / stop / onEnd", () => {
+    const sound = findComponentApiSchemaByClassName("Sound");
+    expect(sound?.methods).toEqual(["play()", "stop()", "onEnd(callback)"]);
+    expect(sound?.codeExample).not.toContain("page.add(sound1)");
+    expect(isNonVisualType("Sound")).toBe(true);
+    expect(getElementEvents("Sound")).toEqual(["onEnd"]);
   });
 });
 

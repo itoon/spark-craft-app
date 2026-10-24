@@ -1,5 +1,5 @@
 import type { AppElement, Page } from "../composables/useEditorStore";
-import { CHANGE_EVENT_PROPS, ELEMENT_EVENT_TYPES, NO_CLICK_TYPES } from "./componentApi";
+import { APP_PAGE_ID, CHANGE_EVENT_PROPS, ELEMENT_EVENT_TYPES, NO_CLICK_TYPES, NON_VISUAL_TYPES, isNonVisualType, isOnPage } from "./componentApi";
 
 export interface IonicExportPayload {
   appName: string;
@@ -40,6 +40,7 @@ const ELEMENT_CLASS_MAP: Record<string, string> = {
   Card: "Card",
   Segment: "Segment",
   Container: "Container",
+  Sound: "Sound",
 };
 
 function slugify(value: string): string {
@@ -82,7 +83,7 @@ export function buildDefaultPageCode(pageElements: AppElement[]): string {
     const className = ELEMENT_CLASS_MAP[element.type] ?? element.type;
     const variableName = varNameFromId(element.id);
     lines.push(`const ${variableName} = new ${className}('${element.id}')`);
-    lines.push(`page.add(${variableName})`);
+    if (!isNonVisualType(element.type)) lines.push(`page.add(${variableName})`);
     lines.push("");
   }
 
@@ -171,7 +172,7 @@ function buildGeneratedDataFile(payload: IonicExportPayload): string {
     payload.pages.map((page) => [
       page.id,
       payload.jsCodeByPage[page.id]?.trim() || buildDefaultPageCode(
-        payload.elements.filter((element) => element.pageId === page.id),
+        payload.elements.filter((element) => isOnPage(element, page.id)),
       ),
     ]),
   );
@@ -629,6 +630,24 @@ export function executeCode(
   const Segment = make('Segment');
   const Container = make('Container');
 
+  // Sound plays in the CodeCraft editor, shared link and APK; the Ionic
+  // export keeps the calls working but silent for now
+  class Sound extends BaseElement {
+    constructor(id: string) {
+      super(id, 'Sound');
+    }
+    play() {
+      console.warn('Sound is not supported in the Ionic export yet:', this.__el.props.sound);
+      return this;
+    }
+    stop() {
+      return this;
+    }
+    onEnd() {
+      return this;
+    }
+  }
+
   const pageHandlers: RuntimeResult['pageHandlers'] = { show: null, leave: null };
   const page = {
     onShow(cb: () => unknown) {
@@ -686,6 +705,7 @@ export function executeCode(
     'Card',
     'Segment',
     'Container',
+    'Sound',
     code,
   );
 
@@ -715,6 +735,7 @@ export function executeCode(
     Card,
     Segment,
     Container,
+    Sound,
   );
 
   return {
@@ -1637,6 +1658,8 @@ const router = useRouter();
 const runtimeElements = ref<CodeCraftElement[]>([]);
 const clickHandlers = ref<Record<string, () => void>>({});
 const changeInstances = ref<Record<string, RuntimeInstance>>({});
+// Off-screen elements (Sound) are never drawn
+const NON_VISUAL_TYPES: string[] = ${JSON.stringify(NON_VISUAL_TYPES)};
 const eventInstances = ref<Record<string, RuntimeInstance>>({});
 let pageHandlers: RuntimeResult['pageHandlers'] = { show: null, leave: null };
 
@@ -1651,7 +1674,10 @@ const runtimeError = ref('');
 const TOOLBAR_BACK_BUTTON_CLICK_SUFFIX = '::backButton';
 
 const currentPage = computed(() => pages.find((page) => page.id === props.pageId));
-const pageElements = computed(() => elements.filter((element) => element.pageId === props.pageId));
+// This page's elements plus app-wide ones (Sound)
+const pageElements = computed(() =>
+  elements.filter((element) => element.pageId === props.pageId || element.pageId === '${APP_PAGE_ID}'),
+);
 const elementsMap = computed(() => new Map(runtimeElements.value.map((element) => [element.id, element])));
 
 const toolbarElement = computed(
@@ -1708,7 +1734,8 @@ const bodyElements = computed(() =>
     (element) =>
       element.parentId === null &&
       element.type !== 'Toolbar' &&
-      element.type !== 'FloatingActionButton',
+      element.type !== 'FloatingActionButton' &&
+      !NON_VISUAL_TYPES.includes(element.type),
   ),
 );
 
