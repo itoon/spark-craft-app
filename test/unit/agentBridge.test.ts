@@ -6,6 +6,7 @@ import {
   getAgentBridge,
   isEditorConnected,
   pushEditorState,
+  releaseEditor,
   resetAgentBridgeForTests,
   touchEditor,
   waitForEditorUpdate,
@@ -94,5 +95,42 @@ describe('agentBridge', () => {
     ).toThrow(ProjectOpError)
     expect(getAgentBridge().version).toBe(before)
     expect(getAgentBridge().state).toBe(state)
+  })
+
+  it('released tab: applyAgentOp throws NO_EDITOR at once', () => {
+    claimEditor('A', blankProjectState('A'), 1000)
+    releaseEditor('A')
+    expect(getAgentBridge().tabId).toBeNull()
+    expect(isEditorConnected(1000)).toBe(false)
+    expect(() => applyAgentOp(addPage(), 1000)).toThrow(
+      'ยังไม่มี editor เปิดอยู่ — เปิด http://localhost:3000 ในเบราว์เซอร์ก่อน',
+    )
+  })
+
+  it('release by a non-matching tab is a no-op', () => {
+    claimEditor('A', blankProjectState('A'), 1000)
+    const version = getAgentBridge().version
+    releaseEditor('B')
+    expect(getAgentBridge().tabId).toBe('A')
+    expect(getAgentBridge().version).toBe(version)
+    expect(() => applyAgentOp(addPage(), 1000)).not.toThrow()
+  })
+
+  it('poll answers at once with state:null when no tab is active', async () => {
+    expect(await waitForEditorUpdate('A', 7, 5000)).toEqual({ version: 0, state: null, active: false })
+  })
+
+  it('release wakes a displaced tab with state:null so it can claim', async () => {
+    claimEditor('A', blankProjectState('A'), 1000)
+    const { version } = claimEditor('B', blankProjectState('B'), 1000)
+    const pending = waitForEditorUpdate('A', version, 5000)
+    releaseEditor('B')
+    expect(await pending).toEqual({ version, state: null, active: false })
+  })
+
+  it('a displaced tab with another tab active still waits', async () => {
+    claimEditor('A', blankProjectState('A'), 1000)
+    const { version } = claimEditor('B', blankProjectState('B'), 1000)
+    expect(await waitForEditorUpdate('A', version, 50)).toBeNull()
   })
 })

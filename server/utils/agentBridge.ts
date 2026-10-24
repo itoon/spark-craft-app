@@ -17,6 +17,8 @@ export interface AgentBridge {
   state: PersistedEditorState | null;
   lastSeen: number;
   waiters: Set<() => void>;
+  /** The AI's own share link id — never the editor's `state.shareLinkId`. */
+  agentShareId: string | null;
 }
 
 export const NO_EDITOR_MESSAGE = "ยังไม่มี editor เปิดอยู่ — เปิด http://localhost:3000 ในเบราว์เซอร์ก่อน";
@@ -32,6 +34,7 @@ function createBridge(): AgentBridge {
     state: null,
     lastSeen: 0,
     waiters: new Set(),
+    agentShareId: null,
   };
 }
 
@@ -100,6 +103,18 @@ export function pushEditorState(
   return { ok: true, version: bump(bridge, state, "editor", tabId, now) };
 }
 
+/**
+ * The active tab closed, reloaded or navigated away: forget it so agent ops
+ * fail at once instead of editing a copy nobody sees. Other tabs' polls wake
+ * and see that no tab is active, so one of them can claim.
+ */
+export function releaseEditor(tabId: string): void {
+  const bridge = getAgentBridge();
+  if (bridge.tabId !== tabId) return;
+  bridge.tabId = null;
+  wakeAll(bridge);
+}
+
 export function touchEditor(tabId: string, now = Date.now()): void {
   const bridge = getAgentBridge();
   if (bridge.tabId === tabId) bridge.lastSeen = now;
@@ -120,21 +135,30 @@ export function applyAgentOp(
   return { version: bump(bridge, state, "agent", null, bridge.lastSeen), result };
 }
 
+export type EditorUpdate =
+  | { version: number; state: PersistedEditorState; active: boolean }
+  /** No tab owns the bridge (server restarted, or the owner released it). */
+  | { version: number; state: null; active: false };
+
 /**
  * Resolves with the newest state once a version newer than `since` was written
  * by someone other than `tabId` (the agent, or another tab claiming). `active`
- * tells the tab whether it still owns the bridge. Resolves null on timeout.
+ * tells the tab whether it still owns the bridge. When no tab owns the bridge
+ * it resolves at once with `state: null` so the tab can claim. Resolves null
+ * on timeout.
  */
 export function waitForEditorUpdate(
   tabId: string,
   since: number,
   timeoutMs = LIVE_LONG_POLL_MS,
-): Promise<{ version: number; state: PersistedEditorState; active: boolean } | null> {
+): Promise<EditorUpdate | null> {
   const bridge = getAgentBridge();
-  const snapshot = () =>
-    bridge.state && bridge.version > since && bridge.lastWriterTab !== tabId
+  const snapshot = (): EditorUpdate | null => {
+    if (bridge.tabId === null) return { version: bridge.version, state: null, active: false };
+    return bridge.state && bridge.version > since && bridge.lastWriterTab !== tabId
       ? { version: bridge.version, state: bridge.state, active: bridge.tabId === tabId }
       : null;
+  };
 
   const immediate = snapshot();
   if (immediate) return Promise.resolve(immediate);
