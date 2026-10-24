@@ -152,6 +152,16 @@
         >{{ live.connectedCount.value }}</span>
       </UButton>
 
+      <!-- AI (MCP server) is editing this tab's project -->
+      <UBadge
+        v-if="agent.connected.value"
+        color="success"
+        variant="subtle"
+        icon="i-lucide-bot"
+        class="shrink-0"
+        data-testid="agent-badge"
+      >AI เชื่อมต่อแล้ว</UBadge>
+
       <!-- Share Link button -->
       <UButton
         v-if="!edition.isWeb.value"
@@ -395,6 +405,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 import QRCode from "qrcode";
 
+import { useAgentBridge } from "~/composables/useAgentBridge";
 import { useChangelog } from "~/composables/useChangelog";
 import { useEdition } from "~/composables/useEdition";
 import { useEditorStore } from "~/composables/useEditorStore";
@@ -411,6 +422,7 @@ const store = useEditorStore();
 const changelog = useChangelog();
 const edition = useEdition();
 const live = useLiveCompanion();
+const agent = useAgentBridge();
 const learning = useLearning();
 const isLiveDialogOpen = ref(false);
 const isApkDialogOpen = ref(false);
@@ -474,11 +486,14 @@ onMounted(() => {
   window.addEventListener("keydown", onWindowKeydown);
   // Open the workspace that belongs to the saved mode / lesson
   learning.syncWorkspace();
+  // Let an AI (MCP server) edit this project — needs the local server
+  if (!edition.isWeb.value) agent.start();
   isClientReady.value = true;
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onWindowKeydown);
+  agent.stop();
 });
 
 async function copyToClipboard(text: string): Promise<boolean> {
