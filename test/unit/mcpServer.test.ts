@@ -96,4 +96,15 @@ describe("mcp server", () => {
       mimeType: "image/png",
     });
   });
+
+  it("create_share_link lists the LAN urls for a phone", async () => {
+    const c = await setup((async () =>
+      json({
+        url: "http://localhost:3000/pwa/abc",
+        lanUrls: ["http://192.168.1.20:3000/pwa/abc"],
+      })) as any);
+    const res: any = await c.callTool({ name: "create_share_link", arguments: {} });
+    expect(res.isError).toBeFalsy();
+    expect(res.content[0].text).toContain("- http://192.168.1.20:3000/pwa/abc");
+  });
 });

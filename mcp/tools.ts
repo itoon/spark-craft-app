@@ -164,16 +164,20 @@ export function registerTools(
     "create_share_link",
     {
       description:
-        "Create a URL that runs the app on a phone (the preview). Optionally start on a given page.",
+        "Create a URL that runs the app on a phone (the preview). Give the user a lanUrls entry: `url` is localhost and only opens on this computer. Optionally start on a given page.",
       inputSchema: { startPageId: z.string().optional() },
     },
     ({ startPageId }: { startPageId?: string }) =>
       guard(async () => {
-        const res = await client.post<{ url: string }>(
+        const res = await client.post<{ url: string; lanUrls?: string[] }>(
           "/api/agent/share-link",
           { startPageId },
         );
-        return ok("สร้างลิงก์แล้ว", res);
+        const lanUrls = res.lanUrls ?? [];
+        const message = lanUrls.length
+          ? `สร้างลิงก์แล้ว — เปิดบนมือถือที่ต่อ Wi-Fi เดียวกัน:\n${lanUrls.map((u) => `- ${u}`).join("\n")}`
+          : "สร้างลิงก์แล้ว";
+        return ok(message, res);
       }),
   );
 
