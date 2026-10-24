@@ -12,7 +12,7 @@ export async function takeScreenshot(
     browser = await chromium.launch();
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    if (/executable|playwright install|browserType\.launch/i.test(msg)) {
+    if (/Executable doesn't exist|playwright install/i.test(msg)) {
       throw new Error(CHROMIUM_MISSING_MESSAGE);
     }
     throw e;
