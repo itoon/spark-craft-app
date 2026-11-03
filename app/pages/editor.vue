@@ -10,7 +10,7 @@
       <!-- Logo -->
       <div class="flex items-center gap-2 shrink-0">
         <div
-          class="size-7 rounded-md bg-indigo-600 flex items-center justify-center"
+          class="cc-brand-mark size-7 rounded-md bg-indigo-600 flex items-center justify-center"
         >
           <UIcon name="i-lucide-code-2" class="size-4 text-white" />
         </div>
@@ -28,7 +28,7 @@
           v-for="item in appModes"
           :key="item.key"
           type="button"
-          class="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-100"
+          class="cc-app-mode flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-colors duration-100"
           :class="
             learning.appMode.value === item.key
               ? 'bg-white text-neutral-900 shadow-sm'
@@ -210,6 +210,20 @@
         <span class="hidden xl:inline">APK</span>
       </UButton>
 
+      <!-- Editor theme: CodeCraft (default) / CodeVenture -->
+      <UDropdownMenu :items="themeMenu" :content="{ align: 'end' }">
+        <UButton
+          icon="i-lucide-palette"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="shrink-0"
+          aria-label="ธีม"
+          title="ธีม"
+          data-testid="theme-button"
+        />
+      </UDropdownMenu>
+
       <!-- Learner manual -->
       <UButton
         to="/document"
@@ -317,7 +331,7 @@
               <span>
                 <span class="block text-base font-semibold text-white">เรียนรู้</span>
                 <span class="mt-1 block text-[13px] leading-relaxed text-neutral-400">
-                  สร้าง 5 แอปตามบทเรียน จากง่ายไปยาก มีภารกิจเช็กให้ทุกขั้น
+                  สร้าง 10 แอปตามบทเรียน จากง่ายไปยาก มีภารกิจเช็กให้ทุกขั้น
                 </span>
               </span>
             </button>
@@ -412,6 +426,7 @@ import { useEditorStore } from "~/composables/useEditorStore";
 import type { EditorMode } from "~/composables/useEditorStore";
 import { useLiveCompanion } from "~/composables/useLiveCompanion";
 import { useLearning, type AppMode } from "~/composables/useLearning";
+import { UI_THEMES, useUiTheme } from "~/composables/useUiTheme";
 import { renderAppIconPngs } from "~/utils/renderAppIcon";
 
 useHead({
@@ -424,6 +439,17 @@ const edition = useEdition();
 const live = useLiveCompanion();
 const agent = useAgentBridge();
 const learning = useLearning();
+const uiTheme = useUiTheme();
+const themeMenu = computed(() => [
+  [{ type: "label" as const, label: "ธีม" }],
+  UI_THEMES.map((t) => ({
+    label: t.label,
+    description: t.description,
+    type: "checkbox" as const,
+    checked: uiTheme.theme.value === t.key,
+    onSelect: () => uiTheme.setTheme(t.key),
+  })),
+]);
 const isLiveDialogOpen = ref(false);
 const isApkDialogOpen = ref(false);
 const isClientReady = ref(false);

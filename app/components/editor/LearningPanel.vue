@@ -8,7 +8,7 @@
       <header class="shrink-0 border-b border-neutral-200 px-4 pb-3 pt-4">
         <h2 class="text-base font-bold text-neutral-900">เลือกแอปที่อยากสร้าง</h2>
         <p class="mt-0.5 text-[13px] text-neutral-500">
-          5 แอป เรียงจากง่ายไปยาก · ทำเสร็จแล้ว {{ learning.completedCount.value }}/{{ learning.lessons.length }}
+          {{ learning.lessons.length }} แอป เรียงจากง่ายไปยาก · ทำเสร็จแล้ว {{ learning.completedCount.value }}/{{ learning.lessons.length }}
         </p>
       </header>
 

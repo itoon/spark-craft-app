@@ -13,7 +13,7 @@
       :style="frameStyle"
     >
       <div
-        class="relative bg-white overflow-hidden w-full h-full"
+        class="cc-app-screen relative bg-white overflow-hidden w-full h-full"
         :style="screenStyle"
         @click.self="emit('screen-click')"
       >

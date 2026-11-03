@@ -32,6 +32,18 @@ export type ScenarioAction =
       times?: number;
     }
   | {
+      /**
+       * Set what the learner picked on an element of `elementType` (Radio,
+       * Select, Range, Toggle, Checkbox…). `index` counts only that type, in
+       * screen order (default 0). Toggle sets `on`, Checkbox `checked`, the
+       * rest `value`.
+       */
+      type: "set";
+      elementType: string;
+      index?: number;
+      value: string | number | boolean;
+    }
+  | {
       /** Fire every running timer.every / timer.after once per tick. */
       type: "tick";
       times?: number;
@@ -158,6 +170,7 @@ export interface LearningRequirementContext {
 }
 
 const INPUT_TYPES = new Set(["Input", "LabelledInput"]);
+const PICKED_PROP: Record<string, string> = { Toggle: "on", Checkbox: "checked" };
 
 function cloneElements(elements: AppElement[]): AppElement[] {
   return JSON.parse(JSON.stringify(elements)) as AppElement[];
@@ -321,6 +334,9 @@ export function runScenario(
         const target = inputs[index];
         if (target) target.props.value = String(value);
       });
+    } else if (action.type === "set") {
+      const target = elements.filter((element) => element.type === action.elementType)[action.index ?? 0];
+      if (target) target.props[PICKED_PROP[target.type] ?? "value"] = action.value;
     } else if (action.type === "click") {
       const target = findClickTarget(result.instances, action);
       if (!target) {
@@ -362,7 +378,9 @@ export function runScenario(
     );
     const met = candidates.some((element) => {
       const value = expectation.prop ? element.props[expectation.prop] : displayText(element);
-      return regex.test(String(value ?? ""));
+      // Arrays/objects (List content, Map markers, Chart labels) are matched as JSON text.
+      const text = value !== null && typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
+      return regex.test(text);
     });
     if (met) return { met };
     const shown = candidates.map(displayText).filter(Boolean).slice(0, 3);

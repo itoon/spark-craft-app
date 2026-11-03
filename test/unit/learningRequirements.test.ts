@@ -202,3 +202,61 @@ describe("learning requirements", () => {
     ]);
   });
 });
+
+describe("scenario checks", () => {
+  function withProps(id: string, type: string, props: Record<string, unknown>): AppElement {
+    return { ...makeElement(id, type), props };
+  }
+
+  const elements = [
+    withProps("page1_radio1", "RadioButton", {
+      value: "",
+      content: [{ key: "A", value: "a" }, { key: "B", value: "b" }],
+    }),
+    withProps("page1_radio2", "RadioButton", { value: "" }),
+    withProps("page1_toggle1", "Toggle", { on: false }),
+    withProps("page1_button1", "Button", { content: "ตอบ" }),
+    withProps("page1_label1", "Label", { content: "" }),
+    withProps("page1_list1", "List", { content: [] }),
+  ];
+  const code = `var radio1 = new Radio('page1_radio1');
+var radio2 = new Radio('page1_radio2');
+var toggle1 = new Toggle('page1_toggle1');
+var button1 = new Button('page1_button1');
+var label1 = new Label('page1_label1');
+var list1 = new List('page1_list1');
+[radio1, radio2, toggle1, button1, label1, list1].forEach((item) => page.add(item));
+button1.onClick(() => {
+  label1.text = radio2.value + ' ' + toggle1.on;
+  list1.content = [{ key: 'การบ้านคณิต', value: 'ส่งพรุ่งนี้' }];
+});`;
+
+  const scenario = (actions: Extract<LearningRequirement, { type: "scenario" }>["actions"], pattern: string, prop?: string) =>
+    evaluateLearningRequirement(
+      {
+        id: "s",
+        type: "scenario",
+        actions,
+        expect: { kind: "text", elementType: prop ? "List" : "Label", prop, pattern },
+        message: "",
+      },
+      { elements, currentPageId: "page1", jsCode: code },
+    );
+
+  it("sets Radio and Toggle values with a set action (picked by index within the type)", () => {
+    const result = scenario(
+      [
+        { type: "set", elementType: "RadioButton", index: 1, value: "b" },
+        { type: "set", elementType: "Toggle", value: true },
+        { type: "click", match: "ตอบ" },
+      ],
+      "^b true$",
+    );
+    expect(result.met).toBe(true);
+  });
+
+  it("matches text inside array props such as List content", () => {
+    expect(scenario([{ type: "click", match: "ตอบ" }], "การบ้านคณิต", "content").met).toBe(true);
+    expect(scenario([], "การบ้านคณิต", "content").met).toBe(false);
+  });
+});

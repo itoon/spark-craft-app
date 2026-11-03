@@ -238,7 +238,7 @@ export const manualSections: ManualSection[] = [
     id: "learn",
     title: "โหมดเรียนรู้",
     icon: "i-lucide-graduation-cap",
-    intro: "มี 5 บทเรียน เรียงจากง่ายไปยาก ทำจบแต่ละบทจะได้แอปที่เล่นได้จริง 1 แอป",
+    intro: "มี 10 บทเรียน เรียงจากง่ายไปยาก ทำจบแต่ละบทจะได้แอปที่เล่นได้จริง 1 แอป",
     groups: [
       { title: "บทเรียนทั้งหมด", blocks: [{ type: "lessons" }] },
       {
