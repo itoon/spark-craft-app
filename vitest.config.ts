@@ -16,6 +16,8 @@ export default defineConfig({
           name: "e2e",
           include: ["test/e2e/*.{test,spec}.ts"],
           environment: "node",
+          // Each spec starts its own `nuxt dev` in this folder; two at once share .nuxt and the vite dep cache.
+          fileParallelism: false,
         },
       },
       await defineVitestProject({
