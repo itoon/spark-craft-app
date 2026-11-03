@@ -99,6 +99,19 @@
         </UButton>
 
         <UButton
+          icon="i-lucide-database"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          aria-label="ฐานข้อมูล"
+          title="ฐานข้อมูล"
+          data-testid="open-database-panel"
+          @click="openDbPanel"
+        >
+          <span class="hidden 2xl:inline">ฐานข้อมูล</span>
+        </UButton>
+
+        <UButton
           :icon="justSaved ? 'i-lucide-check' : 'i-lucide-save'"
           color="neutral"
           variant="ghost"
@@ -364,6 +377,7 @@
     <EditorLiveCompanionDialog :open="isLiveDialogOpen" @close="isLiveDialogOpen = false" />
     <EditorBuildApkDialog :open="isApkDialogOpen" @close="isApkDialogOpen = false" @edit-app="isAppSettingsOpen = true" />
     <EditorAppSettingsDialog :open="isAppSettingsOpen" @close="isAppSettingsOpen = false" />
+    <EditorDatabasePanel v-model:open="dbPanelOpen" :namespace="store.projectId.value" />
 
     <!-- Share Link QR overlay -->
     <Teleport to="body">
@@ -463,6 +477,11 @@ const isExporting = ref(false);
 const isCreatingShareLink = ref(false);
 const isCommandPaletteOpen = ref(false);
 const isAppSettingsOpen = ref(false);
+const dbPanelOpen = ref(false);
+
+function openDbPanel() {
+  dbPanelOpen.value = true;
+}
 
 // Page that walks a phone through trusting the classroom certificate
 const shareCertUrl = computed(() => {
