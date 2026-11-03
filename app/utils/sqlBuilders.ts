@@ -65,6 +65,7 @@ export function toSqlValue(value: unknown): SqlValue {
   if (typeof value === "boolean") return value ? 1 : 0;
   if (typeof value === "number" || typeof value === "string") return value;
   if (value instanceof Uint8Array) return value;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value.toISOString();
   if (Array.isArray(value)) return JSON.stringify(value);
   if (typeof value === "object") {
     const proto = Object.getPrototypeOf(value);

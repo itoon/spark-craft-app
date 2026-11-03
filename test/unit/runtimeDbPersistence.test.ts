@@ -1,9 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRuntimeDb, dbStorageKey, dbVersion, resetProjectDb } from "../../app/utils/runtimeDb";
+import { DB_SAVE_LIMIT_CHARS, createRuntimeDb, dbStorageKey, dbVersion, resetProjectDb } from "../../app/utils/runtimeDb";
 import { loadSqlEngine, type SqlEngine } from "../../app/utils/sqlEngine";
 
 const QUOTA_COPY = "บันทึกฐานข้อมูลลงเครื่องไม่ได้ — ข้อมูลอาจหายเมื่อปิดแอป";
+const TOO_BIG_COPY = "ฐานข้อมูลใหญ่เกินจะบันทึกลงเครื่อง — ข้อมูลใหม่อาจหายเมื่อปิดแอป";
 const CORRUPT_COPY = "ข้อมูลฐานข้อมูลที่บันทึกไว้เสีย — เริ่มฐานข้อมูลใหม่";
 
 let engine: SqlEngine;
@@ -197,5 +198,105 @@ describe("runtimeDb persistence", () => {
     store = fresh;
     createRuntimeDb({ getEngine: () => engine, namespace: "p2", dryRun: true }).table("t").add({ a: 1 });
     expect(fresh.size).toBe(0);
+  });
+});
+
+describe("runtimeDb save limits and warnings", () => {
+  // zeroblob compresses nowhere: the exported file is about this many bytes, i.e. over the cap once base64'd.
+  const OVER_CAP_BYTES = Math.ceil((DB_SAVE_LIMIT_CHARS * 3) / 4) + 10_000;
+
+  function growPast(db: ReturnType<typeof dbFor>) {
+    db.run("INSERT INTO big VALUES (zeroblob(?))", [OVER_CAP_BYTES]);
+  }
+
+  it("exposes the cap as 1_500_000 characters", () => {
+    expect(DB_SAVE_LIMIT_CHARS).toBe(1_500_000);
+  });
+
+  it("skips setItem and warns once when the encoded database is over the cap", () => {
+    const db0 = dbFor("p1");
+    db0.run("CREATE TABLE big (b)");
+    const smallBlob = store.get("codecraft-app-db:p1");
+    expect(smallBlob).toBeDefined();
+
+    const writes = vi.fn(setItem);
+    setItem = writes;
+    const log = vi.fn();
+    const db = dbFor("p1", log);
+    const before = dbVersion.value;
+    growPast(db);
+
+    expect(writes).not.toHaveBeenCalled();
+    expect(log.mock.calls.filter(([type]) => type === "warn")).toEqual([["warn", TOO_BIG_COPY]]);
+    expect(store.get("codecraft-app-db:p1")).toBe(smallBlob);
+    expect(dbVersion.value).toBe(before + 1);
+    expect(db.query("SELECT count(*) AS n FROM big")).toEqual([{ n: 1 }]);
+  });
+
+  it("does not repeat the over-cap warning on later writes", () => {
+    const log = vi.fn();
+    const db = dbFor("p1", log);
+    db.run("CREATE TABLE big (b)");
+    growPast(db);
+    growPast(db);
+    expect(log.mock.calls.filter(([, message]) => message === TOO_BIG_COPY)).toHaveLength(1);
+  });
+
+  it("warns once per namespace for the over-cap warning", () => {
+    const log = vi.fn();
+    for (const ns of ["p1", "p2"]) {
+      const db = dbFor(ns, log);
+      db.run("CREATE TABLE big (b)");
+      growPast(db);
+    }
+    expect(log.mock.calls.filter(([, message]) => message === TOO_BIG_COPY)).toHaveLength(2);
+  });
+
+  it("warns about a full storage only once per namespace", () => {
+    setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    const log = vi.fn();
+    const db = dbFor("p1", log);
+    db.table("t").add({ a: 1 });
+    db.table("t").add({ a: 2 });
+    expect(log.mock.calls.filter(([, message]) => message === QUOTA_COPY)).toHaveLength(1);
+  });
+
+  it("resetProjectDb makes both warnings fire again", () => {
+    setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    const log = vi.fn();
+    const db = dbFor("p1", log);
+    db.run("CREATE TABLE big (b)");
+    growPast(db);
+    growPast(db);
+    expect(log.mock.calls.filter(([, message]) => message === QUOTA_COPY)).toHaveLength(1);
+    expect(log.mock.calls.filter(([, message]) => message === TOO_BIG_COPY)).toHaveLength(1);
+
+    // The CREATE TABLE after a reset hits the full storage again, so it warns again too.
+    resetProjectDb("p1");
+    db.run("CREATE TABLE big (b)");
+    growPast(db);
+    expect(log.mock.calls.filter(([, message]) => message === TOO_BIG_COPY)).toHaveLength(2);
+    expect(log.mock.calls.filter(([, message]) => message === QUOTA_COPY)).toHaveLength(2);
+  });
+
+  it("saves silently inside a transaction and persists on COMMIT", async () => {
+    const log = vi.fn();
+    const db = dbFor("p1", log);
+    db.run("CREATE TABLE t (x)");
+    db.run("BEGIN");
+    db.run("INSERT INTO t VALUES (1)");
+    db.run("INSERT INTO t VALUES (2)");
+    db.run("COMMIT");
+    expect(log).not.toHaveBeenCalled();
+
+    vi.resetModules();
+    const fresh = await import("../../app/utils/runtimeDb");
+    const restored = fresh.createRuntimeDb({ getEngine: () => engine, namespace: "p1" });
+    expect(restored.query("SELECT x FROM t ORDER BY x")).toEqual([{ x: 1 }, { x: 2 }]);
+    fresh.resetProjectDb("p1");
   });
 });

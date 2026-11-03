@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { createRuntimeDb, friendlySqlError } from "../../app/utils/runtimeDb";
+import { createRuntimeDb, friendlySqlError, resetProjectDb } from "../../app/utils/runtimeDb";
 import { loadSqlEngine, type SqlEngine } from "../../app/utils/sqlEngine";
 
 let engine: SqlEngine;
@@ -378,5 +378,60 @@ describe("db.table argument validation", () => {
     const t = makeDb().table("tasks");
     expect(t.count()).toBe(0);
     expect(() => t.add(undefined as never)).toThrow(/^add\(\) ต้องได้ object/);
+  });
+});
+
+describe("runtimeDb dispose", () => {
+  function spyClose() {
+    return vi.spyOn(engine.Database.prototype, "close");
+  }
+
+  it("closes the dry-run database exactly once, even when disposed twice", () => {
+    const close = spyClose();
+    try {
+      const db = makeDb();
+      db.run("CREATE TABLE t (x)");
+      db.dispose();
+      expect(close).toHaveBeenCalledTimes(1);
+      db.dispose();
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
+  });
+
+  it("does nothing when the dry-run database was never created", () => {
+    const close = spyClose();
+    try {
+      makeDb().dispose();
+      expect(close).not.toHaveBeenCalled();
+    } finally {
+      close.mockRestore();
+    }
+  });
+
+  it("leaves the shared per-namespace database open for a non-dry-run db", () => {
+    const close = spyClose();
+    try {
+      const db = createRuntimeDb({ getEngine: () => engine, namespace: "dispose-shared" });
+      db.run("CREATE TABLE t (x)");
+      db.dispose();
+      expect(close).not.toHaveBeenCalled();
+      expect(db.tables()).toEqual(["t"]);
+    } finally {
+      close.mockRestore();
+      resetProjectDb("dispose-shared");
+    }
+  });
+
+  it("closes the new database when initialDb throws", () => {
+    const close = spyClose();
+    try {
+      const db = makeDb("THIS IS NOT SQL");
+      expect(() => db.tables()).toThrow();
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
   });
 });

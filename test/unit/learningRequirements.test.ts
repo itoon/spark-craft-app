@@ -298,6 +298,40 @@ page.add(label1);`;
     expect(result.met).toBe(true);
   });
 
+  it("closes the dry-run database after a scenario that used db", async () => {
+    const engine = await loadSqlEngine();
+    const close = vi.spyOn(engine.Database.prototype, "close");
+    try {
+      const result = evaluateLearningRequirement(scenarioFor(dbCode, "^5$"), {
+        elements,
+        currentPageId: "page1",
+        jsCode: dbCode,
+      });
+      expect(result.met).toBe(true);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
+  });
+
+  it("closes the dry-run database after a snapshot-based check that used db", async () => {
+    const engine = await loadSqlEngine();
+    const close = vi.spyOn(engine.Database.prototype, "close");
+    const code = `var label1 = new Label('page1_label1');
+db.run('CREATE TABLE s (n)');
+page.add(label1);`;
+    try {
+      const result = evaluateLearningRequirement(
+        { id: "r", type: "runtime-added", elementType: "Label", minCount: 1, message: "" },
+        { elements, currentPageId: "page1", jsCode: code },
+      );
+      expect(result.met).toBe(true);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
+  });
+
   it("waits (not met) while the engine has not loaded", async () => {
     vi.resetModules();
     vi.doMock("sql.js", () => ({ default: () => new Promise(() => {}) }));

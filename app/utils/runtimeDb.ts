@@ -72,6 +72,8 @@ export interface RuntimeDb {
   one(sql: string, params?: unknown[]): DbRow | null;
   tables(): string[];
   table(name: string): DbTable;
+  /** Frees a dry-run database (wasm memory is never garbage collected). Safe to call twice; no-op otherwise. */
+  dispose(): void;
 }
 
 export interface RuntimeDbOptions {
@@ -89,8 +91,11 @@ const BAD_PARAMS = "params ต้องเป็น array เช่น [a, b]";
 const BAD_ORDER_DIR = "orderBy() ใช้ได้แค่ 'asc' หรือ 'desc'";
 const REMOVE_NEEDS_ID = "remove() ต้องระบุ id";
 const SAVE_FAILED = "บันทึกฐานข้อมูลลงเครื่องไม่ได้ — ข้อมูลอาจหายเมื่อปิดแอป";
+const SAVE_TOO_BIG = "ฐานข้อมูลใหญ่เกินจะบันทึกลงเครื่อง — ข้อมูลใหม่อาจหายเมื่อปิดแอป";
 const SAVED_DATA_CORRUPT = "ข้อมูลฐานข้อมูลที่บันทึกไว้เสีย — เริ่มฐานข้อมูลใหม่";
 const BASE64_CHUNK = 0x8000;
+/** Longest base64 string saved to localStorage; keeps a big db from starving project autosave. */
+export const DB_SAVE_LIMIT_CHARS = 1_500_000;
 
 const HINTS: ReadonlyArray<readonly [string, string]> = [
   ["no such table", " — ยังไม่ได้ CREATE TABLE หรือเปล่า?"],
@@ -185,6 +190,16 @@ export const dbVersion: ShallowRef<number> = shallowRef(0);
 
 const projectDbs = new Map<string, SqlDatabase>();
 
+/** `<kind>:<namespace>` of every save warning already shown this session. */
+const warned = new Set<string>();
+
+function warnOnce(kind: "quota" | "size", namespace: string, log: RuntimeDbOptions["log"], message: string): void {
+  const key = `${kind}:${namespace}`;
+  if (warned.has(key)) return;
+  warned.add(key);
+  log?.("warn", message);
+}
+
 export function dbStorageKey(namespace = "default"): string {
   return `codecraft-app-db:${namespace}`;
 }
@@ -261,16 +276,34 @@ export function resetProjectDb(namespace = "default"): void {
   } catch {
     // storage blocked: memory is already reset
   }
+  warned.delete(`quota:${namespace}`);
+  warned.delete(`size:${namespace}`);
   dbVersion.value += 1;
+}
+
+/** sql.js refuses to export while a transaction is open (BEGIN ... COMMIT); the COMMIT saves instead. */
+function isTransactionOpen(err: unknown): boolean {
+  return err instanceof Error && /busy|locked/i.test(err.message);
 }
 
 function saveDb(db: SqlDatabase, namespace: string, log: RuntimeDbOptions["log"]): void {
   const ls = safeLocalStorage();
   if (!ls) return;
+  let encoded: string;
   try {
-    ls.setItem(dbStorageKey(namespace), toBase64(db.export()));
+    encoded = toBase64(db.export());
+  } catch (err) {
+    if (!isTransactionOpen(err)) warnOnce("quota", namespace, log, SAVE_FAILED);
+    return;
+  }
+  if (encoded.length > DB_SAVE_LIMIT_CHARS) {
+    warnOnce("size", namespace, log, SAVE_TOO_BIG);
+    return;
+  }
+  try {
+    ls.setItem(dbStorageKey(namespace), encoded);
   } catch {
-    log?.("warn", SAVE_FAILED);
+    warnOnce("quota", namespace, log, SAVE_FAILED);
   }
 }
 
@@ -288,7 +321,12 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
     if (!engine) throw dbError(ENGINE_MISSING);
     if (!options.dryRun) return openProjectDb(engine, namespace, options.log);
     const created = new engine.Database();
-    if (options.initialDb) created.exec(options.initialDb);
+    try {
+      if (options.initialDb) created.exec(options.initialDb);
+    } catch (err) {
+      created.close();
+      throw err;
+    }
     dryHandle = created;
     return created;
   }
@@ -506,6 +544,15 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
     },
     table(name) {
       return makeTable(validated(() => assertName(name)));
+    },
+    dispose() {
+      const handle = dryHandle;
+      dryHandle = null;
+      try {
+        handle?.close();
+      } catch {
+        // already closed
+      }
     },
   };
 }

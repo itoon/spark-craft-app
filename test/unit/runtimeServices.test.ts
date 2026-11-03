@@ -159,6 +159,20 @@ page.add(label1);`,
     result.services.dispose();
   });
 
+  it("closes the dry-run database on dispose, once", async () => {
+    const engine = await loadSqlEngine();
+    const close = vi.spyOn(engine.Database.prototype, "close");
+    try {
+      const services = createRuntimeServices({ dryRun: true });
+      services.db.run("CREATE TABLE s (n)");
+      services.dispose();
+      services.dispose();
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
+  });
+
   it("lists the db methods in the API reference", () => {
     expect(RUNTIME_SERVICE_API.db).toEqual({
       description: "ฐานข้อมูล SQL บนเครื่อง (SQLite)",

@@ -73,7 +73,8 @@ describe("toSqlValue", () => {
   it("passes bytes through and stringifies other values", () => {
     const bytes = new Uint8Array([1, 2]);
     expect(toSqlValue(bytes)).toBe(bytes);
-    expect(toSqlValue(new Date(0))).toBe(String(new Date(0)));
+    expect(toSqlValue(new Date(0))).toBe("1970-01-01T00:00:00.000Z");
+    expect(toSqlValue(new Date("nope"))).toBeNull();
   });
 });
 

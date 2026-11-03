@@ -202,6 +202,15 @@ export function createRuntimeServices(
     for (const entry of timers) stopTimer(entry.id);
   }
 
+  const db = createRuntimeDb({
+    getEngine: getLoadedSqlEngine,
+    namespace: host.storageNamespace,
+    dryRun,
+    initialDb: host.initialDb,
+    record,
+    log,
+  });
+
   const services: RuntimeServices = {
     notify: {
       toast: (message) => notifyWith("toast", message),
@@ -293,14 +302,7 @@ export function createRuntimeServices(
         }
       },
     },
-    db: createRuntimeDb({
-      getEngine: getLoadedSqlEngine,
-      namespace: host.storageNamespace,
-      dryRun,
-      initialDb: host.initialDb,
-      record,
-      log,
-    }),
+    db,
     calls,
     timers,
     fireTimers(rounds = 1) {
@@ -316,6 +318,7 @@ export function createRuntimeServices(
     dispose() {
       disposed = true;
       stopAllTimers();
+      db.dispose();
       if (!dryRun && typeof window !== "undefined" && "speechSynthesis" in window) {
         try {
           window.speechSynthesis.cancel();
