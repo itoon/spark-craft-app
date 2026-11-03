@@ -88,3 +88,51 @@ describe("ensureSqlEngineFor", () => {
     expect(mod.getLoadedSqlEngine()).not.toBeNull();
   });
 });
+
+describe("createDbAwareRunner", () => {
+  it("runs on the next microtask with true when the project does not use db", async () => {
+    vi.resetModules();
+    const mod = await import("../../app/utils/sqlEngine");
+    const run = vi.fn();
+    const promise = mod.createDbAwareRunner()({ p1: "notify.toast(1)" }, run);
+    expect(run).not.toHaveBeenCalled();
+    await promise;
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith(true);
+    expect(mod.getLoadedSqlEngine()).toBeNull();
+  });
+
+  it("drops a run that a newer call superseded while the engine was loading", async () => {
+    vi.resetModules();
+    let resolveEngine!: (engine: unknown) => void;
+    const fakeEngine = { Database: class {} };
+    vi.doMock("sql.js", () => ({
+      default: vi.fn(() => new Promise((resolve) => (resolveEngine = resolve))),
+    }));
+    const mod = await import("../../app/utils/sqlEngine");
+    const runner = mod.createDbAwareRunner();
+    const first = vi.fn();
+    const second = vi.fn();
+
+    const p1 = runner({ p1: "db.run('x')" }, first);
+    const p2 = runner({ p1: "db.run('y')" }, second);
+    // sql.js is imported asynchronously before initSqlJs runs
+    await vi.waitFor(() => expect(resolveEngine).toBeTypeOf("function"));
+    resolveEngine(fakeEngine);
+    await Promise.all([p1, p2]);
+
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+    expect(second).toHaveBeenCalledWith(true);
+  });
+
+  it("runs with false when the engine fails to load", async () => {
+    vi.resetModules();
+    vi.doMock("sql.js", () => ({ default: vi.fn(() => Promise.reject(new Error("boom"))) }));
+    const mod = await import("../../app/utils/sqlEngine");
+    const run = vi.fn();
+    await mod.createDbAwareRunner()({ p1: "db.run('x')" }, run);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledWith(false);
+  });
+});

@@ -71,3 +71,21 @@ export async function ensureSqlEngineFor(codeByPage: Record<string, string>): Pr
     return false;
   }
 }
+
+/**
+ * Wraps a host's "run the learner's code" step so it waits for the engine first.
+ * Each host creates one runner; if a newer run starts while an older one is still
+ * waiting for the engine, the older run is dropped (only the latest `run` fires).
+ */
+export function createDbAwareRunner(): (
+  codeByPage: Record<string, string>,
+  run: (engineOk: boolean) => void,
+) => Promise<void> {
+  let sequence = 0;
+  return async (codeByPage, run) => {
+    const mine = ++sequence;
+    const engineOk = await ensureSqlEngineFor(codeByPage);
+    if (mine !== sequence) return;
+    run(engineOk);
+  };
+}

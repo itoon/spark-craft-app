@@ -189,6 +189,7 @@ import { useSensorSimulator } from '~/composables/useSensorSimulator'
 import { stopAllSounds } from '~/utils/soundLibrary'
 import { isOnPage } from '~/utils/componentApi'
 import type { RuntimeServices } from '~/utils/runtimeServices'
+import { createDbAwareRunner } from '~/utils/sqlEngine'
 
 const store = useEditorStore()
 
@@ -237,12 +238,22 @@ function scrollTraceToBottom() {
 }
 
 // ── Run logic ─────────────────────────────────────────────────────────────
+// Waits for the SQL engine (only when the project uses `db`) before running the code
+const runDbAware = createDbAwareRunner()
+let unmounted = false
+
 function runCode() {
+  runDbAware(store.jsCodeByPage.value, runCodeNow)
+}
+
+function runCodeNow(engineOk: boolean) {
+  if (unmounted) return
   // Stop timers / speech from the previous run before starting again
   disposeServices()
   pageHandlers = { show: null, leave: null }
   notifications.clear()
   const runtimeLogs: ConsoleEntry[] = []
+  if (!engineOk) runtimeLogs.push({ type: 'warn', message: 'โหลดฐานข้อมูลไม่สำเร็จ — คำสั่ง db จะใช้ไม่ได้' })
   executionEvents.value = []
   // No code yet (Code tab never opened): run the scaffold, which adds every element
   let code = store.jsCode.value || ''
@@ -443,6 +454,7 @@ function restartSession() {
 }
 
 onBeforeUnmount(() => {
+  unmounted = true
   disposeServices()
   stopAllSounds()
   notifications.clear()

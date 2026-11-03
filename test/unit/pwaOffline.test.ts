@@ -16,10 +16,12 @@ describe("offline shared apps (PWA)", () => {
     writeFileSync(join(publicDir, "_nuxt", "entry.abc.js"), "");
     writeFileSync(join(publicDir, "_nuxt", "entry.abc.js.map"), "");
     writeFileSync(join(publicDir, "_nuxt", "style.css"), "");
+    writeFileSync(join(publicDir, "_nuxt", "sql-wasm.abc.wasm"), "");
     writeFileSync(join(publicDir, "_nuxt", "builds", "latest.json"), "");
     expect(await listBuildAssets(publicDir)).toEqual([
       "/_nuxt/builds/latest.json",
       "/_nuxt/entry.abc.js",
+      "/_nuxt/sql-wasm.abc.wasm",
       "/_nuxt/style.css",
     ]);
     // `bun run dev` has no build folder
