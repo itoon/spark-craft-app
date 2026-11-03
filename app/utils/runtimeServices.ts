@@ -3,6 +3,7 @@
  *   Notifier        → notify.toast / notify.alert / notify.confirm
  *   Clock (Timer)   → timer.every / timer.after / timer.stop / timer.stopAll
  *   TinyDB          → storage.set / storage.get / storage.remove / storage.keys
+ *   TinyDB-style    → db.run / db.query / db.one / db.tables / db.table(name)  (SQLite)
  *   TextToSpeech +
  *   Sound (vibrate) → phone.speak / phone.vibrate
  *
@@ -11,7 +12,9 @@
  * records what the code asked for instead of starting real timers or speech.
  */
 
+import { createRuntimeDb, type RuntimeDb } from "./runtimeDb";
 import { safeLocalStorage } from "./safeLocalStorage";
+import { getLoadedSqlEngine } from "./sqlEngine";
 
 export type NotifyKind = "toast" | "alert" | "confirm";
 
@@ -32,6 +35,8 @@ export interface RuntimeServiceHost {
   dryRun?: boolean;
   /** Optional pre-seeded storage for dry runs. */
   initialStorage?: Record<string, unknown>;
+  /** Optional SQL run on the fresh dry-run database (checker seeds). */
+  initialDb?: string;
 }
 
 export interface RecordedTimer {
@@ -67,6 +72,7 @@ export interface RuntimeServices {
     speak(text: unknown): void;
     vibrate(ms?: number): void;
   };
+  db: RuntimeDb;
   /** Names of every service call made so far, e.g. "notify.toast". */
   calls: string[];
   /** Timers registered so far (all modes). */
@@ -287,6 +293,14 @@ export function createRuntimeServices(
         }
       },
     },
+    db: createRuntimeDb({
+      getEngine: getLoadedSqlEngine,
+      namespace: host.storageNamespace,
+      dryRun,
+      initialDb: host.initialDb,
+      record,
+      log,
+    }),
     calls,
     timers,
     fireTimers(rounds = 1) {
@@ -332,6 +346,10 @@ export const RUNTIME_SERVICE_API: Record<string, { description: string; methods:
   phone: {
     description: "Talk and vibrate (App Inventor: TextToSpeech / Sound)",
     methods: ["speak(text)", "vibrate(ms)"],
+  },
+  db: {
+    description: "ฐานข้อมูล SQL บนเครื่อง (SQLite)",
+    methods: ["run(sql, params)", "query(sql, params)", "one(sql, params)", "tables()", "table(name)"],
   },
   location: {
     description: "GPS position (App Inventor: LocationSensor) — needs https on phones",

@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { AppElement } from "../../app/composables/useEditorStore";
 import { executeCode } from "../../app/composables/useRuntime";
-import { createRuntimeServices } from "../../app/utils/runtimeServices";
+import { createRuntimeServices, RUNTIME_SERVICE_API } from "../../app/utils/runtimeServices";
+import { loadSqlEngine } from "../../app/utils/sqlEngine";
 
 function label(id = "page1_label1"): AppElement {
   return {
@@ -122,5 +123,52 @@ notify.toast('ready');`,
     services.dispose();
     await new Promise((resolve) => setTimeout(resolve, 130));
     expect(ticks).toBe(0);
+  });
+});
+
+describe("db service", () => {
+  it("queries a seeded dry-run database and records the call", async () => {
+    await loadSqlEngine();
+    const services = createRuntimeServices({
+      dryRun: true,
+      initialDb: "CREATE TABLE s (n); INSERT INTO s VALUES (3);",
+    });
+    expect(services.db.query("SELECT n FROM s")).toEqual([{ n: 3 }]);
+    expect(services.calls).toContain("db.query");
+    services.dispose();
+  });
+
+  it("is available inside learner code via executeCode", async () => {
+    await loadSqlEngine();
+    const elements = [label()];
+    const result = executeCode(
+      `var label1 = new Label('page1_label1');
+var rows = db.table('t');
+rows.add({ v: 1 });
+label1.text = rows.count();
+page.add(label1);`,
+      elements,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { services: { dryRun: true } },
+    );
+    expect(elements[0]!.props.content).toBe(1);
+    expect(result.services.calls).toContain("db.table.add");
+    result.services.dispose();
+  });
+
+  it("lists the db methods in the API reference", () => {
+    expect(RUNTIME_SERVICE_API.db).toEqual({
+      description: "ฐานข้อมูล SQL บนเครื่อง (SQLite)",
+      methods: [
+        "run(sql, params)",
+        "query(sql, params)",
+        "one(sql, params)",
+        "tables()",
+        "table(name)",
+      ],
+    });
   });
 });
