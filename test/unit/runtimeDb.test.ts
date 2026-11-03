@@ -352,3 +352,31 @@ describe("db.table", () => {
     ]);
   });
 });
+
+describe("db.table argument validation", () => {
+  const BAD_VALUES: Array<[string, unknown]> = [
+    ["undefined", undefined],
+    ["null", null],
+    ["a string", "x"],
+    ["an array", [1]],
+    ["a number", 5],
+  ];
+
+  for (const [label, bad] of BAD_VALUES) {
+    it(`rejects ${label} for add / find / update / count(filter)`, () => {
+      const t = makeDb().table("tasks");
+      expect(() => t.add(bad as never)).toThrow("add() ต้องได้ object เช่น { ชื่อ: 'ค่า' }");
+      expect(() => t.find(bad as never)).toThrow("find() ต้องได้ object เช่น { ชื่อ: 'ค่า' }");
+      expect(() => t.update(1, bad as never)).toThrow("update() ต้องได้ object เช่น { ชื่อ: 'ค่า' }");
+      if (bad !== undefined) {
+        expect(() => t.count(bad as never)).toThrow("count() ต้องได้ object เช่น { ชื่อ: 'ค่า' }");
+      }
+    });
+  }
+
+  it("keeps count() without an argument valid and does not wrap the message", () => {
+    const t = makeDb().table("tasks");
+    expect(t.count()).toBe(0);
+    expect(() => t.add(undefined as never)).toThrow(/^add\(\) ต้องได้ object/);
+  });
+});

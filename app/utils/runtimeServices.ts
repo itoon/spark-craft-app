@@ -11,6 +11,8 @@
  * records what the code asked for instead of starting real timers or speech.
  */
 
+import { safeLocalStorage } from "./safeLocalStorage";
+
 export type NotifyKind = "toast" | "alert" | "confirm";
 
 export interface RuntimeNotification {
@@ -80,15 +82,6 @@ let notificationSeq = 0;
 
 function hasThai(text: string) {
   return /[฀-๿]/.test(text);
-}
-
-function safeLocalStorage(): Storage | null {
-  try {
-    if (typeof window === "undefined") return null;
-    return window.localStorage;
-  } catch {
-    return null;
-  }
 }
 
 export function storageKeyPrefix(namespace = "default") {

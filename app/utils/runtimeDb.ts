@@ -7,7 +7,14 @@
  * The engine is obtained lazily on the first call, so a handler that fires
  * after the wasm finished loading still works. Dry run always gets a fresh
  * in-memory database and never touches persistence.
+ *
+ * A normal (non-dry-run) RuntimeDb shares one cached database per namespace
+ * (`openProjectDb`), saved to localStorage as base64 after every successful
+ * write. `dbVersion` ticks on each write so UI (the Database panel) can refresh.
  */
+import { shallowRef, type ShallowRef } from "vue";
+
+import { safeLocalStorage } from "./safeLocalStorage";
 import {
   assertLimit,
   assertName,
@@ -81,6 +88,9 @@ const ENGINE_MISSING = "ฐานข้อมูลยังโหลดไม�
 const BAD_PARAMS = "params ต้องเป็น array เช่น [a, b]";
 const BAD_ORDER_DIR = "orderBy() ใช้ได้แค่ 'asc' หรือ 'desc'";
 const REMOVE_NEEDS_ID = "remove() ต้องระบุ id";
+const SAVE_FAILED = "บันทึกฐานข้อมูลลงเครื่องไม่ได้ — ข้อมูลอาจหายเมื่อปิดแอป";
+const SAVED_DATA_CORRUPT = "ข้อมูลฐานข้อมูลที่บันทึกไว้เสีย — เริ่มฐานข้อมูลใหม่";
+const BASE64_CHUNK = 0x8000;
 
 const HINTS: ReadonlyArray<readonly [string, string]> = [
   ["no such table", " — ยังไม่ได้ CREATE TABLE หรือเปล่า?"],
@@ -154,21 +164,141 @@ function checkParams(params: unknown): SqlValue[] {
   return params.map(toSqlValue);
 }
 
+function checkObject(method: string, value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw dbError(`${method}() ต้องได้ object เช่น { ชื่อ: 'ค่า' }`);
+  }
+  return value as Record<string, unknown>;
+}
+
+/** True unless the statement starts with SELECT / WITH / PRAGMA (so also true for DDL and DML). */
+function queryWrites(sql: string): boolean {
+  const first = statementsOf(sql)[0] ?? "";
+  const keyword = /^[\s(]*([A-Za-z]+)/.exec(first)?.[1]?.toUpperCase();
+  return keyword !== "SELECT" && keyword !== "WITH" && keyword !== "PRAGMA";
+}
+
+type SqlDatabase = import("sql.js").Database;
+
+/** Bumped after every successful non-dry-run write, so panels know to refresh. */
+export const dbVersion: ShallowRef<number> = shallowRef(0);
+
+const projectDbs = new Map<string, SqlDatabase>();
+
+export function dbStorageKey(namespace = "default"): string {
+  return `codecraft-app-db:${namespace}`;
+}
+
+function toBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += BASE64_CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK));
+  }
+  return btoa(binary);
+}
+
+function fromBase64(text: string): Uint8Array {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** The saved database for `namespace`, or null when none (or it is unreadable: then warns and drops it). */
+function restoreDb(engine: SqlEngine, namespace: string, log: RuntimeDbOptions["log"]): SqlDatabase | null {
+  const ls = safeLocalStorage();
+  if (!ls) return null;
+  const key = dbStorageKey(namespace);
+  let saved: string | null = null;
+  try {
+    saved = ls.getItem(key);
+  } catch {
+    return null;
+  }
+  if (saved === null) return null;
+  let restored: SqlDatabase | null = null;
+  try {
+    restored = new engine.Database(fromBase64(saved));
+    // Opening garbage succeeds lazily; the first read is what fails.
+    restored.exec("SELECT count(*) FROM sqlite_master");
+    return restored;
+  } catch {
+    try {
+      restored?.close();
+    } catch {
+      // already unusable
+    }
+    log?.("warn", SAVED_DATA_CORRUPT);
+    try {
+      ls.removeItem(key);
+    } catch {
+      // storage blocked: nothing more to clean up
+    }
+    return null;
+  }
+}
+
+/** The one shared database of a namespace; the first open restores it from localStorage. */
+export function openProjectDb(engine: SqlEngine, namespace = "default", log?: RuntimeDbOptions["log"]): SqlDatabase {
+  const cached = projectDbs.get(namespace);
+  if (cached) return cached;
+  const db = restoreDb(engine, namespace, log) ?? new engine.Database();
+  projectDbs.set(namespace, db);
+  return db;
+}
+
+/** Forgets the namespace's database and its saved copy; the next open starts empty. */
+export function resetProjectDb(namespace = "default"): void {
+  const db = projectDbs.get(namespace);
+  projectDbs.delete(namespace);
+  try {
+    db?.close();
+  } catch {
+    // already closed
+  }
+  try {
+    safeLocalStorage()?.removeItem(dbStorageKey(namespace));
+  } catch {
+    // storage blocked: memory is already reset
+  }
+  dbVersion.value += 1;
+}
+
+function saveDb(db: SqlDatabase, namespace: string, log: RuntimeDbOptions["log"]): void {
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  try {
+    ls.setItem(dbStorageKey(namespace), toBase64(db.export()));
+  } catch {
+    log?.("warn", SAVE_FAILED);
+  }
+}
+
 function totalChanges(db: import("sql.js").Database): number {
   return Number(db.exec("SELECT total_changes()")[0]?.values[0]?.[0] ?? 0);
 }
 
 export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
-  let handle: import("sql.js").Database | null = null;
+  const namespace = options.namespace ?? "default";
+  let dryHandle: SqlDatabase | null = null;
 
-  function getDb(): import("sql.js").Database {
-    if (handle) return handle;
+  function getDb(): SqlDatabase {
+    if (options.dryRun && dryHandle) return dryHandle;
     const engine = options.getEngine();
     if (!engine) throw dbError(ENGINE_MISSING);
+    if (!options.dryRun) return openProjectDb(engine, namespace, options.log);
     const created = new engine.Database();
-    if (options.dryRun && options.initialDb) created.exec(options.initialDb);
-    handle = created;
+    if (options.initialDb) created.exec(options.initialDb);
+    dryHandle = created;
     return created;
+  }
+
+  /** Call after a write succeeded: saves the database and tells panels. No-op in dry run. */
+  function committed<T>(result: T): T {
+    if (options.dryRun) return result;
+    saveDb(getDb(), namespace, options.log);
+    dbVersion.value += 1;
+    return result;
   }
 
   function guarded<T>(name: string, work: () => T): T {
@@ -279,21 +409,23 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
     return {
       add(row) {
         return guarded("db.table.add", () => {
-          const insert = validated(() => buildInsert(name, row));
+          const insert = validated(() => buildInsert(name, checkObject("add", row)));
           getDb().run(buildCreateTable(name));
           ensureColumns(name, Object.keys(row));
           getDb().run(insert.sql, insert.params);
-          return Number(getDb().exec("SELECT last_insert_rowid()")[0]?.values[0]?.[0] ?? 0);
+          return committed(Number(getDb().exec("SELECT last_insert_rowid()")[0]?.values[0]?.[0] ?? 0));
         });
       },
       all() {
         return guarded("db.table.all", () => selectRows(base));
       },
       find(filter) {
-        return guarded("db.table.find", () => selectRows(byFilter(filter)));
+        return guarded("db.table.find", () => selectRows(byFilter(checkObject("find", filter))));
       },
       count(filter) {
-        return guarded("db.table.count", () => countRows(filter ? byFilter(filter) : base));
+        return guarded("db.table.count", () =>
+          countRows(filter === undefined ? base : byFilter(checkObject("count", filter))),
+        );
       },
       get(id) {
         return guarded(
@@ -303,23 +435,23 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
       },
       update(id, patch) {
         return guarded("db.table.update", () => {
-          const statement = validated(() => buildUpdate(name, id, patch));
-          if (!tableExists(name)) return 0;
+          const statement = validated(() => buildUpdate(name, id, checkObject("update", patch)));
+          if (!tableExists(name)) return committed(0);
           ensureColumns(name, Object.keys(patch));
-          return execCounting(statement);
+          return committed(execCounting(statement));
         });
       },
       remove(id) {
         return guarded("db.table.remove", () => {
           if (id === null || id === undefined) throw dbError(REMOVE_NEEDS_ID);
           const statement = validated(() => buildDelete(name, id));
-          return tableExists(name) ? execCounting(statement) : 0;
+          return committed(tableExists(name) ? execCounting(statement) : 0);
         });
       },
       clear() {
         return guarded("db.table.clear", () => {
           const statement = validated(() => buildDelete(name));
-          return tableExists(name) ? execCounting(statement) : 0;
+          return committed(tableExists(name) ? execCounting(statement) : 0);
         });
       },
       where(col, op, value) {
@@ -343,11 +475,14 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
         const lastId = insertLike
           ? Number(db.exec("SELECT last_insert_rowid()")[0]?.values[0]?.[0] ?? 0)
           : null;
-        return { changes, lastId };
+        return committed({ changes, lastId });
       });
     },
     query(sql, params) {
-      return guarded("db.query", () => queryRows(sql, params));
+      return guarded("db.query", () => {
+        const rows = queryRows(sql, params);
+        return queryWrites(sql) ? committed(rows) : rows;
+      });
     },
     one(sql, params) {
       return guarded("db.one", () => queryRows(sql, params)[0] ?? null);
