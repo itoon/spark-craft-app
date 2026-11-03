@@ -324,6 +324,18 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
     }
   }
 
+  /**
+   * Shared by `query` and `one`. A call is a write when its first keyword is not
+   * SELECT/WITH/PRAGMA, or when it changed rows anyway (`WITH ... INSERT`,
+   * `INSERT ... RETURNING`); only then is the database saved.
+   */
+  function readOrWrite(sql: string, params: unknown): DbRow[] {
+    const db = getDb();
+    const before = totalChanges(db);
+    const rows = queryRows(sql, params);
+    return queryWrites(sql) || totalChanges(db) > before ? committed(rows) : rows;
+  }
+
   function tableExists(name: string): boolean {
     return (
       queryRows(
@@ -479,13 +491,10 @@ export function createRuntimeDb(options: RuntimeDbOptions): RuntimeDb {
       });
     },
     query(sql, params) {
-      return guarded("db.query", () => {
-        const rows = queryRows(sql, params);
-        return queryWrites(sql) ? committed(rows) : rows;
-      });
+      return guarded("db.query", () => readOrWrite(sql, params));
     },
     one(sql, params) {
-      return guarded("db.one", () => queryRows(sql, params)[0] ?? null);
+      return guarded("db.one", () => readOrWrite(sql, params)[0] ?? null);
     },
     tables() {
       return guarded("db.tables", () =>

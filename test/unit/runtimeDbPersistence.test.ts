@@ -90,6 +90,31 @@ describe("runtimeDb persistence", () => {
     expect(dbVersion.value).toBe(start + 6);
   });
 
+  it("persists and bumps for writes that run through one() or a WITH ... INSERT query", () => {
+    const db = dbFor("p1");
+    db.run("CREATE TABLE t (id INTEGER PRIMARY KEY, x)");
+    const start = dbVersion.value;
+
+    expect(db.one("INSERT INTO t (x) VALUES (1) RETURNING id")).toEqual({ id: 1 });
+    expect(dbVersion.value).toBe(start + 1);
+    const afterOne = store.get("codecraft-app-db:p1");
+
+    db.query("WITH v(x) AS (SELECT 5) INSERT INTO t (x) SELECT x FROM v");
+    expect(dbVersion.value).toBe(start + 2);
+    expect(store.get("codecraft-app-db:p1")).not.toBe(afterOne);
+
+    db.one("SELECT 1 AS n");
+    db.query("PRAGMA table_info(t)");
+    expect(dbVersion.value).toBe(start + 2);
+
+    vi.resetModules();
+    return import("../../app/utils/runtimeDb").then((fresh) => {
+      const restored = fresh.createRuntimeDb({ getEngine: () => engine, namespace: "p1" });
+      expect(restored.query("SELECT x FROM t ORDER BY id")).toEqual([{ x: 1 }, { x: 5 }]);
+      fresh.resetProjectDb("p1");
+    });
+  });
+
   it("does not bump dbVersion or save when a write fails", () => {
     const db = dbFor("p1");
     db.run("CREATE TABLE t (x)");
