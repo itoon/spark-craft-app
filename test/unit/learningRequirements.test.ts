@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppElement } from "../../app/composables/useEditorStore";
 import {
@@ -7,6 +7,7 @@ import {
   type LearningRequirementContext,
   type LearningRequirement,
 } from "../../app/utils/learningRequirements";
+import { loadSqlEngine } from "../../app/utils/sqlEngine";
 
 function makeElement(id: string, type: string, pageId = "page1"): AppElement {
   return {
@@ -258,5 +259,66 @@ button1.onClick(() => {
   it("matches text inside array props such as List content", () => {
     expect(scenario([{ type: "click", match: "ตอบ" }], "การบ้านคณิต", "content").met).toBe(true);
     expect(scenario([], "การบ้านคณิต", "content").met).toBe(false);
+  });
+});
+
+describe("scenario checks with the db service", () => {
+  const elements = [{ ...makeElement("page1_label1", "Label"), props: { content: "" } }];
+  const dbCode = `var label1 = new Label('page1_label1');
+label1.content = db.one('SELECT n FROM s').n;
+page.add(label1);`;
+  const plainCode = `var label1 = new Label('page1_label1');
+label1.content = 'hello';
+page.add(label1);`;
+
+  const scenarioFor = (code: string, expectPattern: string): Extract<LearningRequirement, { type: "scenario" }> & {
+    code: string;
+  } => ({
+    id: "s",
+    type: "scenario",
+    db: "CREATE TABLE s (n); INSERT INTO s VALUES (5);",
+    expect: { kind: "text", elementType: "Label", pattern: expectPattern },
+    message: "",
+    code,
+  });
+
+  afterEach(() => {
+    vi.doUnmock("sql.js");
+    vi.resetModules();
+  });
+
+  it("seeds the database with the scenario's db and lets the code read it", async () => {
+    await loadSqlEngine();
+    const requirement = scenarioFor(dbCode, "^5$");
+    const result = evaluateLearningRequirement(requirement, {
+      elements,
+      currentPageId: "page1",
+      jsCode: dbCode,
+    });
+    expect(result.met).toBe(true);
+  });
+
+  it("waits (not met) while the engine has not loaded", async () => {
+    vi.resetModules();
+    vi.doMock("sql.js", () => ({ default: () => new Promise(() => {}) }));
+    const fresh = await import("../../app/utils/learningRequirements");
+    const result = fresh.evaluateLearningRequirement(scenarioFor(dbCode, "^5$"), {
+      elements,
+      currentPageId: "page1",
+      jsCode: dbCode,
+    });
+    expect(result).toMatchObject({ met: false, detail: "กำลังโหลดฐานข้อมูล" });
+  });
+
+  it("leaves scenarios that never touch db unaffected when the engine has not loaded", async () => {
+    vi.resetModules();
+    vi.doMock("sql.js", () => ({ default: () => new Promise(() => {}) }));
+    const fresh = await import("../../app/utils/learningRequirements");
+    const result = fresh.evaluateLearningRequirement(scenarioFor(plainCode, "^hello$"), {
+      elements,
+      currentPageId: "page1",
+      jsCode: plainCode,
+    });
+    expect(result.met).toBe(true);
   });
 });

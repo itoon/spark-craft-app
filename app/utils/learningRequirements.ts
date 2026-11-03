@@ -1,6 +1,7 @@
 import type { AppElement, Page } from "../composables/useEditorStore";
 import { executeCode } from "../composables/useRuntime";
 import { isOnPage } from "./componentApi";
+import { codeUsesDb, getLoadedSqlEngine } from "./sqlEngine";
 import type { ElementInstance } from "../composables/useRuntime";
 
 export interface LearningRequirementResult {
@@ -147,6 +148,8 @@ export type LearningRequirement =
       pageId?: string;
       actions?: ScenarioAction[];
       storage?: Record<string, unknown>;
+      /** SQL run first in the sandboxed database (e.g. CREATE TABLE + INSERT). */
+      db?: string;
       expect: ScenarioExpectation;
       message: string;
     }
@@ -259,8 +262,11 @@ export function displayText(element: AppElement): string {
 function getRuntimeSnapshot(context: LearningRequirementContext, pageId?: string) {
   // Clone so top-level assignments in learner code never leak into the design.
   const elements = cloneElements(scopedElements(context, pageId));
+  const code = codeForPage(context, pageId);
+  // db.* needs the SQL engine; until it has loaded we cannot evaluate.
+  if (codeUsesDb(code) && !getLoadedSqlEngine()) return null;
   try {
-    return executeCode(codeForPage(context, pageId), elements, undefined, undefined, undefined, undefined, {
+    return executeCode(code, elements, undefined, undefined, undefined, undefined, {
       services: { dryRun: true },
     });
   } catch {
@@ -307,6 +313,7 @@ export function runScenario(
   const errors: string[] = [];
 
   if (!code.trim()) return { met: false, detail: "ยังไม่มีโค้ดในหน้านี้" };
+  if (codeUsesDb(code) && !getLoadedSqlEngine()) return { met: false, detail: "กำลังโหลดฐานข้อมูล" };
 
   let result: ReturnType<typeof executeCode>;
   try {
@@ -319,7 +326,7 @@ export function runScenario(
         if (entry.type === "error") errors.push(entry.message);
       },
       undefined,
-      { services: { dryRun: true, initialStorage: requirement.storage } },
+      { services: { dryRun: true, initialStorage: requirement.storage, initialDb: requirement.db } },
     );
   } catch (error) {
     return { met: false, detail: error instanceof Error ? error.message : String(error) };

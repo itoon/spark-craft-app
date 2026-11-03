@@ -355,6 +355,7 @@ import { useEditorStore } from "~/composables/useEditorStore";
 import { useLearning } from "~/composables/useLearning";
 import type { LessonStep } from "~/data/lessons";
 import { evaluateLearningRequirements } from "~/utils/learningRequirements";
+import { ensureSqlEngineFor, sqlEngineReady } from "~/utils/sqlEngine";
 
 const store = useEditorStore();
 const learning = useLearning();
@@ -374,6 +375,8 @@ const step = computed<LessonStep>(() => lesson.value!.steps[stepIndex.value]!);
 
 const results = computed(() => {
   if (!lesson.value) return [];
+  // Re-evaluate once the SQL engine arrives (db checks wait for it).
+  void sqlEngineReady.value;
   return evaluateLearningRequirements(step.value.checks, {
     elements: store.elements.value,
     currentPageId: store.currentPageId.value,
@@ -471,6 +474,15 @@ watch(
     showHint.value = false;
     nextTick(() => scrollRef.value?.scrollTo({ top: 0 }));
   },
+);
+
+// Load the SQL engine as soon as the project's code mentions db (never rejects).
+watch(
+  store.jsCodeByPage,
+  (codeByPage) => {
+    void ensureSqlEngineFor(codeByPage);
+  },
+  { deep: true, immediate: true },
 );
 
 watch(
