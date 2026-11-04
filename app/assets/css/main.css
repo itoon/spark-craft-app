@@ -141,3 +141,125 @@ body,
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
 }
 
+
+/* LINE Seed Sans TH (SIL OFL 1.1, see fonts/line-seed-sans-th/OFL.txt):
+   CodeVenture's font, shipped with the app so it works offline. Only the
+   CodeVenture theme uses it. */
+@font-face {
+  font-family: "LINE Seed Sans TH";
+  src: local("LINE Seed Sans TH"), local("LINESeedSansTH-Regular"),
+    url("../fonts/line-seed-sans-th/LINESeedSansTH-Regular.ttf") format("truetype");
+  font-weight: 100 599;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "LINE Seed Sans TH";
+  src: local("LINE Seed Sans TH Bold"), local("LINESeedSansTH-Bold"),
+    url("../fonts/line-seed-sans-th/LINESeedSansTH-Bold.ttf") format("truetype");
+  font-weight: 600 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ── CodeVenture theme (header → palette button) ─────────────────────────
+   Navy surfaces, CodeVenture blue (#1F75FF) and the yellow CTA gradient,
+   taken from codeventure.app. Nuxt UI maps neutral-* / primary-* utilities
+   to --ui-color-*, so swapping those re-colours every panel; indigo-* (the
+   editor's accent) becomes the same blue. Set by useUiTheme on <html>. */
+html[data-theme="codeventure"] {
+  --ui-color-neutral-50: #f5f8ff;
+  --ui-color-neutral-100: #ebf1fb;
+  --ui-color-neutral-200: #d5e0f2;
+  --ui-color-neutral-300: #b4c4e0;
+  --ui-color-neutral-400: #8ea3cb;
+  --ui-color-neutral-500: #6479a6;
+  --ui-color-neutral-600: #455b8c;
+  --ui-color-neutral-700: #2f4472;
+  --ui-color-neutral-800: #1c3059;
+  --ui-color-neutral-900: #0f2249;
+  --ui-color-neutral-950: #061a38;
+
+  --ui-color-primary-50: #ebf4ff;
+  --ui-color-primary-100: #d6e8ff;
+  --ui-color-primary-200: #add0ff;
+  --ui-color-primary-300: #7db3ff;
+  --ui-color-primary-400: #4d94ff;
+  --ui-color-primary-500: #1f75ff;
+  --ui-color-primary-600: #0f5fe6;
+  --ui-color-primary-700: #0b4cba;
+  --ui-color-primary-800: #0c3f94;
+  --ui-color-primary-900: #0e3675;
+  --ui-color-primary-950: #0a2147;
+
+  --color-indigo-50: #ebf4ff;
+  --color-indigo-100: #d6e8ff;
+  --color-indigo-200: #add0ff;
+  --color-indigo-300: #7db3ff;
+  --color-indigo-400: #4d94ff;
+  --color-indigo-500: #1f75ff;
+  --color-indigo-600: #1f75ff;
+  --color-indigo-700: #0b4cba;
+  --color-indigo-800: #0c3f94;
+  --color-indigo-900: #0e3675;
+  --color-indigo-950: #0a2147;
+
+  --ui-radius: 0.375rem;
+  --cc-accent-gradient: linear-gradient(to right, #f79722, #fdca3f);
+  font-family: "LINE Seed Sans TH", system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif;
+}
+
+/* Brand mark + the selected app mode pick up CodeVenture's yellow CTA */
+html[data-theme="codeventure"] .cc-brand-mark {
+  background: var(--cc-accent-gradient);
+}
+html[data-theme="codeventure"] .cc-brand-mark .iconify {
+  color: #22282a;
+}
+html[data-theme="codeventure"] .cc-app-mode[aria-pressed="true"] {
+  background: var(--cc-accent-gradient);
+  color: #22282a;
+}
+
+/* The phone screen shows the student's app, not the editor: put back the
+   default colours and font (Nuxt UI's slate/green, Tailwind's indigo). */
+html[data-theme="codeventure"] .cc-app-screen {
+  --ui-color-neutral-50: var(--color-slate-50, oklch(98.4% 0.003 247.858));
+  --ui-color-neutral-100: var(--color-slate-100, oklch(96.8% 0.007 247.896));
+  --ui-color-neutral-200: var(--color-slate-200, oklch(92.9% 0.013 255.508));
+  --ui-color-neutral-300: var(--color-slate-300, oklch(86.9% 0.022 252.894));
+  --ui-color-neutral-400: var(--color-slate-400, oklch(70.4% 0.04 256.788));
+  --ui-color-neutral-500: var(--color-slate-500, oklch(55.4% 0.046 257.417));
+  --ui-color-neutral-600: var(--color-slate-600, oklch(44.6% 0.043 257.281));
+  --ui-color-neutral-700: var(--color-slate-700, oklch(37.2% 0.044 257.287));
+  --ui-color-neutral-800: var(--color-slate-800, oklch(27.9% 0.041 260.031));
+  --ui-color-neutral-900: var(--color-slate-900, oklch(20.8% 0.042 265.755));
+  --ui-color-neutral-950: var(--color-slate-950, oklch(12.9% 0.042 264.695));
+
+  --ui-color-primary-50: var(--color-green-50, oklch(98.2% 0.018 155.826));
+  --ui-color-primary-100: var(--color-green-100, oklch(96.2% 0.044 156.743));
+  --ui-color-primary-200: var(--color-green-200, oklch(92.5% 0.084 155.995));
+  --ui-color-primary-300: var(--color-green-300, oklch(87.1% 0.15 154.449));
+  --ui-color-primary-400: var(--color-green-400, oklch(79.2% 0.209 151.711));
+  --ui-color-primary-500: var(--color-green-500, oklch(72.3% 0.219 149.579));
+  --ui-color-primary-600: var(--color-green-600, oklch(62.7% 0.194 149.214));
+  --ui-color-primary-700: var(--color-green-700, oklch(52.7% 0.154 150.069));
+  --ui-color-primary-800: var(--color-green-800, oklch(44.8% 0.119 151.328));
+  --ui-color-primary-900: var(--color-green-900, oklch(39.3% 0.095 152.535));
+  --ui-color-primary-950: var(--color-green-950, oklch(26.6% 0.065 152.934));
+
+  --color-indigo-50: oklch(96.2% 0.018 272.314);
+  --color-indigo-100: oklch(93% 0.034 272.788);
+  --color-indigo-200: oklch(87% 0.065 274.039);
+  --color-indigo-300: oklch(78.5% 0.115 274.713);
+  --color-indigo-400: oklch(67.3% 0.182 276.935);
+  --color-indigo-500: oklch(58.5% 0.233 277.117);
+  --color-indigo-600: oklch(51.1% 0.262 276.966);
+  --color-indigo-700: oklch(45.7% 0.24 277.023);
+  --color-indigo-800: oklch(39.8% 0.195 277.366);
+  --color-indigo-900: oklch(35.9% 0.144 278.697);
+  --color-indigo-950: oklch(25.7% 0.09 281.288);
+
+  --ui-radius: 0.25rem;
+  font-family: var(--font-sans);
+}

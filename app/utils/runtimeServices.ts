@@ -3,6 +3,7 @@
  *   Notifier        → notify.toast / notify.alert / notify.confirm
  *   Clock (Timer)   → timer.every / timer.after / timer.stop / timer.stopAll
  *   TinyDB          → storage.set / storage.get / storage.remove / storage.keys
+ *   TinyDB-style    → db.run / db.query / db.one / db.tables / db.table(name)  (SQLite)
  *   TextToSpeech +
  *   Sound (vibrate) → phone.speak / phone.vibrate
  *
@@ -10,6 +11,10 @@
  * phone viewer, and the learning checker. The checker uses `dryRun`, which
  * records what the code asked for instead of starting real timers or speech.
  */
+
+import { createRuntimeDb, type RuntimeDb } from "./runtimeDb";
+import { safeLocalStorage } from "./safeLocalStorage";
+import { getLoadedSqlEngine } from "./sqlEngine";
 
 export type NotifyKind = "toast" | "alert" | "confirm";
 
@@ -30,6 +35,8 @@ export interface RuntimeServiceHost {
   dryRun?: boolean;
   /** Optional pre-seeded storage for dry runs. */
   initialStorage?: Record<string, unknown>;
+  /** Optional SQL run on the fresh dry-run database (checker seeds). */
+  initialDb?: string;
 }
 
 export interface RecordedTimer {
@@ -65,6 +72,7 @@ export interface RuntimeServices {
     speak(text: unknown): void;
     vibrate(ms?: number): void;
   };
+  db: RuntimeDb;
   /** Names of every service call made so far, e.g. "notify.toast". */
   calls: string[];
   /** Timers registered so far (all modes). */
@@ -80,15 +88,6 @@ let notificationSeq = 0;
 
 function hasThai(text: string) {
   return /[฀-๿]/.test(text);
-}
-
-function safeLocalStorage(): Storage | null {
-  try {
-    if (typeof window === "undefined") return null;
-    return window.localStorage;
-  } catch {
-    return null;
-  }
 }
 
 export function storageKeyPrefix(namespace = "default") {
@@ -203,6 +202,15 @@ export function createRuntimeServices(
     for (const entry of timers) stopTimer(entry.id);
   }
 
+  const db = createRuntimeDb({
+    getEngine: getLoadedSqlEngine,
+    namespace: host.storageNamespace,
+    dryRun,
+    initialDb: host.initialDb,
+    record,
+    log,
+  });
+
   const services: RuntimeServices = {
     notify: {
       toast: (message) => notifyWith("toast", message),
@@ -294,6 +302,7 @@ export function createRuntimeServices(
         }
       },
     },
+    db,
     calls,
     timers,
     fireTimers(rounds = 1) {
@@ -309,6 +318,7 @@ export function createRuntimeServices(
     dispose() {
       disposed = true;
       stopAllTimers();
+      db.dispose();
       if (!dryRun && typeof window !== "undefined" && "speechSynthesis" in window) {
         try {
           window.speechSynthesis.cancel();
@@ -339,6 +349,10 @@ export const RUNTIME_SERVICE_API: Record<string, { description: string; methods:
   phone: {
     description: "Talk and vibrate (App Inventor: TextToSpeech / Sound)",
     methods: ["speak(text)", "vibrate(ms)"],
+  },
+  db: {
+    description: "ฐานข้อมูล SQL บนเครื่อง (SQLite)",
+    methods: ["run(sql, params)", "query(sql, params)", "one(sql, params)", "tables()", "table(name)"],
   },
   location: {
     description: "GPS position (App Inventor: LocationSensor) — needs https on phones",

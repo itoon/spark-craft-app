@@ -111,7 +111,7 @@
         "page1_image1",
         "page1_spinner1",
         "page1_link1",
-        "page1_link2"
+        "page1_chart3"
       ],
       "direction": "col"
     },
@@ -331,24 +331,46 @@
       "children": []
     },
     {
-      "id": "page1_link2",
+      "id": "page1_chart3",
       "pageId": "page1",
-      "type": "Link",
+      "type": "Chart",
       "x": 0,
       "y": 0,
-      "width": 160,
-      "height": 24,
+      "width": 300,
+      "height": 220,
       "props": {
-        "content": "Click here",
-        "href": "#",
-        "target": "_blank"
+        "chartType": "bar",
+        "title": "My Chart",
+        "labels": [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "May"
+        ],
+        "datasets": [
+          {
+            "label": "Series 1",
+            "data": [
+              40,
+              65,
+              28,
+              80,
+              52
+            ],
+            "color": "#3880ff"
+          }
+        ],
+        "ionicColor": "primary",
+        "ionicColorHex": "#3880ff",
+        "ionicColorContrast": "#ffffff"
       },
       "parentId": "page1_container6",
       "children": []
     }
   ],
   "jsCodeByPage": {
-    "page1": "var toolbar1 = new Toolbar('page1_toolbar1');\npage.add(toolbar1);\n\nvar spinner1 = new Spinner('page1_spinner1');\npage.add(spinner1);\nspinner1.hide()\n\nvar camera3 = new Camera('page1_camera3');\npage.add(camera3);\n\nvar button2 = new Button('page1_button2');\npage.add(button2);\n\nvar button4 = new Button('page1_button4');\npage.add(button4);\n\nvar button5 = new Button('page1_button5');\npage.add(button5);\n\nvar button6 = new Button('page1_button6');\npage.add(button6);\n\nlet photo\n\nbutton2.onClick(async() =>{\n  photo = await camera3.capture()  \n})\n\nbutton6.onClick(() => {\n  const filter = ['warn','cool', 'grayscale']  \n  camera3.setFilter(filter[Math.floor(Math.random()*filter.length)])\n})\n\nbutton5.onClick(function(){\n  camera3.reset()\n})\n\nbutton4.onClick(async() =>{\n  await photo.save('my-photo.png')\n})\n\n",
+    "page1": "var toolbar1 = new Toolbar('page1_toolbar1');\npage.add(toolbar1);\n\nvar spinner1 = new Spinner('page1_spinner1');\npage.add(spinner1);\nspinner1.hide()\n\nvar camera3 = new Camera('page1_camera3');\npage.add(camera3);\n\nvar button2 = new Button('page1_button2');\npage.add(button2);\n\nvar button4 = new Button('page1_button4');\npage.add(button4);\n\nvar button5 = new Button('page1_button5');\npage.add(button5);\n\nvar button6 = new Button('page1_button6');\npage.add(button6);\n\nvar chart1 = new Chart('page1_chart3');\npage.add(chart1);\nchart1.title = \"ABC\"\nchart1.labels = ['Janss', 'Feb', 'Mar', 'Apr', 'May'];\nchart1.data = [30, 70, 45, 88, 60];\n\nchart1.setDatasets([\n  { label: 'Sales', data: [30, 70, 45], color: '#3880ff' },\n  { label: 'Cost',  data: [20, 40, 35], color: '#ff4961' },\n]);\n\nlet photo\n\nbutton2.onClick(async() =>{\n  photo = await camera3.capture()  \n})\n\nbutton6.onClick(() => {\n  const filter = ['warn','cool', 'grayscale']  \n  camera3.setFilter(filter[Math.floor(Math.random()*filter.length)])\n})\n\nbutton5.onClick(function(){\n  camera3.reset()\n})\n\nbutton4.onClick(async() =>{\n  await photo.save('my-photo.png')\n})\n",
     "page2": "// --- Connect elements to the page ---\n\nvar toolbar2 = new Toolbar('page2_toolbar2');\npage.add(toolbar2)\ntoolbar2.backButton.onClick(() => {\n  page.goTo('page1');\n});"
   },
   "startPageId": "page1",

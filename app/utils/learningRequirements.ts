@@ -1,6 +1,7 @@
 import type { AppElement, Page } from "../composables/useEditorStore";
 import { executeCode } from "../composables/useRuntime";
 import { isOnPage } from "./componentApi";
+import { codeUsesDb, getLoadedSqlEngine } from "./sqlEngine";
 import type { ElementInstance } from "../composables/useRuntime";
 
 export interface LearningRequirementResult {
@@ -30,6 +31,18 @@ export type ScenarioAction =
       match?: string | string[];
       index?: number;
       times?: number;
+    }
+  | {
+      /**
+       * Set what the learner picked on an element of `elementType` (Radio,
+       * Select, Range, Toggle, Checkbox…). `index` counts only that type, in
+       * screen order (default 0). Toggle sets `on`, Checkbox `checked`, the
+       * rest `value`.
+       */
+      type: "set";
+      elementType: string;
+      index?: number;
+      value: string | number | boolean;
     }
   | {
       /** Fire every running timer.every / timer.after once per tick. */
@@ -135,6 +148,8 @@ export type LearningRequirement =
       pageId?: string;
       actions?: ScenarioAction[];
       storage?: Record<string, unknown>;
+      /** SQL run first in the sandboxed database (e.g. CREATE TABLE + INSERT). */
+      db?: string;
       expect: ScenarioExpectation;
       message: string;
     }
@@ -158,6 +173,7 @@ export interface LearningRequirementContext {
 }
 
 const INPUT_TYPES = new Set(["Input", "LabelledInput"]);
+const PICKED_PROP: Record<string, string> = { Toggle: "on", Checkbox: "checked" };
 
 function cloneElements(elements: AppElement[]): AppElement[] {
   return JSON.parse(JSON.stringify(elements)) as AppElement[];
@@ -246,10 +262,16 @@ export function displayText(element: AppElement): string {
 function getRuntimeSnapshot(context: LearningRequirementContext, pageId?: string) {
   // Clone so top-level assignments in learner code never leak into the design.
   const elements = cloneElements(scopedElements(context, pageId));
+  const code = codeForPage(context, pageId);
+  // db.* needs the SQL engine; until it has loaded we cannot evaluate.
+  if (codeUsesDb(code) && !getLoadedSqlEngine()) return null;
   try {
-    return executeCode(codeForPage(context, pageId), elements, undefined, undefined, undefined, undefined, {
+    const result = executeCode(code, elements, undefined, undefined, undefined, undefined, {
       services: { dryRun: true },
     });
+    // Callers only read pageElements / instances, which are plain data; free the db now.
+    result.services.dispose();
+    return result;
   } catch {
     return null;
   }
@@ -294,6 +316,7 @@ export function runScenario(
   const errors: string[] = [];
 
   if (!code.trim()) return { met: false, detail: "ยังไม่มีโค้ดในหน้านี้" };
+  if (codeUsesDb(code) && !getLoadedSqlEngine()) return { met: false, detail: "กำลังโหลดฐานข้อมูล" };
 
   let result: ReturnType<typeof executeCode>;
   try {
@@ -306,108 +329,118 @@ export function runScenario(
         if (entry.type === "error") errors.push(entry.message);
       },
       undefined,
-      { services: { dryRun: true, initialStorage: requirement.storage } },
+      { services: { dryRun: true, initialStorage: requirement.storage, initialDb: requirement.db } },
     );
   } catch (error) {
     return { met: false, detail: error instanceof Error ? error.message : String(error) };
   }
 
-  const startEventIndex = result.events.length;
+  // Everything the expectations read comes from `result`; dispose only once they are evaluated.
+  try {
+    const startEventIndex = result.events.length;
 
-  for (const action of requirement.actions ?? []) {
-    if (action.type === "input") {
-      const inputs = elements.filter((element) => INPUT_TYPES.has(element.type));
-      action.values.forEach((value, index) => {
-        const target = inputs[index];
-        if (target) target.props.value = String(value);
-      });
-    } else if (action.type === "click") {
-      const target = findClickTarget(result.instances, action);
-      if (!target) {
-        const wanted = asList(action.match)[0];
-        return {
-          met: false,
-          detail: wanted
-            ? `หาปุ่ม “${wanted}” ที่มี onClick ไม่เจอ`
-            : "ยังไม่มีปุ่มที่ใส่ onClick",
-        };
-      }
-      const times = Math.max(1, action.times ?? 1);
-      for (let i = 0; i < times; i++) {
-        try {
-          target.__onClick?.();
-        } catch (error) {
-          errors.push(error instanceof Error ? error.message : String(error));
+    for (const action of requirement.actions ?? []) {
+      if (action.type === "input") {
+        const inputs = elements.filter((element) => INPUT_TYPES.has(element.type));
+        action.values.forEach((value, index) => {
+          const target = inputs[index];
+          if (target) target.props.value = String(value);
+        });
+      } else if (action.type === "set") {
+        const target = elements.filter((element) => element.type === action.elementType)[action.index ?? 0];
+        if (target) target.props[PICKED_PROP[target.type] ?? "value"] = action.value;
+      } else if (action.type === "click") {
+        const target = findClickTarget(result.instances, action);
+        if (!target) {
+          const wanted = asList(action.match)[0];
+          return {
+            met: false,
+            detail: wanted
+              ? `หาปุ่ม “${wanted}” ที่มี onClick ไม่เจอ`
+              : "ยังไม่มีปุ่มที่ใส่ onClick",
+          };
         }
+        const times = Math.max(1, action.times ?? 1);
+        for (let i = 0; i < times; i++) {
+          try {
+            target.__onClick?.();
+          } catch (error) {
+            errors.push(error instanceof Error ? error.message : String(error));
+          }
+        }
+      } else if (action.type === "tick") {
+        result.services.fireTimers(Math.max(1, action.times ?? 1));
+      } else if (action.type === "shake") {
+        for (let i = 0; i < Math.max(1, action.times ?? 1); i++) result.device.fireShake();
+      } else if (action.type === "tilt") {
+        result.device.fireTilt({ x: action.x ?? 0, y: action.y ?? 0, z: action.z ?? 9.81 });
+      } else if (action.type === "ble-message") {
+        result.device.fireBleMessage(action.text);
       }
-    } else if (action.type === "tick") {
-      result.services.fireTimers(Math.max(1, action.times ?? 1));
-    } else if (action.type === "shake") {
-      for (let i = 0; i < Math.max(1, action.times ?? 1); i++) result.device.fireShake();
-    } else if (action.type === "tilt") {
-      result.device.fireTilt({ x: action.x ?? 0, y: action.y ?? 0, z: action.z ?? 9.81 });
-    } else if (action.type === "ble-message") {
-      result.device.fireBleMessage(action.text);
     }
-  }
 
-  const expectation = requirement.expect;
-  const errorDetail = errors[0] ? `โค้ดมีข้อผิดพลาด: ${errors[0]}` : undefined;
+    const expectation = requirement.expect;
+    const errorDetail = errors[0] ? `โค้ดมีข้อผิดพลาด: ${errors[0]}` : undefined;
 
-  if (expectation.kind === "text") {
-    const regex = safeRegExp(expectation.pattern, expectation.flags);
-    if (!regex) return { met: false };
-    const candidates = elements.filter(
-      (element) => !expectation.elementType || element.type === expectation.elementType,
-    );
-    const met = candidates.some((element) => {
-      const value = expectation.prop ? element.props[expectation.prop] : displayText(element);
-      return regex.test(String(value ?? ""));
-    });
-    if (met) return { met };
-    const shown = candidates.map(displayText).filter(Boolean).slice(0, 3);
-    return {
-      met,
-      detail:
-        errorDetail ??
-        (shown.length ? `ตอนนี้หน้าจอแสดง: ${shown.map((text) => `“${text}”`).join(", ")}` : undefined),
-    };
-  }
-
-  if (expectation.kind === "changed") {
-    const met = result.events
-      .slice(startEventIndex)
-      .some(
-        (event) =>
-          event.type === "update" &&
-          (!expectation.elementType || event.elementType === expectation.elementType),
+    if (expectation.kind === "text") {
+      const regex = safeRegExp(expectation.pattern, expectation.flags);
+      if (!regex) return { met: false };
+      const candidates = elements.filter(
+        (element) => !expectation.elementType || element.type === expectation.elementType,
       );
-    return { met, detail: met ? undefined : errorDetail };
-  }
+      const met = candidates.some((element) => {
+        const value = expectation.prop ? element.props[expectation.prop] : displayText(element);
+        // Arrays/objects (List content, Map markers, Chart labels) are matched as JSON text.
+        const text = value !== null && typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
+        return regex.test(text);
+      });
+      if (met) return { met };
+      const shown = candidates.map(displayText).filter(Boolean).slice(0, 3);
+      return {
+        met,
+        detail:
+          errorDetail ??
+          (shown.length ? `ตอนนี้หน้าจอแสดง: ${shown.map((text) => `“${text}”`).join(", ")}` : undefined),
+      };
+    }
 
-  if (expectation.kind === "called") {
-    const wanted = asList(expectation.service);
-    const met = wanted.some((service) => result.services.calls.includes(service));
-    return { met, detail: met ? undefined : errorDetail };
-  }
+    if (expectation.kind === "changed") {
+      const met = result.events
+        .slice(startEventIndex)
+        .some(
+          (event) =>
+            event.type === "update" &&
+            (!expectation.elementType || event.elementType === expectation.elementType),
+        );
+      return { met, detail: met ? undefined : errorDetail };
+    }
 
-  if (expectation.kind === "navigated") {
-    const target = expectation.page?.toLowerCase();
-    const pages = context.pages ?? [];
-    const met = navigations.some((ref) => {
-      if (!target) return true;
-      const normalized = ref.trim().toLowerCase();
-      if (normalized === target) return true;
-      const page = pages.find(
-        (candidate) =>
-          candidate.id.toLowerCase() === normalized || candidate.name.toLowerCase() === normalized,
-      );
-      return page ? page.id.toLowerCase() === target || page.name.toLowerCase() === target : false;
-    });
-    return { met, detail: met ? undefined : errorDetail };
-  }
+    if (expectation.kind === "called") {
+      const wanted = asList(expectation.service);
+      const met = wanted.some((service) => result.services.calls.includes(service));
+      return { met, detail: met ? undefined : errorDetail };
+    }
 
-  return { met: false };
+    if (expectation.kind === "navigated") {
+      const target = expectation.page?.toLowerCase();
+      const pages = context.pages ?? [];
+      const met = navigations.some((ref) => {
+        if (!target) return true;
+        const normalized = ref.trim().toLowerCase();
+        if (normalized === target) return true;
+        const page = pages.find(
+          (candidate) =>
+            candidate.id.toLowerCase() === normalized || candidate.name.toLowerCase() === normalized,
+        );
+        return page ? page.id.toLowerCase() === target || page.name.toLowerCase() === target : false;
+      });
+      return { met, detail: met ? undefined : errorDetail };
+    }
+
+    return { met: false };
+  } finally {
+    result.services.dispose();
+  }
 }
 
 function hasManual(context: LearningRequirementContext, id: string) {

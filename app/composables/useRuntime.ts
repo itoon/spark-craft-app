@@ -1083,7 +1083,7 @@ export function executeCode(
   const services = createRuntimeServices(options.services, (type, message) =>
     pushLog({ type, message })
   )
-  const { notify, timer, storage, phone } = services
+  const { notify, timer, storage, phone, db } = services
 
   // ── Phone hardware (App Inventor: LocationSensor, Accelerometer, BluetoothLE) ──
   const device = createDeviceServices(
@@ -1109,7 +1109,7 @@ export function executeCode(
       'Heading','Label','TextBox','Textarea','Badge','Chip','Spinner',
       'Image','Camera','Link','Video','List','Card','Segment',
       'Separator','Spacer','Container','Chart','Map','Sound',
-      'page','console','notify','timer','storage','phone','location','motion','ble','alert',
+      'page','console','notify','timer','storage','phone','location','motion','ble','db','alert',
       `"use strict";\n${code}`
     )(
       Toolbar,Button,FAB,Input,LabelledInput,Searchbar,
@@ -1117,7 +1117,7 @@ export function executeCode(
       Heading,Label,TextBox,Textarea,Badge,Chip,Spinner,
       Image,Camera,Link,Video,List,Card,Segment,
       Separator,Spacer,Container,Chart,MapEl,Sound,
-      page,console,notify,timer,storage,phone,location,motion,ble,
+      page,console,notify,timer,storage,phone,location,motion,ble,db,
       // Plain alert() → in-app alert: the browser's alert() blocks repaint, so a
       // toggle tapped just before it still looks unchanged while the dialog is up
       (message: unknown) => notify.alert(message)

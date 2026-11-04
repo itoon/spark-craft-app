@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AppElement } from "../../app/composables/useEditorStore";
 import {
@@ -7,6 +7,7 @@ import {
   type LearningRequirementContext,
   type LearningRequirement,
 } from "../../app/utils/learningRequirements";
+import { loadSqlEngine } from "../../app/utils/sqlEngine";
 
 function makeElement(id: string, type: string, pageId = "page1"): AppElement {
   return {
@@ -200,5 +201,158 @@ describe("learning requirements", () => {
       { id: "button", met: true, message: "Add a button." },
       { id: "input", met: false, message: "Add an input." },
     ]);
+  });
+});
+
+describe("scenario checks", () => {
+  function withProps(id: string, type: string, props: Record<string, unknown>): AppElement {
+    return { ...makeElement(id, type), props };
+  }
+
+  const elements = [
+    withProps("page1_radio1", "RadioButton", {
+      value: "",
+      content: [{ key: "A", value: "a" }, { key: "B", value: "b" }],
+    }),
+    withProps("page1_radio2", "RadioButton", { value: "" }),
+    withProps("page1_toggle1", "Toggle", { on: false }),
+    withProps("page1_button1", "Button", { content: "ตอบ" }),
+    withProps("page1_label1", "Label", { content: "" }),
+    withProps("page1_list1", "List", { content: [] }),
+  ];
+  const code = `var radio1 = new Radio('page1_radio1');
+var radio2 = new Radio('page1_radio2');
+var toggle1 = new Toggle('page1_toggle1');
+var button1 = new Button('page1_button1');
+var label1 = new Label('page1_label1');
+var list1 = new List('page1_list1');
+[radio1, radio2, toggle1, button1, label1, list1].forEach((item) => page.add(item));
+button1.onClick(() => {
+  label1.text = radio2.value + ' ' + toggle1.on;
+  list1.content = [{ key: 'การบ้านคณิต', value: 'ส่งพรุ่งนี้' }];
+});`;
+
+  const scenario = (actions: Extract<LearningRequirement, { type: "scenario" }>["actions"], pattern: string, prop?: string) =>
+    evaluateLearningRequirement(
+      {
+        id: "s",
+        type: "scenario",
+        actions,
+        expect: { kind: "text", elementType: prop ? "List" : "Label", prop, pattern },
+        message: "",
+      },
+      { elements, currentPageId: "page1", jsCode: code },
+    );
+
+  it("sets Radio and Toggle values with a set action (picked by index within the type)", () => {
+    const result = scenario(
+      [
+        { type: "set", elementType: "RadioButton", index: 1, value: "b" },
+        { type: "set", elementType: "Toggle", value: true },
+        { type: "click", match: "ตอบ" },
+      ],
+      "^b true$",
+    );
+    expect(result.met).toBe(true);
+  });
+
+  it("matches text inside array props such as List content", () => {
+    expect(scenario([{ type: "click", match: "ตอบ" }], "การบ้านคณิต", "content").met).toBe(true);
+    expect(scenario([], "การบ้านคณิต", "content").met).toBe(false);
+  });
+});
+
+describe("scenario checks with the db service", () => {
+  const elements = [{ ...makeElement("page1_label1", "Label"), props: { content: "" } }];
+  const dbCode = `var label1 = new Label('page1_label1');
+label1.content = db.one('SELECT n FROM s').n;
+page.add(label1);`;
+  const plainCode = `var label1 = new Label('page1_label1');
+label1.content = 'hello';
+page.add(label1);`;
+
+  const scenarioFor = (code: string, expectPattern: string): Extract<LearningRequirement, { type: "scenario" }> & {
+    code: string;
+  } => ({
+    id: "s",
+    type: "scenario",
+    db: "CREATE TABLE s (n); INSERT INTO s VALUES (5);",
+    expect: { kind: "text", elementType: "Label", pattern: expectPattern },
+    message: "",
+    code,
+  });
+
+  afterEach(() => {
+    vi.doUnmock("sql.js");
+    vi.resetModules();
+  });
+
+  it("seeds the database with the scenario's db and lets the code read it", async () => {
+    await loadSqlEngine();
+    const requirement = scenarioFor(dbCode, "^5$");
+    const result = evaluateLearningRequirement(requirement, {
+      elements,
+      currentPageId: "page1",
+      jsCode: dbCode,
+    });
+    expect(result.met).toBe(true);
+  });
+
+  it("closes the dry-run database after a scenario that used db", async () => {
+    const engine = await loadSqlEngine();
+    const close = vi.spyOn(engine.Database.prototype, "close");
+    try {
+      const result = evaluateLearningRequirement(scenarioFor(dbCode, "^5$"), {
+        elements,
+        currentPageId: "page1",
+        jsCode: dbCode,
+      });
+      expect(result.met).toBe(true);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
+  });
+
+  it("closes the dry-run database after a snapshot-based check that used db", async () => {
+    const engine = await loadSqlEngine();
+    const close = vi.spyOn(engine.Database.prototype, "close");
+    const code = `var label1 = new Label('page1_label1');
+db.run('CREATE TABLE s (n)');
+page.add(label1);`;
+    try {
+      const result = evaluateLearningRequirement(
+        { id: "r", type: "runtime-added", elementType: "Label", minCount: 1, message: "" },
+        { elements, currentPageId: "page1", jsCode: code },
+      );
+      expect(result.met).toBe(true);
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      close.mockRestore();
+    }
+  });
+
+  it("waits (not met) while the engine has not loaded", async () => {
+    vi.resetModules();
+    vi.doMock("sql.js", () => ({ default: () => new Promise(() => {}) }));
+    const fresh = await import("../../app/utils/learningRequirements");
+    const result = fresh.evaluateLearningRequirement(scenarioFor(dbCode, "^5$"), {
+      elements,
+      currentPageId: "page1",
+      jsCode: dbCode,
+    });
+    expect(result).toMatchObject({ met: false, detail: "กำลังโหลดฐานข้อมูล" });
+  });
+
+  it("leaves scenarios that never touch db unaffected when the engine has not loaded", async () => {
+    vi.resetModules();
+    vi.doMock("sql.js", () => ({ default: () => new Promise(() => {}) }));
+    const fresh = await import("../../app/utils/learningRequirements");
+    const result = fresh.evaluateLearningRequirement(scenarioFor(plainCode, "^hello$"), {
+      elements,
+      currentPageId: "page1",
+      jsCode: plainCode,
+    });
+    expect(result.met).toBe(true);
   });
 });

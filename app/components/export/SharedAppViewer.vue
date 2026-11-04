@@ -104,6 +104,7 @@ import { useRuntimeNotifications } from "~/composables/useRuntimeNotifications";
 import { detectPhonePlatform } from "~/utils/platformDetect";
 import type { ConsoleEntry } from "~/composables/useRuntime";
 import type { RuntimeServices } from "~/utils/runtimeServices";
+import { createDbAwareRunner } from "~/utils/sqlEngine";
 
 const props = defineProps<{
   payload: SharedExportPayload;
@@ -170,6 +171,9 @@ const { scale: desktopScale } = usePreviewDeviceScale(desktopPreviewRef, activeD
 // page.onShow / page.onLeave of the page that is showing now.
 // Declared before the immediate watcher below, which calls runCode() right away.
 let pageHandlers: RuntimePageHandlers = { show: null, leave: null };
+// Waits for the SQL engine (only when the project uses `db`) before running the code
+const runDbAware = createDbAwareRunner();
+let unmounted = false;
 
 watch(
   () => [props.payload.startPageId, props.payload.elements, props.payload.jsCodeByPage],
@@ -182,10 +186,16 @@ watch(
 );
 
 function runCode() {
+  runDbAware(props.payload.jsCodeByPage, runCodeNow);
+}
+
+function runCodeNow(engineOk: boolean) {
+  if (unmounted) return;
   disposeServices();
   pageHandlers = { show: null, leave: null };
   notifications.clear();
   runtimeError.value = "";
+  if (!engineOk) emit("log", { type: "warn", message: "โหลดฐานข้อมูลไม่สำเร็จ — คำสั่ง db จะใช้ไม่ได้" });
   // This page's elements plus app-wide ones (Sound)
   const allElements = elementState.value.filter((element) => isOnPage(element, currentPageId.value));
   // Page without code (Code tab never opened): same scaffold the editor's Run uses
@@ -320,6 +330,7 @@ function handleRunEvent(id: string, name: string, payload?: unknown) {
 }
 
 onBeforeUnmount(() => {
+  unmounted = true;
   disposeServices();
   stopAllSounds();
   notifications.clear();
